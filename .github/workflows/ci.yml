@@ -1,0 +1,144 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  # ── Core API (Go) ────────────────────────────────────────────────────────────
+  test-api:
+    name: API — Test & Lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/api/go.mod
+          cache-dependency-path: apps/api/go.sum
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run tests
+        run: go test ./... -coverprofile=coverage.out -covermode=atomic
+
+      - name: Check coverage (mínimo 60%)
+        run: |
+          COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | tr -d '%')
+          echo "Coverage: ${COVERAGE}%"
+          if (( $(echo "$COVERAGE < 60" | bc -l) )); then
+            echo "Coverage ${COVERAGE}% está por debajo del mínimo (60%)"
+            exit 1
+          fi
+
+      - name: Build check
+        run: go build ./...
+
+  # ── AI Service (Python) ──────────────────────────────────────────────────────
+  test-ai:
+    name: AI Service — Test & Lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/ai
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: apps/ai/requirements*.txt
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Lint with ruff
+        run: ruff check .
+
+      - name: Run tests
+        run: pytest tests/ -v --tb=short
+
+  # ── Web (Next.js) ────────────────────────────────────────────────────────────
+  test-web:
+    name: Web — Test & Lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Run tests
+        run: npm run test -- --run
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+  # ── Docker build check ───────────────────────────────────────────────────────
+  build-check:
+    name: Docker Build Check
+    runs-on: ubuntu-latest
+    # Solo en PRs para no alargar el pipeline de main
+    if: github.event_name == 'pull_request'
+    needs: [test-api, test-ai, test-web]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build API image (sin push)
+        uses: docker/build-push-action@v5
+        with:
+          context: apps/api
+          file: apps/api/Dockerfile
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build Web image (sin push)
+        uses: docker/build-push-action@v5
+        with:
+          context: apps/web
+          file: apps/web/Dockerfile
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build AI image (sin push)
+        uses: docker/build-push-action@v5
+        with:
+          context: apps/ai
+          file: apps/ai/Dockerfile
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

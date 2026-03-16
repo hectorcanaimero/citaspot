@@ -1,0 +1,23 @@
+# Datasource PostgreSQL — provisionado automáticamente al iniciar Grafana
+# El usuario grafana_user tiene BYPASSRLS y SELECT-only en todas las tablas
+apiVersion: 1
+
+datasources:
+  - name: CitaSpot PostgreSQL
+    uid: citaspot-postgres
+    type: grafana-postgresql-datasource
+    access: proxy
+    url: postgres:5432       # Nombre del servicio en Docker Compose
+    database: citaspot
+    user: grafana_user
+    secureJsonData:
+      password: $GRAFANA_DB_PASSWORD   # Inyectado por Docker desde el .env
+    jsonData:
+      sslmode: disable
+      postgresVersion: 1600            # PostgreSQL 16
+      timescaledb: false
+      maxOpenConns: 10
+      maxIdleConns: 2
+      connMaxLifetime: 14400
+    isDefault: true
+    editable: false                    # No modificable desde la UI

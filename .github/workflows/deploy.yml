@@ -1,0 +1,103 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+# Secrets requeridos en GitHub → Settings → Secrets and variables → Actions:
+#   GHCR_TOKEN           → GitHub personal access token con write:packages
+#   COOLIFY_WEBHOOK_API  → URL del webhook de deploy de Coolify
+#   COOLIFY_WEBHOOK_API_TOKEN → Token del webhook de Coolify
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}
+
+jobs:
+  # ── Construir y publicar imágenes Docker ─────────────────────────────────────
+  build-push:
+    name: Build & Push Images
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      image_tag: ${{ steps.meta.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login a GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_TOKEN }}
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_PREFIX }}/citaspot-api
+          tags: |
+            type=sha,prefix=,format=short
+            type=raw,value=latest
+
+      # API (Go)
+      - name: Build & Push API
+        uses: docker/build-push-action@v5
+        with:
+          context: apps/api
+          file: apps/api/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE_PREFIX }}/citaspot-api:latest
+            ${{ env.IMAGE_PREFIX }}/citaspot-api:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Web (Next.js)
+      - name: Build & Push Web
+        uses: docker/build-push-action@v5
+        with:
+          context: apps/web
+          file: apps/web/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE_PREFIX }}/citaspot-web:latest
+            ${{ env.IMAGE_PREFIX }}/citaspot-web:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # AI Service (Python)
+      - name: Build & Push AI Service
+        uses: docker/build-push-action@v5
+        with:
+          context: apps/ai
+          file: apps/ai/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE_PREFIX }}/citaspot-ai:latest
+            ${{ env.IMAGE_PREFIX }}/citaspot-ai:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ── Disparar deploy en Coolify ───────────────────────────────────────────────
+  deploy:
+    name: Deploy via Coolify
+    runs-on: ubuntu-latest
+    needs: build-push
+
+    steps:
+      - name: Trigger Coolify deploy
+        run: |
+          curl -fsSL \
+            -X GET \
+            -H "Authorization: Bearer ${{ secrets.COOLIFY_WEBHOOK_API_TOKEN }}" \
+            "${{ secrets.COOLIFY_WEBHOOK_API }}"
+        # Coolify actualiza los contenedores con las imágenes :latest recién publicadas

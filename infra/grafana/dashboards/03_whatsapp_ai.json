@@ -1,0 +1,231 @@
+{
+  "uid": "citaspot-whatsapp-ai",
+  "title": "WhatsApp & IA",
+  "description": "Conversaciones, tasa de handoff, tokens y costo del LLM",
+  "tags": ["citaspot", "whatsapp", "ai"],
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "5m",
+  "time": { "from": "now-30d", "to": "now" },
+  "timezone": "browser",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [],
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Conversaciones Activas",
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "citaspot-postgres" },
+      "options": {
+        "colorMode": "background", "graphMode": "none", "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] } },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-postgresql-datasource", "uid": "citaspot-postgres" },
+          "format": "table",
+          "rawSql": "SELECT COUNT(*) AS value FROM conversations WHERE status = 'active'",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Tasa de Handoff",
+      "description": "Conversaciones escaladas a humano / total",
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 0 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "citaspot-postgres" },
+      "options": {
+        "colorMode": "background", "graphMode": "none", "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 15 }, { "color": "red", "value": 30 }] }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-postgresql-datasource", "uid": "citaspot-postgres" },
+          "format": "table",
+          "rawSql": "SELECT ROUND(100.0 * COUNT(*) FILTER (WHERE status = 'handed_off') / NULLIF(COUNT(*), 0), 1) AS value FROM conversations WHERE $__timeFilter(created_at)",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Tokens Usados (período)",
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 0 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "citaspot-postgres" },
+      "options": {
+        "colorMode": "value", "graphMode": "none", "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-postgresql-datasource", "uid": "citaspot-postgres" },
+          "format": "table",
+          "rawSql": "SELECT COALESCE(SUM(tokens), 0) AS value FROM rpt_ai_tokens_daily WHERE $__timeFilter(day)",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Costo IA Estimado (USD)",
+      "description": "Gemini 2.5 Flash ≈ $0.075 / 1M tokens",
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 0 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "citaspot-postgres" },
+      "options": {
+        "colorMode": "background", "graphMode": "none", "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 4,
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 1 }, { "color": "red", "value": 10 }] }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-postgresql-datasource", "uid": "citaspot-postgres" },
+          "format": "table",
+          "rawSql": "SELECT COALESCE(SUM(cost_usd), 0) AS value FROM rpt_ai_tokens_daily WHERE $__timeFilter(day)",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Tokens IA por Día",
+      "gridPos": { "h": 9, "w": 14, "x": 0, "y": 4 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "citaspot-postgres" },
+      "options": {
+        "tooltip": { "mode": "multi", "sort": "none" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 2, "fillOpacity": 10 } },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-postgresql-datasource", "uid": "citaspot-postgres" },
+          "format": "time_series",
+          "rawSql": "SELECT day AS time, SUM(tokens) AS \"Tokens\", SUM(conversations) AS \"Conversaciones\", SUM(messages) AS \"Mensajes\" FROM rpt_ai_tokens_daily WHERE $__timeFilter(day) GROUP BY day ORDER BY day",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "piechart",
+      "title": "Estado Conversaciones",
+      "gridPos": { "h": 9, "w": 10, "x": 14, "y": 4 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "citaspot-postgres" },
+      "options": {
+        "displayLabels": ["name", "percent"],
+        "legend": { "displayMode": "table", "placement": "right", "values": ["value", "percent"] },
+        "pieType": "donut",
+        "tooltip": { "mode": "single" }
+      },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" } },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-postgresql-datasource", "uid": "citaspot-postgres" },
+          "format": "table",
+          "rawSql": "SELECT status AS metric, COUNT(*) AS value FROM conversations WHERE $__timeFilter(created_at) GROUP BY status ORDER BY value DESC",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Notificaciones WA por Día",
+      "gridPos": { "h": 8, "w": 14, "x": 0, "y": 13 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "citaspot-postgres" },
+      "options": {
+        "tooltip": { "mode": "multi", "sort": "none" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 2, "fillOpacity": 10 } },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-postgresql-datasource", "uid": "citaspot-postgres" },
+          "format": "time_series",
+          "rawSql": "SELECT day AS time, SUM(total) FILTER (WHERE status = 'sent') AS \"Enviados\", SUM(total) FILTER (WHERE status = 'delivered') AS \"Entregados\", SUM(total) FILTER (WHERE status = 'failed') AS \"Fallidos\" FROM rpt_notifications_daily WHERE $__timeFilter(day) GROUP BY day ORDER BY day",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "piechart",
+      "title": "Tipos de Notificación",
+      "gridPos": { "h": 8, "w": 10, "x": 14, "y": 13 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "citaspot-postgres" },
+      "options": {
+        "displayLabels": ["name", "percent"],
+        "legend": { "displayMode": "table", "placement": "right", "values": ["value", "percent"] },
+        "pieType": "pie",
+        "tooltip": { "mode": "single" }
+      },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" } },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-postgresql-datasource", "uid": "citaspot-postgres" },
+          "format": "table",
+          "rawSql": "SELECT type AS metric, SUM(total) AS value FROM rpt_notifications_daily WHERE $__timeFilter(day) GROUP BY type ORDER BY value DESC",
+          "refId": "A"
+        }
+      ]
+    }
+  ],
+  "templating": { "list": [] },
+  "annotations": { "list": [] },
+  "timepicker": {}
+}

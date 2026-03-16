@@ -1,0 +1,206 @@
+{
+  "uid": "citaspot-customers",
+  "title": "Clientes & Retención",
+  "description": "Adquisición de clientes, recurrencia, opt-in WhatsApp y actividad reciente",
+  "tags": ["citaspot", "customers", "retention"],
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10m",
+  "time": { "from": "now-90d", "to": "now" },
+  "timezone": "browser",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [],
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Total Clientes",
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "citaspot-postgres" },
+      "options": {
+        "colorMode": "background", "graphMode": "none", "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] } },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-postgresql-datasource", "uid": "citaspot-postgres" },
+          "format": "table",
+          "rawSql": "SELECT COUNT(*) AS value FROM customers",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Clientes Recurrentes",
+      "description": "Con más de 1 visita registrada",
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 0 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "citaspot-postgres" },
+      "options": {
+        "colorMode": "background", "graphMode": "none", "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] } },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-postgresql-datasource", "uid": "citaspot-postgres" },
+          "format": "table",
+          "rawSql": "SELECT COUNT(*) AS value FROM customers WHERE total_visits > 1",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Tasa Opt-In WhatsApp",
+      "description": "Clientes que aceptaron recibir mensajes",
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 0 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "citaspot-postgres" },
+      "options": {
+        "colorMode": "background", "graphMode": "none", "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": 60 }, { "color": "green", "value": 80 }] }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-postgresql-datasource", "uid": "citaspot-postgres" },
+          "format": "table",
+          "rawSql": "SELECT ROUND(100.0 * COUNT(*) FILTER (WHERE wa_opt_in = true) / NULLIF(COUNT(*), 0), 1) AS value FROM customers",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Activos Últimos 30 días",
+      "description": "Con visita en los últimos 30 días",
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 0 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "citaspot-postgres" },
+      "options": {
+        "colorMode": "background", "graphMode": "none", "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] } },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-postgresql-datasource", "uid": "citaspot-postgres" },
+          "format": "table",
+          "rawSql": "SELECT COUNT(*) AS value FROM customers WHERE last_visit >= CURRENT_DATE - INTERVAL '30 days'",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Nuevos Clientes por Semana",
+      "gridPos": { "h": 9, "w": 16, "x": 0, "y": 4 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "citaspot-postgres" },
+      "options": {
+        "tooltip": { "mode": "single", "sort": "none" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "fixed", "fixedColor": "blue" }, "custom": { "lineWidth": 2, "fillOpacity": 15 } },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-postgresql-datasource", "uid": "citaspot-postgres" },
+          "format": "time_series",
+          "rawSql": "SELECT DATE_TRUNC('week', created_at) AS time, COUNT(*) AS \"Nuevos Clientes\" FROM customers WHERE $__timeFilter(created_at) GROUP BY 1 ORDER BY 1",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "piechart",
+      "title": "Recurrentes vs Nuevos",
+      "gridPos": { "h": 9, "w": 8, "x": 16, "y": 4 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "citaspot-postgres" },
+      "options": {
+        "displayLabels": ["name", "percent"],
+        "legend": { "displayMode": "table", "placement": "right", "values": ["value", "percent"] },
+        "pieType": "donut",
+        "tooltip": { "mode": "single" }
+      },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" } },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-postgresql-datasource", "uid": "citaspot-postgres" },
+          "format": "table",
+          "rawSql": "SELECT CASE WHEN total_visits > 1 THEN 'Recurrentes' ELSE 'Nuevos (1 visita)' END AS metric, COUNT(*) AS value FROM customers GROUP BY 1 ORDER BY value DESC",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "barchart",
+      "title": "Distribución por Actividad (last_visit)",
+      "description": "Segmentación por tiempo desde la última visita",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 13 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "citaspot-postgres" },
+      "options": {
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0,
+        "barRadius": 0.1,
+        "groupWidth": 0.7,
+        "stacking": "none",
+        "showValue": "auto",
+        "tooltip": { "mode": "single", "sort": "none" },
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "orientation": "auto"
+      },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" }, "custom": { "fillOpacity": 80 } },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-postgresql-datasource", "uid": "citaspot-postgres" },
+          "format": "table",
+          "rawSql": "SELECT segment AS \"Segmento\", COUNT(*) AS \"Clientes\" FROM (   SELECT     CASE       WHEN last_visit >= CURRENT_DATE - INTERVAL '30 days'  THEN 'Activos 0-30d'       WHEN last_visit >= CURRENT_DATE - INTERVAL '60 days'  THEN 'Activos 31-60d'       WHEN last_visit >= CURRENT_DATE - INTERVAL '90 days'  THEN 'Activos 61-90d'       WHEN last_visit IS NOT NULL                           THEN 'Inactivos >90d'       ELSE 'Sin visita'     END AS segment   FROM customers ) t GROUP BY segment ORDER BY MIN(CASE segment   WHEN 'Activos 0-30d'  THEN 1   WHEN 'Activos 31-60d' THEN 2   WHEN 'Activos 61-90d' THEN 3   WHEN 'Inactivos >90d' THEN 4   ELSE 5 END)",
+          "refId": "A"
+        }
+      ]
+    }
+  ],
+  "templating": { "list": [] },
+  "annotations": { "list": [] },
+  "timepicker": {}
+}

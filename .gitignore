@@ -1,0 +1,47 @@
+# Credenciales — NUNCA al repo
+.env
+*.env.local
+*.env.*.local
+
+# Dependencias
+node_modules/
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+
+# Go binaries
+apps/api/server
+apps/api/migrate
+apps/api/tmp/
+
+# Test coverage
+coverage/
+*.out
+.coverage
+htmlcov/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Docker volumes (datos locales)
+postgres_data/
+redis_data/
+
+# Logs
+*.log
+
+# Claude
+.claude/
+.agents/
+skills-lock.json

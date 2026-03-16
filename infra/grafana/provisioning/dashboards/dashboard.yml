@@ -1,0 +1,13 @@
+# Dashboard provider — carga archivos JSON desde /var/lib/grafana/dashboards/
+apiVersion: 1
+
+providers:
+  - name: CitaSpot
+    type: file
+    disableDeletion: false    # Permitir eliminar desde la UI (se re-carga al reiniciar)
+    editable: true            # Permitir editar desde la UI
+    updateIntervalSeconds: 30 # Re-leer archivos cada 30s (útil en desarrollo)
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

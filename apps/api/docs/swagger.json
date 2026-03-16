@@ -1,0 +1,517 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "CitaSpot API",
+    "description": "API REST del Core de CitaSpot — gestión de citas, profesionales, servicios, booking público y autenticación multi-tenant.",
+    "version": "1.0.0",
+    "contact": {
+      "name": "CitaSpot"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080",
+      "description": "Desarrollo local"
+    }
+  ],
+  "tags": [
+    { "name": "Health", "description": "Estado del servicio" },
+    { "name": "Auth", "description": "Registro, login y refresh de tokens" },
+    { "name": "Public", "description": "Booking público por slug (sin JWT)" },
+    { "name": "Me", "description": "Usuario y tenant actual (protegido)" },
+    { "name": "Professionals", "description": "Profesionales del negocio" },
+    { "name": "Services", "description": "Servicios ofrecidos" },
+    { "name": "Appointments", "description": "Citas y disponibilidad" },
+    { "name": "Knowledge", "description": "Base de conocimiento para el asistente IA" },
+    { "name": "Customers", "description": "Clientes del negocio" },
+    { "name": "WhatsApp", "description": "Estado de sesión WhatsApp" },
+    { "name": "Billing", "description": "Checkout y webhooks de pago" }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Health check",
+        "description": "Verifica que el Core API esté en ejecución.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "ok" },
+                    "service": { "type": "string", "example": "citaspot-api" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/register": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Registro",
+        "description": "Crea un nuevo tenant y su usuario propietario.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password", "name", "business_name", "business_type"],
+                "properties": {
+                  "email": { "type": "string", "format": "email" },
+                  "password": { "type": "string", "minLength": 8 },
+                  "name": { "type": "string", "minLength": 2 },
+                  "business_name": { "type": "string", "minLength": 2 },
+                  "business_type": { "type": "string", "enum": ["beauty", "dental", "wellness", "barbershop", "clinic"] },
+                  "city": { "type": "string" },
+                  "country": { "type": "string", "maxLength": 2 },
+                  "timezone": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Tenant y usuario creados; retorna token y refresh_token" },
+          "400": { "description": "Datos inválidos" },
+          "409": { "description": "Email o slug ya existente" }
+        }
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Login",
+        "description": "Autentica y retorna JWT y refresh_token.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                  "email": { "type": "string", "format": "email" },
+                  "password": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Token y datos de usuario/tenant" },
+          "401": { "description": "Credenciales incorrectas" }
+        }
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Refresh token",
+        "description": "Renueva el access_token usando el refresh_token.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["refresh_token"],
+                "properties": {
+                  "refresh_token": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Nuevo token" },
+          "401": { "description": "Token inválido o expirado" }
+        }
+      }
+    },
+    "/api/v1/public/{slug}": {
+      "get": {
+        "tags": ["Public"],
+        "summary": "Perfil público",
+        "description": "Perfil del negocio por slug con servicios y profesionales.",
+        "parameters": [
+          { "name": "slug", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Perfil con services y professionals" },
+          "404": { "description": "Slug no encontrado" }
+        }
+      }
+    },
+    "/api/v1/public/{slug}/availability": {
+      "get": {
+        "tags": ["Public"],
+        "summary": "Disponibilidad",
+        "description": "Slots disponibles para un profesional, servicio y fecha.",
+        "parameters": [
+          { "name": "slug", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "professional_id", "in": "query", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "service_id", "in": "query", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "date", "in": "query", "required": true, "schema": { "type": "string", "format": "date" } },
+          { "name": "timezone", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Objeto con data: array de { starts_at, ends_at }" },
+          "400": { "description": "Parámetros inválidos" }
+        }
+      }
+    },
+    "/api/v1/public/{slug}/book": {
+      "post": {
+        "tags": ["Public"],
+        "summary": "Reservar (booking público)",
+        "description": "Crea una cita sin autenticación; requiere customer_name/customer_phone.",
+        "parameters": [
+          { "name": "slug", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["professional_id", "service_id", "starts_at", "customer_name", "customer_phone"],
+                "properties": {
+                  "professional_id": { "type": "string", "format": "uuid" },
+                  "service_id": { "type": "string", "format": "uuid" },
+                  "starts_at": { "type": "string", "format": "date-time" },
+                  "customer_name": { "type": "string" },
+                  "customer_phone": { "type": "string" },
+                  "customer_email": { "type": "string" },
+                  "notes": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Cita creada" },
+          "400": { "description": "Datos inválidos" },
+          "409": { "description": "Horario no disponible" }
+        }
+      }
+    },
+    "/api/v1/me": {
+      "get": {
+        "tags": ["Me"],
+        "summary": "Usuario y tenant actual",
+        "description": "Devuelve el usuario y tenant del JWT. Requiere Authorization: Bearer &lt;token&gt;.",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Objeto con user y tenant"
+          },
+          "401": { "description": "No autorizado" }
+        }
+      }
+    },
+    "/api/v1/professionals": {
+      "get": {
+        "tags": ["Professionals"],
+        "summary": "Listar profesionales",
+        "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "Lista de profesionales" } }
+      },
+      "post": {
+        "tags": ["Professionals"],
+        "summary": "Crear profesional",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name"],
+                "properties": {
+                  "name": { "type": "string" },
+                  "specialty": { "type": "string" },
+                  "bio": { "type": "string" },
+                  "avatar_url": { "type": "string" },
+                  "color": { "type": "string" },
+                  "is_active": { "type": "boolean" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Profesional creado" } }
+      }
+    },
+    "/api/v1/professionals/{id}": {
+      "get": {
+        "tags": ["Professionals"],
+        "summary": "Obtener profesional",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": { "200": { "description": "Profesional" }, "404": { "description": "No encontrado" } }
+      },
+      "patch": {
+        "tags": ["Professionals"],
+        "summary": "Actualizar profesional",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": { "200": { "description": "Actualizado" }, "404": { "description": "No encontrado" } }
+      }
+    },
+    "/api/v1/professionals/{id}/schedule": {
+      "get": {
+        "tags": ["Professionals"],
+        "summary": "Obtener horario",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": { "200": { "description": "Horario semanal" } }
+      },
+      "put": {
+        "tags": ["Professionals"],
+        "summary": "Definir horario",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": { "200": { "description": "Horario guardado" } }
+      }
+    },
+    "/api/v1/services": {
+      "get": {
+        "tags": ["Services"],
+        "summary": "Listar servicios",
+        "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "Lista de servicios" } }
+      },
+      "post": {
+        "tags": ["Services"],
+        "summary": "Crear servicio",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "duration_min"],
+                "properties": {
+                  "name": { "type": "string" },
+                  "description": { "type": "string" },
+                  "duration_min": { "type": "integer" },
+                  "price": { "type": "number" },
+                  "currency": { "type": "string" },
+                  "buffer_min": { "type": "integer" },
+                  "sort_order": { "type": "integer" },
+                  "is_active": { "type": "boolean" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Servicio creado" } }
+      }
+    },
+    "/api/v1/services/{id}": {
+      "get": {
+        "tags": ["Services"],
+        "summary": "Obtener servicio",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": { "200": { "description": "Servicio" }, "404": { "description": "No encontrado" } }
+      },
+      "patch": {
+        "tags": ["Services"],
+        "summary": "Actualizar servicio",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": { "200": { "description": "Actualizado" }, "404": { "description": "No encontrado" } }
+      }
+    },
+    "/api/v1/appointments/availability": {
+      "get": {
+        "tags": ["Appointments"],
+        "summary": "Disponibilidad (dashboard)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "professional_id", "in": "query", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "service_id", "in": "query", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "name": "date", "in": "query", "required": true, "schema": { "type": "string", "format": "date" } },
+          { "name": "timezone", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Slots disponibles" } }
+      }
+    },
+    "/api/v1/appointments": {
+      "get": {
+        "tags": ["Appointments"],
+        "summary": "Listar citas",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "from", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "to", "in": "query", "schema": { "type": "string", "format": "date" } }
+        ],
+        "responses": { "200": { "description": "Lista de citas" } }
+      },
+      "post": {
+        "tags": ["Appointments"],
+        "summary": "Crear cita",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["professional_id", "service_id", "starts_at"],
+                "properties": {
+                  "professional_id": { "type": "string", "format": "uuid" },
+                  "service_id": { "type": "string", "format": "uuid" },
+                  "starts_at": { "type": "string", "format": "date-time" },
+                  "customer_id": { "type": "string", "format": "uuid" },
+                  "notes": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Cita creada" }, "409": { "description": "Horario no disponible" } }
+      }
+    },
+    "/api/v1/appointments/{id}": {
+      "get": {
+        "tags": ["Appointments"],
+        "summary": "Obtener cita",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": { "200": { "description": "Cita" }, "404": { "description": "No encontrado" } }
+      },
+      "patch": {
+        "tags": ["Appointments"],
+        "summary": "Actualizar cita",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": { "200": { "description": "Actualizado" } }
+      }
+    },
+    "/api/v1/appointments/{id}/cancel": {
+      "delete": {
+        "tags": ["Appointments"],
+        "summary": "Cancelar cita",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": { "200": { "description": "Cancelada" }, "404": { "description": "No encontrado" } }
+      }
+    },
+    "/api/v1/knowledge": {
+      "get": {
+        "tags": ["Knowledge"],
+        "summary": "Listar documentos de conocimiento",
+        "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "Lista de documentos" } }
+      },
+      "post": {
+        "tags": ["Knowledge"],
+        "summary": "Crear documento",
+        "security": [{ "bearerAuth": [] }],
+        "responses": { "201": { "description": "Documento creado" } }
+      }
+    },
+    "/api/v1/knowledge/{id}": {
+      "get": {
+        "tags": ["Knowledge"],
+        "summary": "Obtener documento",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": { "200": { "description": "Documento" } }
+      },
+      "put": {
+        "tags": ["Knowledge"],
+        "summary": "Actualizar documento",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": { "200": { "description": "Actualizado" } }
+      },
+      "delete": {
+        "tags": ["Knowledge"],
+        "summary": "Eliminar documento",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": { "200": { "description": "Eliminado" } }
+      }
+    },
+    "/api/v1/customers": {
+      "get": {
+        "tags": ["Customers"],
+        "summary": "Listar clientes",
+        "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "Lista de clientes" } }
+      }
+    },
+    "/api/v1/whatsapp/status": {
+      "get": {
+        "tags": ["WhatsApp"],
+        "summary": "Estado de sesión WhatsApp",
+        "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "Estado CONNECTED / DISCONNECTED" } }
+      }
+    },
+    "/api/v1/billing/checkout": {
+      "post": {
+        "tags": ["Billing"],
+        "summary": "Crear sesión de checkout Stripe",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "price_id": { "type": "string" },
+                  "success_url": { "type": "string" },
+                  "cancel_url": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "URL de checkout" } }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Token JWT obtenido de /auth/login o /auth/refresh"
+      }
+    }
+  }
+}

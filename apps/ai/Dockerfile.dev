@@ -1,0 +1,22 @@
+# Dockerfile de desarrollo para el AI Service (Python)
+# Uvicorn con --reload para hot-reload automático
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Dependencias del sistema necesarias para compilar extensiones C
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends gcc && \
+    rm -rf /var/lib/apt/lists/*
+
+# Instalar dependencias primero para aprovechar cache de Docker
+COPY requirements.txt requirements-dev.txt ./
+RUN pip install --no-cache-dir -r requirements.txt -r requirements-dev.txt
+
+# Copiar código fuente
+COPY . .
+
+EXPOSE 8001
+
+# Uvicorn con --reload para desarrollo
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001", "--reload"]

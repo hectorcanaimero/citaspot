@@ -1,0 +1,24 @@
+# Dockerfile de desarrollo para el Core API (Go)
+# Usa Air para hot-reload automático al guardar archivos .go
+# Go 1.24 para alinear con dependencias (validator, x/crypto, etc.)
+FROM golang:1.24-alpine
+
+# Dependencias del sistema
+RUN apk add --no-cache git
+
+# Instalar Air para hot-reload — v1.52.3 es compatible con Go 1.22
+RUN go install github.com/air-verse/air@v1.52.3
+
+WORKDIR /app
+
+# Copiar módulos primero para aprovechar cache de Docker
+COPY go.mod go.sum* ./
+RUN go mod download
+
+# Copiar el código fuente
+COPY . .
+
+EXPOSE 3001
+
+# Air lee la configuración de .air.toml
+CMD ["air", "-c", ".air.toml"]

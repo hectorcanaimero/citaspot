@@ -1,0 +1,19 @@
+# Dockerfile de desarrollo para el frontend (Next.js)
+# npm run dev con hot-reload automático
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Instalar dependencias primero para aprovechar cache de Docker
+COPY package.json package-lock.json* ./
+RUN npm install
+
+# Copiar el código fuente
+COPY . .
+
+EXPOSE 3000
+
+# Desactivar telemetría de Next.js en desarrollo
+ENV NEXT_TELEMETRY_DISABLED=1
+
+CMD ["npm", "run", "dev"]

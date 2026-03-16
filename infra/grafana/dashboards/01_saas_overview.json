@@ -1,0 +1,241 @@
+{
+  "uid": "citaspot-saas-overview",
+  "title": "SaaS Overview",
+  "description": "Métricas globales del SaaS: tenants, MRR, crecimiento y WhatsApp",
+  "tags": ["citaspot", "saas", "admin"],
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "5m",
+  "time": { "from": "now-30d", "to": "now" },
+  "timezone": "browser",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [],
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Tenants Activos",
+      "description": "Tenants con plan activo o en trial",
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "citaspot-postgres" },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] } },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-postgresql-datasource", "uid": "citaspot-postgres" },
+          "format": "table",
+          "rawSql": "SELECT COUNT(*) AS value FROM tenants WHERE plan_status IN ('active', 'trialing')",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "MRR Estimado (USD)",
+      "description": "Basic $10 · Pro $20 · Clinic $25",
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 0 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "citaspot-postgres" },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-postgresql-datasource", "uid": "citaspot-postgres" },
+          "format": "table",
+          "rawSql": "SELECT COALESCE(SUM(CASE plan WHEN 'basic' THEN 10 WHEN 'pro' THEN 20 WHEN 'clinic' THEN 25 ELSE 0 END), 0) AS value FROM tenants WHERE plan_status = 'active'",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "WA Conectados",
+      "description": "Tenants con WhatsApp activo",
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 0 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "citaspot-postgres" },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] } },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-postgresql-datasource", "uid": "citaspot-postgres" },
+          "format": "table",
+          "rawSql": "SELECT COUNT(*) AS value FROM tenants WHERE wa_status = 'connected'",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Total Tenants",
+      "description": "Todos los tenants registrados",
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 0 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "citaspot-postgres" },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] } },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-postgresql-datasource", "uid": "citaspot-postgres" },
+          "format": "table",
+          "rawSql": "SELECT COUNT(*) AS value FROM tenants",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Nuevos Tenants por Semana",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "citaspot-postgres" },
+      "options": {
+        "tooltip": { "mode": "single", "sort": "none" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "lineWidth": 2, "fillOpacity": 10 }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-postgresql-datasource", "uid": "citaspot-postgres" },
+          "format": "time_series",
+          "rawSql": "SELECT DATE_TRUNC('week', created_at) AS time, COUNT(*) AS \"Nuevos Tenants\" FROM tenants WHERE $__timeFilter(created_at) GROUP BY 1 ORDER BY 1",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "piechart",
+      "title": "Distribución por Plan",
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 4 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "citaspot-postgres" },
+      "options": {
+        "displayLabels": ["name", "percent"],
+        "legend": { "displayMode": "table", "placement": "right", "values": ["value", "percent"] },
+        "pieType": "donut",
+        "tooltip": { "mode": "single" }
+      },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" } },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-postgresql-datasource", "uid": "citaspot-postgres" },
+          "format": "table",
+          "rawSql": "SELECT plan AS metric, COUNT(*) AS value FROM tenants GROUP BY plan ORDER BY value DESC",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "piechart",
+      "title": "Distribución por País",
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 4 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "citaspot-postgres" },
+      "options": {
+        "displayLabels": ["name", "percent"],
+        "legend": { "displayMode": "table", "placement": "right", "values": ["value", "percent"] },
+        "pieType": "pie",
+        "tooltip": { "mode": "single" }
+      },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" } },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-postgresql-datasource", "uid": "citaspot-postgres" },
+          "format": "table",
+          "rawSql": "SELECT country AS metric, COUNT(*) AS value FROM tenants GROUP BY country ORDER BY value DESC",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "table",
+      "title": "Top Tenants por Actividad",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 12 },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "citaspot-postgres" },
+      "options": {
+        "sortBy": [{ "displayName": "Citas", "desc": true }],
+        "footer": { "show": false }
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "mrr_usd" }, "properties": [{ "id": "unit", "value": "currencyUSD" }, { "id": "displayName", "value": "MRR" }] },
+          { "matcher": { "id": "byName", "options": "total_appointments" }, "properties": [{ "id": "displayName", "value": "Citas" }] },
+          { "matcher": { "id": "byName", "options": "total_customers" }, "properties": [{ "id": "displayName", "value": "Clientes" }] },
+          { "matcher": { "id": "byName", "options": "plan_status" }, "properties": [{ "id": "displayName", "value": "Estado" }] },
+          { "matcher": { "id": "byName", "options": "wa_status" }, "properties": [{ "id": "displayName", "value": "WhatsApp" }] }
+        ]
+      },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-postgresql-datasource", "uid": "citaspot-postgres" },
+          "format": "table",
+          "rawSql": "SELECT name, business_type, country, plan, plan_status, wa_status, total_appointments, total_customers, mrr_usd FROM rpt_tenant_kpis ORDER BY total_appointments DESC LIMIT 20",
+          "refId": "A"
+        }
+      ]
+    }
+  ],
+  "templating": { "list": [] },
+  "annotations": { "list": [] },
+  "timepicker": {}
+}
