@@ -87,9 +87,6 @@ def _extract_xlsx(data: bytes) -> str:
         if not sheet_rows:
             continue
 
-        # Primera fila como encabezado si tiene valores
-        header = [str(cell.value).strip() for cell in sheet_rows[0] if cell.value is not None]
-
         for row in sheet_rows:
             values = [str(cell.value).strip() for cell in row if cell.value is not None]
             if values:

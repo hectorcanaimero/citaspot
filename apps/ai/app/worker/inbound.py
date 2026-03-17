@@ -9,8 +9,8 @@ import aio_pika
 import structlog
 from aio_pika.abc import AbstractIncomingMessage
 
-from app.core.config import settings
 from app.agent.orchestrator import process_message
+from app.core.config import settings
 
 log = structlog.get_logger(__name__)
 

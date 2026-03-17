@@ -160,9 +160,9 @@ describe('Sidebar', () => {
     expect(aside?.className).toContain('w-60');
   });
 
-  it('la nav contiene exactamente 9 ítems', () => {
+  it('la nav contiene exactamente 10 ítems', () => {
     render(<Sidebar />);
     const links = document.querySelectorAll('nav a');
-    expect(links).toHaveLength(9);
+    expect(links).toHaveLength(10);
   });
 });

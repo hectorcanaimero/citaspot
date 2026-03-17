@@ -1,10 +1,10 @@
 # LLM Router — Gemini 1.5 Flash (primario) con fallback a GPT-4o-mini.
 from __future__ import annotations
 
-import structlog
 from typing import Any
 
 import google.generativeai as genai
+import structlog
 from openai import AsyncOpenAI
 
 from app.core.config import settings

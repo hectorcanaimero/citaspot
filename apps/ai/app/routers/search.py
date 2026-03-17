@@ -1,9 +1,8 @@
 # POST /search — búsqueda semántica en la knowledge base de un tenant.
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
-
 from fastapi import APIRouter
+from pydantic import BaseModel, Field
 
 from app.rag.store import search as rag_search
 

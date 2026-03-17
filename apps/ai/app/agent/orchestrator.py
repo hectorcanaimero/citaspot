@@ -3,8 +3,9 @@ from __future__ import annotations
 
 import asyncio
 import os
-import structlog
 from typing import Any
+
+import structlog
 
 from app.agent.actions import (
     book_appointment,

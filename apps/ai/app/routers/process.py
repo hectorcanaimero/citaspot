@@ -2,9 +2,8 @@
 # En producción, el procesamiento ocurre vía RabbitMQ; este endpoint es para testing/debug.
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
-
 from fastapi import APIRouter
+from pydantic import BaseModel, Field
 
 from app.agent.orchestrator import process_message
 
