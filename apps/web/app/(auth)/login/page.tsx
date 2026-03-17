@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button }  from '@/components/ui/button';
@@ -9,7 +9,7 @@ import { Card }    from '@/components/ui/card';
 import { createClient } from '@/lib/supabase/browser';
 import { useTranslations } from '@/lib/i18n';
 
-export default function LoginPage() {
+function LoginForm() {
   const t      = useTranslations();
   const router = useRouter();
   const params = useSearchParams();
@@ -91,5 +91,13 @@ export default function LoginPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   );
 }
