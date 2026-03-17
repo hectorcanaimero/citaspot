@@ -5,9 +5,9 @@ on:
     branches: [main]
 
 # Secrets requeridos en GitHub → Settings → Secrets and variables → Actions:
-#   GHCR_TOKEN           → GitHub personal access token con write:packages
 #   COOLIFY_WEBHOOK_API  → URL del webhook de deploy de Coolify
 #   COOLIFY_WEBHOOK_API_TOKEN → Token del webhook de Coolify
+# Nota: ghcr.io usa secrets.GITHUB_TOKEN automático (permissions: packages: write)
 
 env:
   REGISTRY: ghcr.io
@@ -37,7 +37,7 @@ jobs:
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_TOKEN }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Docker metadata
         id: meta
