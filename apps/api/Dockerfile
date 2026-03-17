@@ -16,22 +16,23 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o server ./cmd/server
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o migrate ./cmd/migrate
 
 # ── Stage 2: Runtime ──────────────────────────────────────────────────────────
-# distroless: sin shell, sin package manager, sin utilidades — superficie de ataque mínima
-FROM gcr.io/distroless/static-debian12
+FROM alpine:3.19
 
 WORKDIR /app
+
+# wget y ca-certificates para healthcheck y llamadas HTTPS
+RUN apk add --no-cache ca-certificates wget \
+ && addgroup -S appgroup \
+ && adduser -S appuser -G appgroup
 
 # Copiar binarios compilados y migraciones SQL
 COPY --from=builder /app/server .
 COPY --from=builder /app/migrate .
 COPY --from=builder /app/db ./db
 
-# Certificados TLS para llamadas HTTPS (Evolution API, Stripe, Supabase)
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-
 EXPOSE 3001
 
 # Correr como usuario no root
-USER nonroot:nonroot
+USER appuser
 
 CMD ["./server"]
