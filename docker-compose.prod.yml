@@ -187,7 +187,7 @@ services:
 
   # ── Evolution API (WhatsApp) ──────────────────────────────
   evolution:
-    image: atendai/evolution-api:v2.3.7
+    image: atendai/evolution-api:v2.2.3
     container_name: citaspot_evolution
     labels:
       - traefik.enable=true
