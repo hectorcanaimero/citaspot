@@ -7,12 +7,7 @@ from typing import Any
 
 import structlog
 
-from app.agent.actions import (
-    book_appointment,
-    get_availability,
-    get_tenant_profile,
-    rag_query,
-)
+from app.agent.actions import book_appointment, get_availability, get_tenant_profile, rag_query
 from app.agent.intent import Intent, detect as detect_intent
 from app.agent.messages import get_messages
 from app.agent.state import ConvState, get_state, reset_state, save_state
