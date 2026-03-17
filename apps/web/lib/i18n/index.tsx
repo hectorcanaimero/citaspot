@@ -11,7 +11,12 @@ import { en as enTranslations } from './locales/en';
 import { pt as ptTranslations } from './locales/pt';
 
 export type Language = 'es' | 'en' | 'pt';
-export type Translations = typeof esTranslations;
+
+// Convierte todos los valores hoja a string para que los distintos idiomas sean asignables.
+type StringValues<T> = {
+  readonly [K in keyof T]: T[K] extends object ? StringValues<T[K]> : string;
+};
+export type Translations = StringValues<typeof esTranslations>;
 
 const STORAGE_KEY = 'citaspot_language';
 
