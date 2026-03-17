@@ -405,6 +405,10 @@ func (m *mockAuthRepo) UpdateTenantWAStatus(ctx context.Context, slug, status st
 	return nil
 }
 
+func (m *mockAuthRepo) FindConnectedTenantSlugs(ctx context.Context) ([]string, error) {
+	return nil, nil
+}
+
 func (m *mockAuthRepo) UpdateTenantBilling(ctx context.Context, tenantID uuid.UUID, plan, planStatus, stripeCustomerID, stripeSubID string) error {
 	if m.updateTenantBillingFn != nil {
 		return m.updateTenantBillingFn(ctx, tenantID, plan, planStatus, stripeCustomerID, stripeSubID)

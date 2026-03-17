@@ -7,12 +7,11 @@ import uvicorn
 from fastapi import FastAPI
 
 from app.core.config import settings
-from app.core.logging_config import configure_logging
 from app.core.database import close_pool
+from app.core.logging_config import configure_logging
 from app.core.rabbitmq import close as close_rabbitmq
 from app.core.redis import close_redis
-from app.routers import health
-from app.routers import process, vectorize, search
+from app.routers import health, process, search, vectorize
 
 configure_logging(env=settings.app_env)
 log = structlog.get_logger(__name__)

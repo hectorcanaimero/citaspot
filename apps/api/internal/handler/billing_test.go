@@ -13,7 +13,7 @@ import (
 func newBillingHandler(repo *mockAuthRepo) *handler.BillingHandler {
 	// Stripe key vacía: las llamadas reales a Stripe fallarán, pero los tests de
 	// validación de input no llegan al punto de llamar a Stripe.
-	return handler.NewBillingHandler(repo, "", "test-webhook-secret", "price_starter_test", "price_pro_test")
+	return handler.NewBillingHandler(repo, nil, "", "test-webhook-secret", "price_starter_test", "price_pro_test")
 }
 
 func TestBillingHandler_CreateCheckout(t *testing.T) {

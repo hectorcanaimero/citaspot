@@ -182,6 +182,7 @@ export default function WhatsAppPage() {
                 <div className="flex flex-col items-center gap-3 rounded-lg border border-primary-100 bg-primary-50 p-5">
                   <p className="text-sm font-medium text-primary-800">{t.whatsapp.scanQR}</p>
                   {qr ? (
+                    // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={qr}
                       alt="QR WhatsApp"
