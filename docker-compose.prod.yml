@@ -14,7 +14,6 @@ services:
   # ── Base de Datos ─────────────────────────────────────────
   postgres:
     image: pgvector/pgvector:pg16
-    container_name: citaspot_postgres
     environment:
       POSTGRES_DB: citaspot
       POSTGRES_USER: ${POSTGRES_USER}
@@ -38,7 +37,6 @@ services:
   # ── Cache ─────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
-    container_name: citaspot_redis
     command: redis-server --requirepass ${REDIS_PASSWORD} --maxmemory 128mb --maxmemory-policy allkeys-lru
     # Sin puerto expuesto al host — solo acceso interno
     volumes:
@@ -56,7 +54,6 @@ services:
   # ── Message Queue ─────────────────────────────────────────
   rabbitmq:
     image: rabbitmq:3.13-alpine
-    container_name: citaspot_rabbitmq
     # Sin UI de administración en producción (rabbitmq:3.13-alpine en lugar de management)
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
@@ -76,7 +73,6 @@ services:
   # ── Core API (Go) ─────────────────────────────────────────
   api:
     image: ghcr.io/${GITHUB_OWNER}/citaspot-api:latest
-    container_name: citaspot_api
     labels:
       - traefik.enable=true
       - traefik.http.routers.citaspot-api.rule=Host(`api.citaspot.com`)
@@ -126,7 +122,6 @@ services:
   # ── AI Service (Python) ───────────────────────────────────
   ai:
     image: ghcr.io/${GITHUB_OWNER}/citaspot-ai:latest
-    container_name: citaspot_ai
     environment:
       APP_ENV: production
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/citaspot
@@ -157,7 +152,6 @@ services:
   # ── Web (Next.js) ─────────────────────────────────────────
   web:
     image: ghcr.io/${GITHUB_OWNER}/citaspot-web:latest
-    container_name: citaspot_web
     labels:
       - traefik.enable=true
       - traefik.http.routers.citaspot-web.rule=Host(`citaspot.com`) || Host(`www.citaspot.com`)
@@ -189,7 +183,6 @@ services:
   # ── Evolution API (WhatsApp) ──────────────────────────────
   evolution:
     image: atendai/evolution-api:v2.2.3
-    container_name: citaspot_evolution
     labels:
       - traefik.enable=true
       - traefik.http.routers.citaspot-evolution.rule=Host(`evolution.citaspot.com`)
@@ -228,7 +221,6 @@ services:
   # ── Reportes (Grafana) ────────────────────────────────────
   grafana:
     image: grafana/grafana
-    container_name: citaspot_grafana
     labels:
       - traefik.enable=true
       - traefik.http.routers.citaspot-grafana.rule=Host(`grafana.citaspot.com`)
