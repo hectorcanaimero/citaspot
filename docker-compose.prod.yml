@@ -73,6 +73,8 @@ services:
   # ── Core API (Go) ─────────────────────────────────────────
   api:
     image: ghcr.io/${GITHUB_OWNER}/citaspot-api:latest
+    networks:
+      - coolify
     labels:
       - traefik.enable=true
       - traefik.http.routers.citaspot-api.rule=Host(`api.citaspot.com`)
@@ -151,6 +153,8 @@ services:
   # ── Web (Next.js) ─────────────────────────────────────────
   web:
     image: ghcr.io/${GITHUB_OWNER}/citaspot-web:latest
+    networks:
+      - coolify
     labels:
       - traefik.enable=true
       - traefik.http.routers.citaspot-web.rule=Host(`citaspot.com`) || Host(`www.citaspot.com`)
@@ -182,6 +186,8 @@ services:
   # ── Evolution API (WhatsApp) ──────────────────────────────
   evolution:
     image: atendai/evolution-api:v2.2.3
+    networks:
+      - coolify
     labels:
       - traefik.enable=true
       - traefik.http.routers.citaspot-evolution.rule=Host(`evolution.citaspot.com`)
@@ -220,6 +226,8 @@ services:
   # ── Reportes (Grafana) ────────────────────────────────────
   grafana:
     image: grafana/grafana
+    networks:
+      - coolify
     labels:
       - traefik.enable=true
       - traefik.http.routers.citaspot-grafana.rule=Host(`grafana.citaspot.com`)
@@ -256,3 +264,7 @@ volumes:
   rabbitmq_data:
   evolution_data:
   grafana_data:
+
+networks:
+  coolify:
+    external: true
