@@ -1,0 +1,208 @@
+# CitaSpot — Docker Swarm Stack para Portainer + Traefik
+#
+# ⚠️  Solo contiene: api · ai · web
+#     postgres · redis · rabbitmq · evolution · grafana
+#     están en el servidor Coolify → infra/coolify/docker-compose.infra.yml
+#
+# ── Pre-requisitos ─────────────────────────────────────────────────────────────
+#
+#   1. Red overlay de Traefik (si no existe):
+#        docker network create --driver overlay --attachable traefik-public
+#      ⚠️  Si tu Traefik usa otro nombre, cambia TODAS las referencias
+#          a "traefik-public" en este archivo.
+#
+#   2. Infra en Coolify ya desplegada y puertos 5432, 6379, 5672 accesibles
+#      desde este servidor (ver sección Firewall en el compose de infra).
+#
+#   3. Migraciones aplicadas antes del primer deploy (ver sección Migraciones).
+#
+# ── Desplegar ──────────────────────────────────────────────────────────────────
+#
+#   Desde Portainer:
+#     Stacks → Add stack → Upload → seleccionar este archivo
+#     Añadir env vars en la sección "Environment variables"
+#
+#   Desde CLI:
+#     export $(cat .env.swarm | xargs)
+#     docker stack deploy -c docker-stack.yml citaspot
+#
+# ── Migraciones ────────────────────────────────────────────────────────────────
+#
+#   Las migraciones se corren UNA VEZ contra el postgres del servidor Coolify.
+#   Desde el servidor Swarm (o tu máquina local con VPN/acceso al puerto):
+#
+#     # Opción A — runner en Docker (recomendado en el servidor Swarm):
+#     docker run --rm \
+#       -e DATABASE_URL="postgresql://user:pass@<COOLIFY_IP>:5432/citaspot" \
+#       ghcr.io/${GITHUB_OWNER}/citaspot-api:latest \
+#       /app/migrate
+#
+#     # Opción B — desde tu máquina local (requiere acceso al puerto 5432):
+#     DATABASE_URL="postgresql://user:pass@<COOLIFY_IP>:5432/citaspot" make migrate
+#
+# ── Variables de entorno requeridas ────────────────────────────────────────────
+#   # Conexiones al servidor Coolify (usar IP privada si hay red privada)
+#   DATABASE_URL          → postgresql://user:pass@<COOLIFY_IP>:5432/citaspot
+#   REDIS_URL             → redis://:pass@<COOLIFY_IP>:6379
+#   RABBITMQ_URL          → amqp://user:pass@<COOLIFY_IP>:5672/
+#   # Evolution (vive en Coolify, se llama por URL pública)
+#   EVOLUTION_API_URL     → https://evolution.citaspot.com
+#   EVOLUTION_API_KEY, WEBHOOK_URL, WEBHOOK_SECRET
+#   # Auth
+#   JWT_SECRET
+#   SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY
+#   # IA
+#   GEMINI_API_KEY, OPENAI_API_KEY
+#   # Pagos
+#   STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_PRICE_STARTER, STRIPE_PRICE_PRO
+#   CORS_ORIGINS
+#   NEXT_PUBLIC_API_URL   → https://api.citaspot.com
+#   GITHUB_OWNER
+# ──────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── Core API (Go) ────────────────────────────────────────────────────────────
+  api:
+    image: ghcr.io/${GITHUB_OWNER}/citaspot-api:latest
+    networks:
+      - internal
+      - traefik-public
+    environment:
+      APP_ENV: production
+      PORT: "3001"
+      # Conexiones externas al servidor Coolify
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      RABBITMQ_URL: ${RABBITMQ_URL}
+      # Evolution en Coolify — llamado por URL pública (HTTPS)
+      EVOLUTION_API_URL: ${EVOLUTION_API_URL}
+      EVOLUTION_API_KEY: ${EVOLUTION_API_KEY}
+      WEBHOOK_URL: ${WEBHOOK_URL}
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET}
+      # Auth
+      JWT_SECRET: ${JWT_SECRET}
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      # AI service — en el mismo stack Swarm
+      AI_SERVICE_URL: http://ai:8001
+      # Pagos
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
+      STRIPE_PRICE_STARTER: ${STRIPE_PRICE_STARTER}
+      STRIPE_PRICE_PRO: ${STRIPE_PRICE_PRO}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/health/ready || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: start-first
+      resources:
+        limits:
+          memory: 256M
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=traefik-public
+        - traefik.http.routers.citaspot-api.rule=Host(`api.citaspot.com`)
+        - traefik.http.routers.citaspot-api.entrypoints=https
+        - traefik.http.routers.citaspot-api.tls.certresolver=letsencrypt
+        - traefik.http.services.citaspot-api.loadbalancer.server.port=3001
+
+  # ── AI Service (Python) ──────────────────────────────────────────────────────
+  ai:
+    image: ghcr.io/${GITHUB_OWNER}/citaspot-ai:latest
+    networks:
+      - internal
+    environment:
+      APP_ENV: production
+      # Conexiones externas al servidor Coolify
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      RABBITMQ_URL: ${RABBITMQ_URL}
+      # Core API en el mismo stack
+      CORE_API_URL: http://api:3001/api/v1
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8001/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: start-first
+      resources:
+        limits:
+          memory: 512M
+
+  # ── Web (Next.js) ────────────────────────────────────────────────────────────
+  web:
+    image: ghcr.io/${GITHUB_OWNER}/citaspot-web:latest
+    networks:
+      - internal
+      - traefik-public
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+      NEXT_PUBLIC_SUPABASE_URL: ${SUPABASE_URL}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: start-first
+      resources:
+        limits:
+          memory: 256M
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=traefik-public
+        - traefik.http.routers.citaspot-web.rule=Host(`citaspot.com`) || Host(`www.citaspot.com`)
+        - traefik.http.routers.citaspot-web.entrypoints=https
+        - traefik.http.routers.citaspot-web.tls.certresolver=letsencrypt
+        - traefik.http.services.citaspot-web.loadbalancer.server.port=3000
+
+networks:
+  # Red overlay privada entre api, ai y web — sin exposición al exterior
+  internal:
+    driver: overlay
+    attachable: false
+
+  # Red overlay compartida con Traefik — debe existir antes del deploy
+  # Si tu Traefik usa otro nombre: cambiar aquí y en todos los deploy.labels
+  traefik-public:
+    external: true

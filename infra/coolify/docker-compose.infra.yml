@@ -1,0 +1,208 @@
+# CitaSpot — Stack de infraestructura para Coolify
+#
+# Contiene: PostgreSQL · Redis · RabbitMQ · Evolution API · Grafana
+#
+# ── Cómo desplegar en Coolify ─────────────────────────────────────────────────
+#
+#   1. Coolify UI → Projects → New Resource → Docker Compose
+#   2. Pegar el contenido de este archivo
+#   3. Añadir las variables de entorno (ver infra/coolify/env.example)
+#   4. En "Files" (pestaña del compose), subir el archivo:
+#        Source: ./infra/postgres/init-multiple-db.sh
+#        Destination: /data/init-multiple-db.sh
+#      Este script crea la base de datos "evolution" junto a "citaspot".
+#   5. Deploy
+#
+# ── Cómo exponer postgres/redis/rabbitmq al servidor de Swarm ─────────────────
+#
+#   Opción A — Firewall por IP (recomendado):
+#     En el proveedor VPS (Hetzner, DO, etc.) o en UFW:
+#       ufw allow from <IP_SWARM_SERVER> to any port 5432
+#       ufw allow from <IP_SWARM_SERVER> to any port 6379
+#       ufw allow from <IP_SWARM_SERVER> to any port 5672
+#
+#   Opción B — Red privada del proveedor (Hetzner Private Network, DO VPC):
+#     Usar la IP privada del servidor Coolify en los env vars del stack Swarm.
+#     Más seguro: los puertos no están expuestos al internet público.
+#
+# ── Variables requeridas ──────────────────────────────────────────────────────
+#   POSTGRES_USER, POSTGRES_PASSWORD
+#   REDIS_PASSWORD
+#   RABBITMQ_USER, RABBITMQ_PASS
+#   EVOLUTION_API_KEY, WEBHOOK_URL
+#   GRAFANA_ADMIN_PASSWORD, GRAFANA_DOMAIN
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── Base de Datos ────────────────────────────────────────────────────────────
+  postgres:
+    image: pgvector/pgvector:pg16
+    networks:
+      - coolify
+    environment:
+      POSTGRES_DB: citaspot
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_MULTIPLE_DATABASES: evolution
+    ports:
+      # Exponer al host para que el servidor Swarm pueda conectarse
+      # Asegurar con firewall: solo permitir la IP del servidor Swarm
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Script que crea la DB "evolution" en el primer arranque
+      # Subir el archivo en Coolify → Files: /data/init-multiple-db.sh
+      - /data/init-multiple-db.sh:/docker-entrypoint-initdb.d/init-multiple-db.sh
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d citaspot"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # ── Cache ────────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    networks:
+      - coolify
+    command: redis-server --requirepass ${REDIS_PASSWORD} --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      # Exponer al host — asegurar con firewall
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  # ── Message Queue ────────────────────────────────────────────────────────────
+  rabbitmq:
+    image: rabbitmq:3.13-alpine
+    networks:
+      - coolify
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
+    ports:
+      # Puerto AMQP — exponer al host — asegurar con firewall
+      - "5672:5672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  # ── Evolution API (WhatsApp) ─────────────────────────────────────────────────
+  evolution:
+    image: atendai/evolution-api:v2.2.3
+    networks:
+      - coolify
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.citaspot-evolution.rule=Host(`evolution.citaspot.com`)
+      - traefik.http.routers.citaspot-evolution.entrypoints=https
+      - traefik.http.routers.citaspot-evolution.tls.certresolver=letsencrypt
+      - traefik.http.services.citaspot-evolution.loadbalancer.server.port=8080
+    environment:
+      SERVER_URL: https://evolution.citaspot.com
+      AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY}
+      DATABASE_ENABLED: "true"
+      DATABASE_PROVIDER: postgresql
+      # Evolution y citaspot en el mismo postgres — red interna de Coolify
+      DATABASE_CONNECTION_URI: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/evolution
+      RABBITMQ_ENABLED: "false"
+      WEBHOOK_GLOBAL_URL: ${WEBHOOK_URL}
+      WEBHOOK_GLOBAL_ENABLED: "true"
+      WEBHOOK_GLOBAL_WEBHOOK_BY_EVENTS: "false"
+      DEL_INSTANCE: "false"
+      LANGUAGE: es
+    volumes:
+      - evolution_data:/evolution/instances
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/manager || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # ── Reportes (Grafana) ───────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana
+    networks:
+      - coolify
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.citaspot-grafana.rule=Host(`grafana.citaspot.com`)
+      - traefik.http.routers.citaspot-grafana.entrypoints=https
+      - traefik.http.routers.citaspot-grafana.tls.certresolver=letsencrypt
+      - traefik.http.services.citaspot-grafana.loadbalancer.server.port=3000
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+      GF_SERVER_DOMAIN: ${GRAFANA_DOMAIN}
+      GF_SERVER_HTTP_PORT: "3000"
+      GF_SECURITY_ALLOW_EMBEDDING: "true"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_USERS_DEFAULT_THEME: dark
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_LOG_MODE: console
+      GF_LOG_LEVEL: warn
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  rabbitmq_data:
+    driver: local
+  evolution_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+networks:
+  # Red gestionada por Coolify — Traefik la usa para enrutar tráfico
+  coolify:
+    external: true

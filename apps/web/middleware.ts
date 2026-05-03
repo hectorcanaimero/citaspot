@@ -43,7 +43,12 @@ export async function middleware(request: NextRequest) {
   // getUser() verifica el token con Supabase y renueva si es necesario
   const {
     data: { user },
+    error: authError,
   } = await supabase.auth.getUser();
+
+  console.log('[middleware] path:', request.nextUrl.pathname, '| user:', user?.id ?? 'null', '| error:', authError?.message ?? 'none');
+  console.log('[middleware] supabaseUrl:', process.env.NEXT_PUBLIC_SUPABASE_URL?.substring(0, 40));
+  console.log('[middleware] cookies:', request.cookies.getAll().map(c => c.name).join(', ') || 'ninguna');
 
   if (!user) {
     const loginUrl = request.nextUrl.clone();

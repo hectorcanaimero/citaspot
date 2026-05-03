@@ -3,8 +3,8 @@
 // El token lo gestiona Supabase SDK (@supabase/ssr) — no usamos localStorage manualmente.
 
 import { createClient } from '@/lib/supabase/browser';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
+console.log('NEXT_PUBLIC_API_URL', process.env.NEXT_PUBLIC_API_URL);
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.citaspot.com';
 
 export class APIError extends Error {
   /** Código legible por máquina devuelto por el backend (e.g. "not_found").
@@ -14,7 +14,7 @@ export class APIError extends Error {
   constructor(
     public status: number,
     message: string,
-    code?: string
+    code?: string,
   ) {
     super(message);
     this.name = 'APIError';
@@ -27,7 +27,9 @@ export class APIError extends Error {
 async function getToken(): Promise<string | null> {
   if (typeof window === 'undefined') return null;
   const supabase = createClient();
-  const { data: { session } } = await supabase.auth.getSession();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
   return session?.access_token ?? null;
 }
 
@@ -154,7 +156,7 @@ export const auth = {
       const body = await res.json().catch(() => ({ error: 'Error al registrarse' }));
       throw new APIError(res.status, body.error ?? 'Error al registrarse');
     }
-    const result = await res.json() as {
+    const result = (await res.json()) as {
       token: string;
       refresh_token: string;
       user: UserDTO;
@@ -165,7 +167,7 @@ export const auth = {
     if (typeof window !== 'undefined') {
       const supabase = createClient();
       await supabase.auth.setSession({
-        access_token:  result.token,
+        access_token: result.token,
         refresh_token: result.refresh_token,
       });
     }
@@ -185,10 +187,7 @@ export const appointments = {
     return request(`/api/v1/appointments?date=${date}&timezone=${encodeURIComponent(tz)}`);
   },
 
-  async updateStatus(
-    id: string,
-    update: { status?: string; internal_notes?: string; cancellation_reason?: string }
-  ) {
+  async updateStatus(id: string, update: { status?: string; internal_notes?: string; cancellation_reason?: string }) {
     return request(`/api/v1/appointments/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(update),
@@ -205,7 +204,7 @@ export const appointments = {
   async availability(professionalId: string, serviceId: string, date: string): Promise<{ data: TimeSlot[] }> {
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
     return request(
-      `/api/v1/appointments/availability?professional_id=${professionalId}&service_id=${serviceId}&date=${date}&timezone=${encodeURIComponent(tz)}`
+      `/api/v1/appointments/availability?professional_id=${professionalId}&service_id=${serviceId}&date=${date}&timezone=${encodeURIComponent(tz)}`,
     );
   },
 };
@@ -214,16 +213,16 @@ export const appointments = {
 
 export interface Schedule {
   day_of_week: number; // 0=Dom, 1=Lun, ..., 6=Sáb
-  start_time:  string; // "HH:MM"
-  end_time:    string; // "HH:MM"
-  is_active:   boolean;
+  start_time: string; // "HH:MM"
+  end_time: string; // "HH:MM"
+  is_active: boolean;
 }
 
 export interface ProfessionalInput {
-  name:       string;
+  name: string;
   specialty?: string;
-  bio?:       string;
-  color?:     string;
+  bio?: string;
+  color?: string;
   is_active?: boolean;
 }
 
@@ -235,14 +234,14 @@ export const professionals = {
   async create(data: ProfessionalInput): Promise<Professional> {
     return request('/api/v1/professionals', {
       method: 'POST',
-      body:   JSON.stringify(data),
+      body: JSON.stringify(data),
     });
   },
 
   async update(id: string, data: Partial<ProfessionalInput>): Promise<Professional> {
     return request(`/api/v1/professionals/${id}`, {
       method: 'PATCH',
-      body:   JSON.stringify(data),
+      body: JSON.stringify(data),
     });
   },
 
@@ -253,7 +252,7 @@ export const professionals = {
   async setSchedule(id: string, schedules: Omit<Schedule, never>[]): Promise<{ data: Schedule[] }> {
     return request(`/api/v1/professionals/${id}/schedule`, {
       method: 'PUT',
-      body:   JSON.stringify(schedules),
+      body: JSON.stringify(schedules),
     });
   },
 };
@@ -455,7 +454,9 @@ export const whatsapp = {
       if (typeof window === 'undefined') return null;
       const { createClient } = await import('@/lib/supabase/browser');
       const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       return session?.access_token ?? null;
     })();
     const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
@@ -485,7 +486,7 @@ export interface StripeSubscription {
 export interface StripeInvoice {
   id: string;
   number: string;
-  amount: number;     // centavos
+  amount: number; // centavos
   currency: string;
   status: string;
   created_at: string;
@@ -497,7 +498,7 @@ export const billing = {
   async checkout(plan: 'starter' | 'professional', successUrl: string, cancelUrl: string): Promise<{ url: string }> {
     return request('/api/v1/billing/checkout', {
       method: 'POST',
-      body:   JSON.stringify({ plan, success_url: successUrl, cancel_url: cancelUrl }),
+      body: JSON.stringify({ plan, success_url: successUrl, cancel_url: cancelUrl }),
     });
   },
 
