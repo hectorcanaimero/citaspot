@@ -1,17 +1,72 @@
-# CitaSpot — Ambiente de producción
-# Uso: docker compose -f docker-compose.prod.yml up -d
+# CitaSpot — Producción standalone (un solo VPS, sin Swarm ni Coolify)
 #
-# Diferencias vs docker-compose.yml (desarrollo):
-# - Imágenes compiladas (Dockerfile sin sufijo, multi-stage)
-# - Sin bind mounts de código fuente
-# - restart: always en todos los servicios
-# - Límites de recursos (memory)
-# - Postgres y RabbitMQ sin puertos expuestos al host
-# - RabbitMQ sin UI de administración
-# - Variables de entorno secretas desde el .env del host (no hardcodeadas)
+# Requisito mínimo: VPS 4GB RAM
+# Consumo estimado: ~2.5GB (queda ~1.5GB para OS + Docker)
+#
+# ── Primer deploy ──────────────────────────────────────────────────────────────
+#
+#   1. Copiar .env.prod.example → .env.prod y llenar los valores
+#
+#   2. Crear la red de Traefik (una sola vez):
+#        docker network create traefik-public
+#
+#   3. Login en GHCR (una sola vez):
+#        echo $GHCR_TOKEN | docker login ghcr.io -u $GITHUB_OWNER --password-stdin
+#
+#   4. Levantar todo:
+#        docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+#
+#   5. Aplicar migraciones:
+#        docker compose -f docker-compose.prod.yml exec api ./migrate
+#
+# ── Actualizar imágenes ────────────────────────────────────────────────────────
+#
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod pull api ai web
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d api ai web
+#
+# ── Ver logs ───────────────────────────────────────────────────────────────────
+#
+#   docker compose -f docker-compose.prod.yml logs -f api ai web
+#
 
 services:
-  # ── Base de Datos ─────────────────────────────────────────
+
+  # ═══════════════════════════════════════════════════════════════════════════════
+  # REVERSE PROXY
+  # ═══════════════════════════════════════════════════════════════════════════════
+
+  traefik:
+    image: traefik:v3.4
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=traefik-public
+      - --entrypoints.http.address=:80
+      - --entrypoints.https.address=:443
+      - --entrypoints.http.http.redirections.entrypoint.to=https
+      - --entrypoints.http.http.redirections.entrypoint.scheme=https
+      - --certificatesresolvers.letsencrypt.acme.tlschallenge=true
+      - --certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}
+      - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
+      - --log.level=WARN
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik_certs:/letsencrypt
+    networks:
+      - traefik-public
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+  # ═══════════════════════════════════════════════════════════════════════════════
+  # INFRAESTRUCTURA
+  # ═══════════════════════════════════════════════════════════════════════════════
+
   postgres:
     image: pgvector/pgvector:pg16
     networks:
@@ -21,33 +76,46 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_MULTIPLE_DATABASES: evolution
-    # En producción: no exponer postgres al host — solo acceso interno entre contenedores
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./infra/postgres/init-multiple-db.sh:/docker-entrypoint-initdb.d/init-multiple-db.sh
+    # Tuning conservador para VPS 4GB
+    command:
+      - postgres
+      - -c
+      - shared_buffers=128MB
+      - -c
+      - effective_cache_size=256MB
+      - -c
+      - work_mem=4MB
+      - -c
+      - maintenance_work_mem=64MB
+      - -c
+      - max_connections=50
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d citaspot"]
       interval: 10s
       timeout: 5s
       retries: 10
+      start_period: 30s
     restart: always
     deploy:
       resources:
         limits:
           memory: 512M
 
-  # ── Cache ─────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
     networks:
       - internal
-    command: redis-server --requirepass ${REDIS_PASSWORD} --maxmemory 128mb --maxmemory-policy allkeys-lru
-    # Sin puerto expuesto al host — solo acceso interno
+    # maxmemory 128mb + sin persistencia a disco (save "") = menos I/O
+    command: redis-server --requirepass ${REDIS_PASSWORD} --maxmemory 128mb --maxmemory-policy allkeys-lru --save ""
     volumes:
       - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
+      timeout: 5s
       retries: 5
     restart: always
     deploy:
@@ -55,164 +123,49 @@ services:
         limits:
           memory: 192M
 
-  # ── Message Queue ─────────────────────────────────────────
   rabbitmq:
     image: rabbitmq:3.13-alpine
     networks:
       - internal
-    # Sin UI de administración en producción (rabbitmq:3.13-alpine en lugar de management)
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
+      # Limitar memoria de Erlang VM al 40% del límite del contenedor
+      RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: "-rabbit vm_memory_high_watermark 0.4"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "ping"]
       interval: 15s
+      timeout: 10s
       retries: 10
-    restart: always
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-
-  # ── Core API (Go) ─────────────────────────────────────────
-  api:
-    image: ghcr.io/${GITHUB_OWNER}/citaspot-api:latest
-    networks:
-      - internal
-      - coolify
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.citaspot-api.rule=Host(`api.citaspot.com`)
-      - traefik.http.routers.citaspot-api.entrypoints=https
-      - traefik.http.routers.citaspot-api.tls.certresolver=letsencrypt
-      - traefik.http.services.citaspot-api.loadbalancer.server.port=3001
-    environment:
-      APP_ENV: production
-      PORT: "3001"
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/citaspot
-      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
-      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@rabbitmq:5672/
-      JWT_SECRET: ${JWT_SECRET}
-      SUPABASE_URL: ${SUPABASE_URL}
-      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
-      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
-      EVOLUTION_API_URL: http://evolution:8080
-      EVOLUTION_API_KEY: ${EVOLUTION_API_KEY}
-      WEBHOOK_URL: ${WEBHOOK_URL}
-      WEBHOOK_SECRET: ${WEBHOOK_SECRET}
-      AI_SERVICE_URL: http://ai:8001
-      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
-      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
-      STRIPE_PRICE_STARTER: ${STRIPE_PRICE_STARTER}
-      STRIPE_PRICE_PRO: ${STRIPE_PRICE_PRO}
-      CORS_ORIGINS: ${CORS_ORIGINS}
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/health/ready || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 20s
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    restart: always
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-
-  # ── AI Service (Python) ───────────────────────────────────
-  ai:
-    image: ghcr.io/${GITHUB_OWNER}/citaspot-ai:latest
-    networks:
-      - internal
-    environment:
-      APP_ENV: production
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/citaspot
-      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
-      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@rabbitmq:5672/
-      CORE_API_URL: http://api:3001/api/v1
-      GEMINI_API_KEY: ${GEMINI_API_KEY}
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8001/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
       start_period: 30s
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    restart: always
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-
-  # ── Web (Next.js) ─────────────────────────────────────────
-  web:
-    image: ghcr.io/${GITHUB_OWNER}/citaspot-web:latest
-    networks:
-      - internal
-      - coolify
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.citaspot-web.rule=Host(`citaspot.com`) || Host(`www.citaspot.com`)
-      - traefik.http.routers.citaspot-web.entrypoints=https
-      - traefik.http.routers.citaspot-web.tls.certresolver=letsencrypt
-      - traefik.http.services.citaspot-web.loadbalancer.server.port=3000
-    environment:
-      NODE_ENV: production
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
-      NEXT_PUBLIC_SUPABASE_URL: ${SUPABASE_URL}
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
-      PORT: "3000"
-    healthcheck:
-      test:
-        ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 20s
-    depends_on:
-      api:
-        condition: service_started
     restart: always
     deploy:
       resources:
         limits:
           memory: 256M
 
-  # ── Evolution API (WhatsApp) ──────────────────────────────
   evolution:
     image: atendai/evolution-api:v2.2.3
     networks:
       - internal
-      - coolify
+      - traefik-public
     labels:
       - traefik.enable=true
-      - traefik.http.routers.citaspot-evolution.rule=Host(`evolution.citaspot.com`)
-      - traefik.http.routers.citaspot-evolution.entrypoints=https
-      - traefik.http.routers.citaspot-evolution.tls.certresolver=letsencrypt
-      - traefik.http.services.citaspot-evolution.loadbalancer.server.port=8080
+      - traefik.docker.network=traefik-public
+      - traefik.http.routers.evolution.rule=Host(`evolution.${DOMAIN}`)
+      - traefik.http.routers.evolution.entrypoints=https
+      - traefik.http.routers.evolution.tls.certresolver=letsencrypt
+      - traefik.http.services.evolution.loadbalancer.server.port=8080
     environment:
-      SERVER_URL: https://evolution.citaspot.com
+      SERVER_URL: https://evolution.${DOMAIN}
       AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY}
       DATABASE_ENABLED: "true"
       DATABASE_PROVIDER: postgresql
       DATABASE_CONNECTION_URI: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/evolution
       RABBITMQ_ENABLED: "false"
-      WEBHOOK_GLOBAL_URL: ${WEBHOOK_URL}
+      WEBHOOK_GLOBAL_URL: https://api.${DOMAIN}/api/v1/whatsapp/webhook
       WEBHOOK_GLOBAL_ENABLED: "true"
       WEBHOOK_GLOBAL_WEBHOOK_BY_EVENTS: "false"
       DEL_INSTANCE: "false"
@@ -234,35 +187,54 @@ services:
         limits:
           memory: 512M
 
-  # ── Reportes (Grafana) ────────────────────────────────────
-  grafana:
-    image: grafana/grafana
+  # ═══════════════════════════════════════════════════════════════════════════════
+  # APLICACIONES (imágenes pre-built desde GHCR)
+  # ═══════════════════════════════════════════════════════════════════════════════
+
+  api:
+    image: ghcr.io/${GITHUB_OWNER}/citaspot-api:latest
     networks:
       - internal
-      - coolify
+      - traefik-public
     labels:
       - traefik.enable=true
-      - traefik.http.routers.citaspot-grafana.rule=Host(`grafana.citaspot.com`)
-      - traefik.http.routers.citaspot-grafana.entrypoints=https
-      - traefik.http.routers.citaspot-grafana.tls.certresolver=letsencrypt
-      - traefik.http.services.citaspot-grafana.loadbalancer.server.port=3000
+      - traefik.docker.network=traefik-public
+      - traefik.http.routers.api.rule=Host(`api.${DOMAIN}`)
+      - traefik.http.routers.api.entrypoints=https
+      - traefik.http.routers.api.tls.certresolver=letsencrypt
+      - traefik.http.services.api.loadbalancer.server.port=3001
     environment:
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
-      GF_SERVER_DOMAIN: ${GRAFANA_DOMAIN}
-      GF_SERVER_HTTP_PORT: "3000"
-      GF_SECURITY_ALLOW_EMBEDDING: "true"
-      GF_ANALYTICS_REPORTING_ENABLED: "false"
-      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
-      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
-      GF_USERS_ALLOW_SIGN_UP: "false"
-      GF_USERS_DEFAULT_THEME: dark
-      GF_AUTH_ANONYMOUS_ENABLED: "false"
-      GF_LOG_MODE: console
-      GF_LOG_LEVEL: warn
-    volumes:
-      - grafana_data:/var/lib/grafana
+      APP_ENV: production
+      PORT: "3001"
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/citaspot
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@rabbitmq:5672/
+      JWT_SECRET: ${JWT_SECRET}
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      EVOLUTION_API_URL: http://evolution:8080
+      EVOLUTION_API_KEY: ${EVOLUTION_API_KEY}
+      WEBHOOK_URL: https://api.${DOMAIN}
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET}
+      AI_SERVICE_URL: http://ai:8001
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
+      STRIPE_PRICE_STARTER: ${STRIPE_PRICE_STARTER}
+      STRIPE_PRICE_PRO: ${STRIPE_PRICE_PRO}
+      CORS_ORIGINS: https://${DOMAIN},https://www.${DOMAIN}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/health/ready || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     restart: always
     deploy:
@@ -270,17 +242,79 @@ services:
         limits:
           memory: 256M
 
+  ai:
+    image: ghcr.io/${GITHUB_OWNER}/citaspot-ai:latest
+    # 1 solo worker — suficiente para empezar y ahorra ~150MB
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001", "--workers", "1"]
+    networks:
+      - internal
+    environment:
+      APP_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/citaspot
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@rabbitmq:5672/
+      CORE_API_URL: http://api:3001/api/v1
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8001/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  web:
+    image: ghcr.io/${GITHUB_OWNER}/citaspot-web:latest
+    networks:
+      - internal
+      - traefik-public
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=traefik-public
+      - traefik.http.routers.web.rule=Host(`${DOMAIN}`) || Host(`www.${DOMAIN}`)
+      - traefik.http.routers.web.entrypoints=https
+      - traefik.http.routers.web.tls.certresolver=letsencrypt
+      - traefik.http.services.web.loadbalancer.server.port=3000
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      # NEXT_PUBLIC_* se bake-an en build time de la imagen.
+      # Si necesitas cambiarlas: rebuild la imagen con --build-arg
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
 volumes:
+  traefik_certs:
   postgres_data:
   redis_data:
   rabbitmq_data:
   evolution_data:
-  grafana_data:
 
 networks:
   # Red interna — comunicación entre servicios (no expuesta)
   internal:
     driver: bridge
-  # Red de Coolify — Traefik la usa para descubrir y enrutar tráfico público
-  coolify:
+  # Red de Traefik — servicios con labels se conectan acá para ser expuestos
+  traefik-public:
     external: true

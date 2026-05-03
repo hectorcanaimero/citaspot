@@ -15,6 +15,11 @@ COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# Next.js incrusta NEXT_PUBLIC_* en build time — pasar como --build-arg
+ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_SUPABASE_URL
+ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
+
 RUN npm run build
 
 # ── Stage 3: Runner ───────────────────────────────────────────────────────────
