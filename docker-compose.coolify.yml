@@ -87,12 +87,6 @@ services:
     image: ghcr.io/${GITHUB_OWNER}/citaspot-api:latest
     networks:
       - coolify
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.citaspot-api.rule=Host(`api.${DOMAIN}`)
-      - traefik.http.routers.citaspot-api.entrypoints=https
-      - traefik.http.routers.citaspot-api.tls.certresolver=letsencrypt
-      - traefik.http.services.citaspot-api.loadbalancer.server.port=3001
     environment:
       APP_ENV: production
       PORT: "3001"
@@ -166,12 +160,6 @@ services:
     image: ghcr.io/${GITHUB_OWNER}/citaspot-web:latest
     networks:
       - coolify
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.citaspot-web.rule=Host(`${DOMAIN}`) || Host(`www.${DOMAIN}`)
-      - traefik.http.routers.citaspot-web.entrypoints=https
-      - traefik.http.routers.citaspot-web.tls.certresolver=letsencrypt
-      - traefik.http.services.citaspot-web.loadbalancer.server.port=3000
     environment:
       NODE_ENV: production
       PORT: "3000"
