@@ -96,7 +96,7 @@ services:
     environment:
       APP_ENV: production
       PORT: "3001"
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/citaspot
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/citaspot?sslmode=disable
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
       # RabbitMQ y Evolution son EXTERNOS — apuntan a IP del servidor de infra
       RABBITMQ_URL: ${RABBITMQ_URL}
@@ -138,7 +138,7 @@ services:
       - coolify
     environment:
       APP_ENV: production
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/citaspot
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/citaspot?sslmode=disable
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
       # RabbitMQ EXTERNO
       RABBITMQ_URL: ${RABBITMQ_URL}
