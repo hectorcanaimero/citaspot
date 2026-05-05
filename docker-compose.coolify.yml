@@ -43,7 +43,7 @@ services:
       - -c
       - max_connections=50
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d citaspot"]
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d citaspot" ]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -51,11 +51,12 @@ services:
 
   redis:
     image: redis:7-alpine
-    command: redis-server --requirepass ${REDIS_PASSWORD} --maxmemory 128mb --maxmemory-policy allkeys-lru --save ""
+    command: redis-server --requirepass ${REDIS_PASSWORD} --maxmemory 128mb
+      --maxmemory-policy allkeys-lru --save ""
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      test: [ "CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -63,10 +64,6 @@ services:
 
   api:
     image: ghcr.io/${GITHUB_OWNER}/citaspot-api:latest
-    networks:
-      - coolify
-    labels:
-      - traefik.http.services.api.loadbalancer.server.port=3001
     environment:
       - SERVICE_FQDN_API
       - APP_ENV=production
@@ -89,24 +86,28 @@ services:
       - STRIPE_PRICE_PRO=${STRIPE_PRICE_PRO}
       - CORS_ORIGINS=${CORS_ORIGINS}
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/health/ready || exit 1"]
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:3001/health/ready || exit 1" ]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 15s
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+      - postgres
+      - redis
 
   ai:
     image: ghcr.io/${GITHUB_OWNER}/citaspot-ai:latest
-    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001", "--workers", "1"]
-    networks:
-      - coolify
-    labels:
-      - traefik.http.services.ai.loadbalancer.server.port=8001
+    command:
+      [
+        "uvicorn",
+        "main:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8001",
+        "--workers",
+        "1",
+      ]
     environment:
       - SERVICE_FQDN_AI
       - APP_ENV=production
@@ -117,29 +118,23 @@ services:
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8001/health || exit 1"]
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:8001/health || exit 1" ]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 20s
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+      - postgres
+      - redis
 
   web:
     image: ghcr.io/${GITHUB_OWNER}/citaspot-web:latest
-    networks:
-      - coolify
-    labels:
-      - traefik.http.services.web.loadbalancer.server.port=3000
     environment:
       - SERVICE_FQDN_WEB
       - NODE_ENV=production
       - PORT=3000
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/ || exit 1"]
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:3000/ || exit 1" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -148,7 +143,3 @@ services:
 volumes:
   postgres_data:
   redis_data:
-
-networks:
-  coolify:
-    external: true
