@@ -63,6 +63,8 @@ services:
 
   api:
     image: ghcr.io/${GITHUB_OWNER}/citaspot-api:latest
+    labels:
+      - traefik.http.services.api.loadbalancer.server.port=3001
     environment:
       - SERVICE_FQDN_API
       - APP_ENV=production
@@ -99,6 +101,8 @@ services:
   ai:
     image: ghcr.io/${GITHUB_OWNER}/citaspot-ai:latest
     command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001", "--workers", "1"]
+    labels:
+      - traefik.http.services.ai.loadbalancer.server.port=8001
     environment:
       - SERVICE_FQDN_AI
       - APP_ENV=production
@@ -122,6 +126,8 @@ services:
 
   web:
     image: ghcr.io/${GITHUB_OWNER}/citaspot-web:latest
+    labels:
+      - traefik.http.services.web.loadbalancer.server.port=3000
     environment:
       - SERVICE_FQDN_WEB
       - NODE_ENV=production
