@@ -85,6 +85,8 @@ services:
 
   api:
     image: ghcr.io/${GITHUB_OWNER}/citaspot-api:latest
+    expose:
+      - "3001"
     networks:
       - coolify
     environment:
@@ -128,6 +130,8 @@ services:
   ai:
     image: ghcr.io/${GITHUB_OWNER}/citaspot-ai:latest
     command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001", "--workers", "1"]
+    expose:
+      - "8001"
     networks:
       - coolify
     environment:
@@ -158,6 +162,8 @@ services:
 
   web:
     image: ghcr.io/${GITHUB_OWNER}/citaspot-web:latest
+    expose:
+      - "3000"
     networks:
       - coolify
     environment:
