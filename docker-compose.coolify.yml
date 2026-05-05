@@ -83,7 +83,7 @@ services:
       - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
       - STRIPE_PRICE_STARTER=${STRIPE_PRICE_STARTER}
       - STRIPE_PRICE_PRO=${STRIPE_PRICE_PRO}
-      - CORS_ORIGINS=${SERVICE_FQDN_WEB}
+      - CORS_ORIGINS=${CORS_ORIGINS}
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:3001/health/ready || exit 1"]
       interval: 30s
