@@ -34,6 +34,11 @@ func (s *appointmentSvc) List(ctx context.Context, tenantID uuid.UUID, date, tim
 	return s.apptRepo.ListByDate(ctx, tenantID, date, timezone)
 }
 
+// ListFiltered retorna citas con filtros dinámicos y paginación.
+func (s *appointmentSvc) ListFiltered(ctx context.Context, tenantID uuid.UUID, q *domain.AppointmentListQuery) (*domain.PaginatedAppointments, error) {
+	return s.apptRepo.ListFiltered(ctx, tenantID, q)
+}
+
 // GetByID retorna una cita por ID con detalles del cliente/profesional/servicio.
 func (s *appointmentSvc) GetByID(ctx context.Context, tenantID, id uuid.UUID) (*domain.AppointmentWithDetails, error) {
 	return s.apptRepo.GetByID(ctx, tenantID, id)
