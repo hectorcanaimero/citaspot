@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 from enum import Enum
 
-from app.llm.router import chat
+from app.llm.router import chat_lite
 
 log = logging.getLogger(__name__)
 
@@ -52,7 +52,7 @@ async def detect(message: str, history: list[dict] | None = None) -> Intent:
     messages.append({"role": "user", "content": message})
 
     try:
-        result = await chat(messages, temperature=0.0)
+        result = await chat_lite(messages, temperature=0.0)
         raw = result.strip().upper()
         if raw in Intent.__members__:
             return Intent(raw)

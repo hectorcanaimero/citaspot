@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     core_api_url: str = "http://localhost:3001"
     gemini_api_key: str = ""
     openai_api_key: str = ""
+    deepseek_api_key: str = ""
 
     model_config = {"env_file": ".env", "case_sensitive": False}
 
