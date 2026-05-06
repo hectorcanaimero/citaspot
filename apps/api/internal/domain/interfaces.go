@@ -111,6 +111,7 @@ type AppointmentRepository interface {
 	Create(ctx context.Context, a *Appointment) error
 	GetByID(ctx context.Context, tenantID, id uuid.UUID) (*AppointmentWithDetails, error)
 	ListByDate(ctx context.Context, tenantID uuid.UUID, date, timezone string) ([]*AppointmentWithDetails, error)
+	ListFiltered(ctx context.Context, tenantID uuid.UUID, q *AppointmentListQuery) (*PaginatedAppointments, error)
 	UpdateStatus(ctx context.Context, tenantID, id uuid.UUID, req *UpdateAppointmentRequest) error
 	CheckConflict(ctx context.Context, tenantID, professionalID uuid.UUID, startsAt, endsAt time.Time, excludeID *uuid.UUID) (bool, error)
 }
@@ -118,6 +119,7 @@ type AppointmentRepository interface {
 // AppointmentSvc lógica de negocio para citas.
 type AppointmentSvc interface {
 	List(ctx context.Context, tenantID uuid.UUID, date, timezone string) ([]*AppointmentWithDetails, error)
+	ListFiltered(ctx context.Context, tenantID uuid.UUID, q *AppointmentListQuery) (*PaginatedAppointments, error)
 	GetByID(ctx context.Context, tenantID, id uuid.UUID) (*AppointmentWithDetails, error)
 	Create(ctx context.Context, tenantID uuid.UUID, req *CreateAppointmentRequest) (*Appointment, error)
 	Update(ctx context.Context, tenantID, id uuid.UUID, req *UpdateAppointmentRequest) error
