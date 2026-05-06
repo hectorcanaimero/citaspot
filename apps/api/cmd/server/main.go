@@ -366,6 +366,7 @@ func main() {
 
 	appts := protected.Group("/appointments")
 	appts.Get("/availability", apptHandler.Availability)
+	appts.Get("/search", apptHandler.ListFiltered)
 	appts.Get("/", apptHandler.List)
 	appts.Post("/", apptHandler.Create)
 	appts.Get("/:id", apptHandler.GetByID)

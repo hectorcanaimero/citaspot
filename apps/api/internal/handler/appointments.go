@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
@@ -46,6 +47,71 @@ func (h *AppointmentHandler) List(c *fiber.Ctx) error {
 		return handleServiceError(c, err)
 	}
 	return c.JSON(fiber.Map{"data": list})
+}
+
+// ListFiltered GET /appointments/search?date_from=&date_to=&...
+func (h *AppointmentHandler) ListFiltered(c *fiber.Ctx) error {
+	tenantID := middleware.TenantIDFromContext(c)
+	tenant := middleware.TenantFromContext(c)
+
+	// Parámetros requeridos
+	dateFrom := c.Query("date_from")
+	if dateFrom == "" {
+		return c.Status(http.StatusBadRequest).JSON(errorResponse{Error: "El parámetro 'date_from' es requerido (YYYY-MM-DD)"})
+	}
+	dateTo := c.Query("date_to")
+	if dateTo == "" {
+		return c.Status(http.StatusBadRequest).JSON(errorResponse{Error: "El parámetro 'date_to' es requerido (YYYY-MM-DD)"})
+	}
+
+	// Timezone: query param o fallback al timezone del tenant
+	timezone := c.Query("timezone")
+	if timezone == "" && tenant != nil {
+		timezone = tenant.Timezone
+	}
+
+	// UUIDs opcionales
+	var profID *uuid.UUID
+	if raw := c.Query("professional_id"); raw != "" {
+		id, err := uuid.Parse(raw)
+		if err != nil {
+			return c.Status(http.StatusBadRequest).JSON(errorResponse{Error: "professional_id inválido"})
+		}
+		profID = &id
+	}
+
+	var svcID *uuid.UUID
+	if raw := c.Query("service_id"); raw != "" {
+		id, err := uuid.Parse(raw)
+		if err != nil {
+			return c.Status(http.StatusBadRequest).JSON(errorResponse{Error: "service_id inválido"})
+		}
+		svcID = &id
+	}
+
+	// Enteros opcionales con fallback a cero (el repositorio aplica los defaults)
+	page, _ := strconv.Atoi(c.Query("page"))
+	perPage, _ := strconv.Atoi(c.Query("per_page"))
+
+	q := &domain.AppointmentListQuery{
+		DateFrom:       dateFrom,
+		DateTo:         dateTo,
+		Timezone:       timezone,
+		ProfessionalID: profID,
+		ServiceID:      svcID,
+		Status:         c.Query("status"),
+		Search:         c.Query("search"),
+		SortBy:         c.Query("sort_by"),
+		SortDir:        c.Query("sort_dir"),
+		Page:           page,
+		PerPage:        perPage,
+	}
+
+	result, err := h.apptSvc.ListFiltered(c.Context(), tenantID, q)
+	if err != nil {
+		return handleServiceError(c, err)
+	}
+	return c.JSON(result)
 }
 
 // Create POST /appointments
