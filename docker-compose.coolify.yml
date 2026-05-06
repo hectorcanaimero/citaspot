@@ -64,6 +64,7 @@ services:
 
   api:
     image: ghcr.io/${GITHUB_OWNER}/citaspot-api:latest
+    pull_policy: always
     environment:
       - SERVICE_FQDN_API
       - APP_ENV=production
@@ -97,6 +98,7 @@ services:
 
   ai:
     image: ghcr.io/${GITHUB_OWNER}/citaspot-ai:latest
+    pull_policy: always
     command:
       [
         "uvicorn",
@@ -129,6 +131,7 @@ services:
 
   web:
     image: ghcr.io/${GITHUB_OWNER}/citaspot-web:latest
+    pull_policy: always
     environment:
       - SERVICE_FQDN_WEB
       - NODE_ENV=production
