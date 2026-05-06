@@ -1,7 +1,16 @@
 // Package config centraliza la configuración del Core API desde variables de entorno.
 package config
 
-import "os"
+import (
+	"os"
+
+	"github.com/joho/godotenv"
+)
+
+func init() {
+	// Carga .env si existe (no falla si no está — en producción se usan env vars directas)
+	godotenv.Load()
+}
 
 // Config contiene toda la configuración de la aplicación.
 type Config struct {
@@ -47,9 +56,9 @@ func Load() *Config {
 		AppEnv:   getEnv("APP_ENV", "development"),
 		LogLevel: getEnv("LOG_LEVEL", "debug"),
 
-		DatabaseURL: getEnv("DATABASE_URL", "postgresql://citaspot:citaspot_dev@localhost:5432/citaspot"),
-		RedisURL:    getEnv("REDIS_URL", "redis://localhost:6379"),
-		RabbitMQURL: getEnv("RABBITMQ_URL", "amqp://citaspot:citaspot_dev@localhost:5672/"),
+		DatabaseURL: getEnv("DATABASE_URL", "postgres://postgres:citaspot123@168.231.94.201:5432/citaspot"),
+		RedisURL:    getEnv("REDIS_URL", "redis://default:citaspot123@168.231.94.201:9876/0"),
+		RabbitMQURL: getEnv("RABBITMQ_URL", "amqp://citaspot:citaspot123@187.127.1.191:32777/"),
 
 		JWTSecret:          getEnv("JWT_SECRET", ""),
 		SupabaseURL:        getEnv("SUPABASE_URL", ""),

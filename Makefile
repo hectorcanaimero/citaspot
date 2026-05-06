@@ -2,7 +2,7 @@
 # Uso: make <comando>
 
 .PHONY: dev dev-down test test-api test-ai test-web \
-        migrate migrate-down lint gen seed logs clean \
+        migrate migrate-down migrate-status db-reset lint gen seed logs clean \
         build deploy help
 
 # ── Colores para output ────────────────────────────────────
@@ -86,6 +86,9 @@ migrate-down: ## Revertir la última migración
 
 migrate-status: ## Ver estado de migraciones
 	cd apps/api && go run cmd/migrate/main.go status
+
+db-reset: ## ⚠️  Resetear DB a estado de fábrica (DROP SCHEMA + re-migrate). BORRA TODO.
+	@bash scripts/db-reset.sh
 
 seed: ## Insertar datos de prueba en desarrollo
 	@echo "$(BLUE)▶ Insertando datos de prueba...$(NC)"

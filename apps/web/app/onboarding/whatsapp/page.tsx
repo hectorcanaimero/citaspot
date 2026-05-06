@@ -1,10 +1,10 @@
 'use client';
 
 // Paso 3 del onboarding: conectar WhatsApp Business.
-// Usa polling cada 5s hacia GET /api/v1/whatsapp/status.
+// Muestra QR code inline y polling de estado cada 5s.
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { CheckCircle2, XCircle, RefreshCw, MessageCircle } from 'lucide-react';
+import { CheckCircle2, XCircle, RefreshCw, QrCode } from 'lucide-react';
 import { Button }  from '@/components/ui/button';
 import { Card }    from '@/components/ui/card';
 import { Badge }   from '@/components/ui/badge';
@@ -15,16 +15,29 @@ import { useTranslations } from '@/lib/i18n';
 export default function OnboardingWhatsAppPage() {
   const t      = useTranslations();
   const router = useRouter();
-  const [status,  setStatus]  = useState<'CONNECTED' | 'DISCONNECTED' | 'CONNECTING' | null>(null);
+  const [status, setStatus] = useState<'CONNECTED' | 'DISCONNECTED' | 'CONNECTING' | null>(null);
+  const [qrCode, setQrCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState('');
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [error, setError] = useState('');
+  const [connectError, setConnectError] = useState(false);
+
+  const statusIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const qrIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   async function fetchStatus() {
     try {
       const res = await whatsapp.getStatus();
       setStatus(res.status);
       setError('');
+
+      // Cuando se conecta, dejar de pedir QR
+      if (res.status === 'CONNECTED') {
+        setQrCode(null);
+        if (qrIntervalRef.current) {
+          clearInterval(qrIntervalRef.current);
+          qrIntervalRef.current = null;
+        }
+      }
     } catch (err) {
       setError(err instanceof APIError ? err.message : t.onboarding.waQueryError);
       setStatus('DISCONNECTED');
@@ -33,18 +46,53 @@ export default function OnboardingWhatsAppPage() {
     }
   }
 
+  async function fetchQR() {
+    try {
+      const res = await whatsapp.getQR();
+      if (res && res.qr) {
+        setQrCode(res.qr);
+      }
+    } catch {
+      // QR no disponible todavía, se reintenta en el próximo ciclo
+    }
+  }
+
+  async function initConnection() {
+    setConnectError(false);
+    setLoading(true);
+    try {
+      await whatsapp.connect();
+      // Iniciar polling de QR
+      startQRPolling();
+    } catch {
+      setConnectError(true);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function startQRPolling() {
+    // Fetch inmediato + intervalo
+    fetchQR();
+    if (qrIntervalRef.current) clearInterval(qrIntervalRef.current);
+    qrIntervalRef.current = setInterval(fetchQR, 3000);
+  }
+
   useEffect(() => {
+    initConnection();
+    // Status polling cada 5s
+    statusIntervalRef.current = setInterval(fetchStatus, 5000);
+    // Fetch status inicial
     fetchStatus();
-    intervalRef.current = setInterval(fetchStatus, 5000);
+
     return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (statusIntervalRef.current) clearInterval(statusIntervalRef.current);
+      if (qrIntervalRef.current) clearInterval(qrIntervalRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const isConnected  = status === 'CONNECTED';
-  const isConnecting = status === 'CONNECTING';
-  const evolutionUrl = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001').replace(':3001', ':8080');
+  const isConnected = status === 'CONNECTED';
 
   return (
     <div className="mx-auto max-w-lg px-4 py-10">
@@ -72,6 +120,15 @@ export default function OnboardingWhatsAppPage() {
       <Card>
         {loading ? (
           <div className="flex justify-center py-8"><Spinner /></div>
+        ) : connectError ? (
+          <div className="flex flex-col items-center gap-4 py-8">
+            <XCircle className="h-10 w-10 text-red-400" />
+            <p className="text-sm text-neutral-700">{t.onboarding.waConnectError}</p>
+            <Button variant="secondary" size="sm" onClick={initConnection}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              {t.onboarding.waRetryQR}
+            </Button>
+          </div>
         ) : (
           <div className="flex flex-col gap-4">
             {/* Estado actual */}
@@ -79,13 +136,13 @@ export default function OnboardingWhatsAppPage() {
               {isConnected ? (
                 <CheckCircle2 className="h-8 w-8 text-emerald-500 flex-shrink-0" />
               ) : (
-                <XCircle className="h-8 w-8 text-red-400 flex-shrink-0" />
+                <QrCode className="h-8 w-8 text-neutral-400 flex-shrink-0" />
               )}
               <div className="flex-1">
                 <p className="text-sm font-medium text-neutral-900">
                   {isConnected
                     ? t.onboarding.waConnected
-                    : isConnecting
+                    : status === 'CONNECTING'
                     ? t.onboarding.waConnecting
                     : t.onboarding.waDisconnected}
                 </p>
@@ -93,7 +150,7 @@ export default function OnboardingWhatsAppPage() {
                   {isConnected ? t.onboarding.waAiReady : t.onboarding.waFollowInstructions}
                 </p>
               </div>
-              <Badge variant={isConnected ? 'success' : isConnecting ? 'warning' : 'error'}>
+              <Badge variant={isConnected ? 'success' : status === 'CONNECTING' ? 'warning' : 'error'}>
                 {status ?? 'VERIFICANDO'}
               </Badge>
               <button
@@ -109,23 +166,35 @@ export default function OnboardingWhatsAppPage() {
               <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-700">{error}</p>
             )}
 
-            {/* Instrucciones si no está conectado */}
+            {/* QR Code inline */}
             {!isConnected && (
-              <div className="rounded-lg border border-dashed border-neutral-200 bg-neutral-50 p-4">
-                <MessageCircle className="mb-2 h-6 w-6 text-neutral-400" />
-                <p className="mb-1 text-sm font-medium text-neutral-700">{t.onboarding.howToConnect}</p>
-                <ol className="mb-3 list-decimal pl-4 text-xs text-neutral-500 space-y-1">
-                  <li>{t.onboarding.waStep1}</li>
-                  <li>{t.onboarding.waStep2}</li>
-                  <li>{t.onboarding.waStep3}</li>
-                  <li>{t.onboarding.waStep4}</li>
-                </ol>
+              <div className="flex flex-col items-center gap-4 rounded-lg border border-dashed border-neutral-200 bg-neutral-50 p-6">
+                {qrCode ? (
+                  <>
+                    <div className="rounded-xl bg-white p-4 shadow-sm">
+                      <img
+                        src={qrCode}
+                        alt="QR code para vincular WhatsApp"
+                        className="h-64 w-64"
+                      />
+                    </div>
+                    <p className="text-center text-sm text-neutral-600">
+                      {t.onboarding.waScanQR}
+                    </p>
+                  </>
+                ) : (
+                  <div className="flex flex-col items-center gap-3 py-4">
+                    <Spinner />
+                    <p className="text-sm text-neutral-500">{t.onboarding.waGeneratingQR}</p>
+                  </div>
+                )}
                 <Button
                   variant="secondary"
                   size="sm"
-                  onClick={() => window.open(evolutionUrl, '_blank')}
+                  onClick={initConnection}
                 >
-                  {t.onboarding.openEvolutionApi}
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  {t.onboarding.waRetryQR}
                 </Button>
               </div>
             )}
