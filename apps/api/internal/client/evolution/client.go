@@ -79,7 +79,7 @@ func (c *Client) SendText(ctx context.Context, instanceName, phone, text string)
 
 // Connect crea la instancia en Evolution API (si no existe) e inicia la conexión.
 // Si webhookURL está configurado, registra automáticamente el webhook por instancia.
-// El QR código llega vía webhook (evento qrcode.updated).
+// Siempre llama a /instance/connect para forzar la generación del QR.
 func (c *Client) Connect(ctx context.Context, instanceName string) error {
 	body, _ := json.Marshal(map[string]any{
 		"instanceName": instanceName,
@@ -87,8 +87,9 @@ func (c *Client) Connect(ctx context.Context, instanceName string) error {
 		"integration":  "WHATSAPP-BAILEYS",
 	})
 
-	url := fmt.Sprintf("%s/instance/create", c.baseURL)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
+	// 1. Crear instancia (si ya existe, Evolution devuelve 4xx — lo ignoramos)
+	createURL := fmt.Sprintf("%s/instance/create", c.baseURL)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, createURL, bytes.NewReader(body))
 	if err != nil {
 		return fmt.Errorf("evolution.Connect: build request: %w", err)
 	}
@@ -99,20 +100,29 @@ func (c *Client) Connect(ctx context.Context, instanceName string) error {
 	if err != nil {
 		return fmt.Errorf("evolution.Connect: http: %w", err)
 	}
-	defer resp.Body.Close()
+	resp.Body.Close()
 
-	// Si ya existía la instancia (4xx), no es error — continuamos a configurar el webhook.
-	// Si se creó (201/200), el QR llegará vía webhook en segundos.
-
-	// Configurar webhook por instancia si hay URL pública configurada.
-	// Es best-effort: no falla Connect si SetWebhook falla.
+	// 2. Configurar webhook (best-effort)
 	if c.webhookURL != "" {
 		webhookEndpoint := c.webhookURL + "/api/v1/whatsapp/webhook"
 		if err := c.SetWebhook(ctx, instanceName, webhookEndpoint); err != nil {
-			// Solo loggear — no bloquear la conexión
 			fmt.Printf("evolution.Connect: SetWebhook warning: %v\n", err)
 		}
 	}
+
+	// 3. Iniciar conexión — fuerza la generación del QR aunque la instancia ya exista
+	connectURL := fmt.Sprintf("%s/instance/connect/%s", c.baseURL, instanceName)
+	reqConnect, err := http.NewRequestWithContext(ctx, http.MethodGet, connectURL, nil)
+	if err != nil {
+		return fmt.Errorf("evolution.Connect: build connect request: %w", err)
+	}
+	reqConnect.Header.Set("apikey", c.apiKey)
+
+	respConnect, err := c.http.Do(reqConnect)
+	if err != nil {
+		return fmt.Errorf("evolution.Connect: connect http: %w", err)
+	}
+	respConnect.Body.Close()
 
 	return nil
 }
