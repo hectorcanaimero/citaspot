@@ -130,13 +130,15 @@ func (c *Client) Connect(ctx context.Context, instanceName string) error {
 // SetWebhook configura la URL de webhook para una instancia específica en Evolution API.
 func (c *Client) SetWebhook(ctx context.Context, instanceName, webhookURL string) error {
 	body, _ := json.Marshal(map[string]any{
-		"enabled":         true,
-		"url":             webhookURL,
-		"webhookByEvents": false,
-		"events": []string{
-			"MESSAGES_UPSERT",
-			"CONNECTION_UPDATE",
-			"QRCODE_UPDATED",
+		"webhook": map[string]any{
+			"enabled":         true,
+			"url":             webhookURL,
+			"webhookByEvents": false,
+			"events": []string{
+				"MESSAGES_UPSERT",
+				"CONNECTION_UPDATE",
+				"QRCODE_UPDATED",
+			},
 		},
 	})
 
