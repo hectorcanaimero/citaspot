@@ -266,6 +266,35 @@ type AvailabilityQuery struct {
 	Timezone       string    `json:"timezone"`                            // ej: "America/Santo_Domingo"
 }
 
+// AppointmentListQuery filtros para listar citas con paginación.
+type AppointmentListQuery struct {
+	DateFrom       string     `json:"date_from"       validate:"required"`
+	DateTo         string     `json:"date_to"         validate:"required"`
+	Timezone       string     `json:"timezone"`
+	ProfessionalID *uuid.UUID `json:"professional_id"`
+	ServiceID      *uuid.UUID `json:"service_id"`
+	Status         string     `json:"status"`
+	Search         string     `json:"search"`
+	SortBy         string     `json:"sort_by"`  // date, time, customer_name
+	SortDir        string     `json:"sort_dir"` // asc, desc
+	Page           int        `json:"page"`
+	PerPage        int        `json:"per_page"`
+}
+
+// PaginatedAppointments resultado paginado de citas.
+type PaginatedAppointments struct {
+	Data       []*AppointmentWithDetails `json:"data"`
+	Pagination Pagination                `json:"pagination"`
+}
+
+// Pagination metadatos de paginación.
+type Pagination struct {
+	Page       int `json:"page"`
+	PerPage    int `json:"per_page"`
+	Total      int `json:"total"`
+	TotalPages int `json:"total_pages"`
+}
+
 // ── Public booking ────────────────────────────────────────────────────────────
 
 // PublicProfile vista pública de un negocio (sin auth).
@@ -275,6 +304,7 @@ type PublicProfile struct {
 	BusinessType  string          `json:"business_type"`
 	City          string          `json:"city,omitempty"`
 	Country       string          `json:"country,omitempty"`
+	Timezone      string          `json:"timezone"`
 	Services      []*Service      `json:"services"`
 	Professionals []*Professional `json:"professionals"`
 }
