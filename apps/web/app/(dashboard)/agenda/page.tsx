@@ -10,8 +10,9 @@ import {
   isSameDay, isToday as isTodayFn, isSameMonth,
 } from 'date-fns';
 import {
-  ChevronLeft, ChevronRight, Plus, AlignLeft, CalendarDays, LayoutGrid,
+  ChevronLeft, ChevronRight, Plus, AlignLeft, CalendarDays, LayoutGrid, List,
 } from 'lucide-react';
+import AppointmentsList from '@/components/dashboard/appointments-list';
 import {
   appointments, Appointment,
   professionals, Professional,
@@ -26,7 +27,7 @@ import { useTranslations, useDateLocale } from '@/lib/i18n';
 
 // ── Tipos ──────────────────────────────────────────────────────────────────────
 
-type CalView = 'day' | 'week' | 'month';
+type CalView = 'day' | 'week' | 'month' | 'lista';
 type DayState = Appointment[] | 'loading' | 'error';
 
 interface ApptWithCol extends Appointment {
@@ -434,6 +435,7 @@ export default function AgendaPage() {
   }, []);
 
   useEffect(() => {
+    if (view === 'lista') return;
     if (view === 'day') {
       ensureLoaded([currentDate]);
     } else if (view === 'week') {
@@ -495,32 +497,37 @@ export default function AgendaPage() {
       <div className="flex flex-shrink-0 items-center gap-3 border-b border-neutral-200 bg-white px-5 py-3">
 
         {/* Navegación de fecha */}
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => navigate(-1)}
-            className="rounded-lg p-1.5 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-700"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-          {!isThisToday && (
+        {view !== 'lista' && (
+          <div className="flex items-center gap-1">
             <button
-              onClick={() => setCurrentDate(new Date())}
-              className="rounded-lg px-2 py-1 text-xs font-medium text-primary-600 transition-colors hover:bg-primary-50"
+              onClick={() => navigate(-1)}
+              className="rounded-lg p-1.5 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-700"
             >
-              {t.agenda.today}
+              <ChevronLeft className="h-4 w-4" />
             </button>
-          )}
-          <button
-            onClick={() => navigate(1)}
-            className="rounded-lg p-1.5 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-700"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </button>
-        </div>
+            {!isThisToday && (
+              <button
+                onClick={() => setCurrentDate(new Date())}
+                className="rounded-lg px-2 py-1 text-xs font-medium text-primary-600 transition-colors hover:bg-primary-50"
+              >
+                {t.agenda.today}
+              </button>
+            )}
+            <button
+              onClick={() => navigate(1)}
+              className="rounded-lg p-1.5 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-700"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        )}
 
-        <h2 className="flex-1 text-sm font-semibold capitalize text-neutral-800">
-          {periodLabel()}
-        </h2>
+        {view !== 'lista' && (
+          <h2 className="flex-1 text-sm font-semibold capitalize text-neutral-800">
+            {periodLabel()}
+          </h2>
+        )}
+        {view === 'lista' && <div className="flex-1" />}
 
         {/* Switcher de vista */}
         <div className="flex items-center rounded-lg border border-neutral-200 bg-neutral-100 p-0.5">
@@ -528,6 +535,7 @@ export default function AgendaPage() {
             { key: 'day'   as const, label: t.agenda.day,   icon: AlignLeft    },
             { key: 'week'  as const, label: t.agenda.week,  icon: CalendarDays },
             { key: 'month' as const, label: t.agenda.month, icon: LayoutGrid   },
+            { key: 'lista' as const, label: t.agenda.list,  icon: List        },
           ]).map(({ key, label, icon: Icon }) => (
             <button
               key={key}
@@ -632,6 +640,7 @@ export default function AgendaPage() {
             onDayClick={d => { setCurrentDate(d); setView('day'); }}
           />
         )}
+        {view === 'lista' && <AppointmentsList />}
       </div>
     </div>
   );
