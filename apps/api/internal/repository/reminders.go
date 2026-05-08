@@ -41,10 +41,10 @@ func (r *reminderRepository) FindDueReminders(ctx context.Context, minutesBefore
 		WHERE a.status IN ('pending', 'confirmed')
 		  AND c.wa_opt_in = TRUE
 		  AND c.phone IS NOT NULL
-		  AND NOT COALESCE((a.reminders_sent->>$3::TEXT)::BOOLEAN, FALSE)
-		  AND a.starts_at BETWEEN NOW() + ($1 || ' minutes')::INTERVAL
-		                       AND NOW() + ($2 || ' minutes')::INTERVAL
-		  AND (t.settings->'reminder_minutes') @> to_jsonb($3::INT)
+		  AND NOT COALESCE((a.reminders_sent->>(($3)::TEXT))::BOOLEAN, FALSE)
+		  AND a.starts_at BETWEEN NOW() + ($1 * interval '1 minute')
+		                       AND NOW() + ($2 * interval '1 minute')
+		  AND (t.settings->'reminder_minutes') @> to_jsonb($3)
 		LIMIT 100
 	`
 

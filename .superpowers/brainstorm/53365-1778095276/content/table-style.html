@@ -1,0 +1,226 @@
+<h2>DataTable de Citas — Estilo de tabla</h2>
+<p class="subtitle">¿Qué tipo de tabla se adapta mejor a tu flujo de trabajo?</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Tabla clásica con filtros inline</h3>
+      <p>Filas compactas, filtros arriba (fecha, profesional, servicio, estado). Paginación abajo. Estilo spreadsheet — mucha info en poco espacio.</p>
+      <div class="mockup" style="margin-top:12px">
+        <div class="mockup-header">Vista: Tabla clásica</div>
+        <div class="mockup-body" style="font-size:13px;padding:0">
+          <div style="display:flex;gap:8px;padding:12px;background:#f8f8fa;border-bottom:1px solid #e5e5e5;flex-wrap:wrap">
+            <input class="mock-input" placeholder="📅 Fecha desde" style="width:130px;font-size:12px">
+            <input class="mock-input" placeholder="📅 Fecha hasta" style="width:130px;font-size:12px">
+            <select class="mock-input" style="width:140px;font-size:12px"><option>Profesional</option></select>
+            <select class="mock-input" style="width:130px;font-size:12px"><option>Servicio</option></select>
+            <select class="mock-input" style="width:120px;font-size:12px"><option>Estado</option></select>
+            <input class="mock-input" placeholder="🔍 Buscar cliente..." style="width:160px;font-size:12px">
+          </div>
+          <table style="width:100%;border-collapse:collapse;font-size:12px">
+            <thead>
+              <tr style="background:#f3f3f5;text-align:left">
+                <th style="padding:8px 12px;font-weight:600;color:#555">Fecha</th>
+                <th style="padding:8px 12px;font-weight:600;color:#555">Hora</th>
+                <th style="padding:8px 12px;font-weight:600;color:#555">Cliente</th>
+                <th style="padding:8px 12px;font-weight:600;color:#555">Servicio</th>
+                <th style="padding:8px 12px;font-weight:600;color:#555">Profesional</th>
+                <th style="padding:8px 12px;font-weight:600;color:#555">Estado</th>
+                <th style="padding:8px 12px;font-weight:600;color:#555">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="border-bottom:1px solid #eee">
+                <td style="padding:8px 12px">15/05/2026</td>
+                <td style="padding:8px 12px">10:00 AM</td>
+                <td style="padding:8px 12px">María García</td>
+                <td style="padding:8px 12px">Limpieza Bucal</td>
+                <td style="padding:8px 12px">Maria Luna</td>
+                <td style="padding:8px 12px"><span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:12px;font-size:11px">Pendiente</span></td>
+                <td style="padding:8px 12px"><span style="color:#7c3aed;cursor:pointer">✓</span> <span style="color:#ef4444;cursor:pointer">✕</span></td>
+              </tr>
+              <tr style="border-bottom:1px solid #eee">
+                <td style="padding:8px 12px">15/05/2026</td>
+                <td style="padding:8px 12px">10:30 AM</td>
+                <td style="padding:8px 12px">Carlos Pérez</td>
+                <td style="padding:8px 12px">Blanqueamiento</td>
+                <td style="padding:8px 12px">Dr. Rodríguez</td>
+                <td style="padding:8px 12px"><span style="background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:12px;font-size:11px">Confirmada</span></td>
+                <td style="padding:8px 12px"><span style="color:#7c3aed;cursor:pointer">✓</span> <span style="color:#ef4444;cursor:pointer">✕</span></td>
+              </tr>
+              <tr style="border-bottom:1px solid #eee">
+                <td style="padding:8px 12px">14/05/2026</td>
+                <td style="padding:8px 12px">03:00 PM</td>
+                <td style="padding:8px 12px">Ana López</td>
+                <td style="padding:8px 12px">Ortodoncia</td>
+                <td style="padding:8px 12px">Maria Luna</td>
+                <td style="padding:8px 12px"><span style="background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:12px;font-size:11px">Completada</span></td>
+                <td style="padding:8px 12px"><span style="color:#999">—</span></td>
+              </tr>
+              <tr>
+                <td style="padding:8px 12px">14/05/2026</td>
+                <td style="padding:8px 12px">11:00 AM</td>
+                <td style="padding:8px 12px">Luis Martínez</td>
+                <td style="padding:8px 12px">Limpieza Bucal</td>
+                <td style="padding:8px 12px">Dr. Rodríguez</td>
+                <td style="padding:8px 12px"><span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:12px;font-size:11px">Cancelada</span></td>
+                <td style="padding:8px 12px"><span style="color:#999">—</span></td>
+              </tr>
+            </tbody>
+          </table>
+          <div style="display:flex;justify-content:space-between;padding:10px 12px;background:#f8f8fa;border-top:1px solid #e5e5e5;font-size:11px;color:#777">
+            <span>Mostrando 1-4 de 28 citas</span>
+            <span>← 1 2 3 ... 7 →</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Tabla con cards expandibles</h3>
+      <p>Cada fila se expande para ver más detalle (notas, historial, acciones rápidas). Filtros como chips/tags arriba. Más moderno, menos denso.</p>
+      <div class="mockup" style="margin-top:12px">
+        <div class="mockup-header">Vista: Cards expandibles</div>
+        <div class="mockup-body" style="font-size:13px;padding:0">
+          <div style="display:flex;gap:8px;padding:12px;flex-wrap:wrap;align-items:center">
+            <span style="background:#7c3aed;color:white;padding:4px 12px;border-radius:16px;font-size:11px;cursor:pointer">Hoy</span>
+            <span style="background:#f3f4f6;padding:4px 12px;border-radius:16px;font-size:11px;cursor:pointer">Esta semana</span>
+            <span style="background:#f3f4f6;padding:4px 12px;border-radius:16px;font-size:11px;cursor:pointer">Este mes</span>
+            <span style="margin-left:auto"></span>
+            <span style="background:#fef3c7;padding:4px 10px;border-radius:16px;font-size:11px;cursor:pointer">⏳ Pendientes (3)</span>
+            <span style="background:#d1fae5;padding:4px 10px;border-radius:16px;font-size:11px;cursor:pointer">✓ Confirmadas (5)</span>
+            <input class="mock-input" placeholder="🔍 Buscar..." style="width:160px;font-size:12px">
+          </div>
+          <div style="padding:0 12px 12px">
+            <div style="border:1px solid #e5e5e5;border-radius:10px;margin-bottom:8px;overflow:hidden">
+              <div style="display:flex;align-items:center;padding:12px 16px;gap:16px;background:white">
+                <div style="width:8px;height:40px;background:#f59e0b;border-radius:4px"></div>
+                <div style="flex:1">
+                  <div style="font-weight:600;font-size:13px">María García</div>
+                  <div style="color:#888;font-size:11px">Limpieza Bucal · Maria Luna</div>
+                </div>
+                <div style="text-align:right">
+                  <div style="font-size:13px;font-weight:500">10:00 AM</div>
+                  <div style="color:#888;font-size:11px">jue 15 mayo</div>
+                </div>
+                <span style="color:#ccc;font-size:18px">▾</span>
+              </div>
+            </div>
+            <div style="border:1px solid #7c3aed;border-radius:10px;margin-bottom:8px;overflow:hidden;box-shadow:0 0 0 1px #7c3aed22">
+              <div style="display:flex;align-items:center;padding:12px 16px;gap:16px;background:#faf5ff">
+                <div style="width:8px;height:40px;background:#10b981;border-radius:4px"></div>
+                <div style="flex:1">
+                  <div style="font-weight:600;font-size:13px">Carlos Pérez</div>
+                  <div style="color:#888;font-size:11px">Blanqueamiento · Dr. Rodríguez</div>
+                </div>
+                <div style="text-align:right">
+                  <div style="font-size:13px;font-weight:500">10:30 AM</div>
+                  <div style="color:#888;font-size:11px">jue 15 mayo</div>
+                </div>
+                <span style="color:#7c3aed;font-size:18px">▴</span>
+              </div>
+              <div style="padding:12px 16px;background:white;border-top:1px solid #eee;font-size:12px">
+                <div style="display:flex;gap:24px;margin-bottom:8px">
+                  <span><b>Tel:</b> +1 809-555-1234</span>
+                  <span><b>Precio:</b> $35 USD</span>
+                  <span><b>Duración:</b> 45 min</span>
+                </div>
+                <div style="color:#666;margin-bottom:10px">Notas: Primera visita, paciente nervioso</div>
+                <div style="display:flex;gap:8px">
+                  <button class="mock-button" style="font-size:11px;padding:4px 12px;background:#10b981;color:white;border:none;border-radius:6px">✓ Completar</button>
+                  <button class="mock-button" style="font-size:11px;padding:4px 12px;background:white;border:1px solid #ddd;border-radius:6px">Reagendar</button>
+                  <button class="mock-button" style="font-size:11px;padding:4px 12px;background:white;border:1px solid #fca5a5;color:#ef4444;border-radius:6px">Cancelar</button>
+                </div>
+              </div>
+            </div>
+            <div style="border:1px solid #e5e5e5;border-radius:10px;overflow:hidden">
+              <div style="display:flex;align-items:center;padding:12px 16px;gap:16px;background:white">
+                <div style="width:8px;height:40px;background:#3b82f6;border-radius:4px"></div>
+                <div style="flex:1">
+                  <div style="font-weight:600;font-size:13px">Ana López</div>
+                  <div style="color:#888;font-size:11px">Ortodoncia · Maria Luna</div>
+                </div>
+                <div style="text-align:right">
+                  <div style="font-size:13px;font-weight:500">03:00 PM</div>
+                  <div style="color:#888;font-size:11px">mié 14 mayo</div>
+                </div>
+                <span style="color:#ccc;font-size:18px">▾</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Híbrido: Tabla + panel lateral</h3>
+      <p>Tabla compacta a la izquierda, panel de detalle a la derecha al hacer click. Filtros arriba. Perfecto para pantallas grandes — ves la lista y el detalle al mismo tiempo.</p>
+      <div class="mockup" style="margin-top:12px">
+        <div class="mockup-header">Vista: Tabla + Panel</div>
+        <div class="mockup-body" style="font-size:13px;padding:0">
+          <div style="display:flex;gap:8px;padding:10px 12px;background:#f8f8fa;border-bottom:1px solid #e5e5e5;flex-wrap:wrap">
+            <input class="mock-input" placeholder="📅 Rango de fechas" style="width:180px;font-size:12px">
+            <select class="mock-input" style="width:130px;font-size:12px"><option>Profesional</option></select>
+            <select class="mock-input" style="width:120px;font-size:12px"><option>Estado</option></select>
+            <input class="mock-input" placeholder="🔍 Buscar..." style="width:140px;font-size:12px">
+          </div>
+          <div style="display:flex;min-height:200px">
+            <div style="flex:1;border-right:1px solid #eee">
+              <table style="width:100%;border-collapse:collapse;font-size:12px">
+                <thead><tr style="background:#f9f9fb;text-align:left">
+                  <th style="padding:6px 10px;color:#555">Hora</th>
+                  <th style="padding:6px 10px;color:#555">Cliente</th>
+                  <th style="padding:6px 10px;color:#555">Servicio</th>
+                  <th style="padding:6px 10px;color:#555">Estado</th>
+                </tr></thead>
+                <tbody>
+                  <tr style="border-bottom:1px solid #f0f0f0">
+                    <td style="padding:8px 10px">10:00</td>
+                    <td style="padding:8px 10px">María García</td>
+                    <td style="padding:8px 10px">Limpieza</td>
+                    <td style="padding:8px 10px"><span style="background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:8px;font-size:10px">Pendiente</span></td>
+                  </tr>
+                  <tr style="border-bottom:1px solid #f0f0f0;background:#faf5ff">
+                    <td style="padding:8px 10px;font-weight:600;color:#7c3aed">10:30</td>
+                    <td style="padding:8px 10px;font-weight:600;color:#7c3aed">Carlos Pérez</td>
+                    <td style="padding:8px 10px;color:#7c3aed">Blanqueam.</td>
+                    <td style="padding:8px 10px"><span style="background:#d1fae5;color:#065f46;padding:1px 6px;border-radius:8px;font-size:10px">Confirmada</span></td>
+                  </tr>
+                  <tr>
+                    <td style="padding:8px 10px">03:00</td>
+                    <td style="padding:8px 10px">Ana López</td>
+                    <td style="padding:8px 10px">Ortodoncia</td>
+                    <td style="padding:8px 10px"><span style="background:#dbeafe;color:#1e40af;padding:1px 6px;border-radius:8px;font-size:10px">Completada</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div style="width:260px;padding:14px;background:#faf5ff">
+              <div style="font-weight:700;font-size:14px;margin-bottom:4px">Carlos Pérez</div>
+              <div style="color:#888;font-size:11px;margin-bottom:12px">Blanqueamiento · Dr. Rodríguez</div>
+              <div style="font-size:12px;line-height:1.8">
+                <div><b>Fecha:</b> jue 15 mayo, 10:30 AM</div>
+                <div><b>Duración:</b> 45 min</div>
+                <div><b>Precio:</b> $35 USD</div>
+                <div><b>Teléfono:</b> +1 809-555-1234</div>
+                <div><b>Fuente:</b> WhatsApp</div>
+              </div>
+              <div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap">
+                <button class="mock-button" style="font-size:11px;padding:4px 10px;background:#10b981;color:white;border:none;border-radius:6px">✓ Completar</button>
+                <button class="mock-button" style="font-size:11px;padding:4px 10px;background:white;border:1px solid #ddd;border-radius:6px">Reagendar</button>
+                <button class="mock-button" style="font-size:11px;padding:4px 10px;color:#ef4444;background:white;border:1px solid #fca5a5;border-radius:6px">Cancelar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
