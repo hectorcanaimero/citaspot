@@ -3,6 +3,7 @@ package domain
 
 import (
 	"context"
+	"io"
 	"time"
 
 	"github.com/google/uuid"
@@ -330,4 +331,29 @@ type RuleExecutionRepository interface {
 // CRMMetricsRepository operaciones DB para metricas agregadas del CRM.
 type CRMMetricsRepository interface {
 	GetMetrics(ctx context.Context, tenantID uuid.UUID) (*CRMMetrics, error)
+}
+
+// ── Branding ─────────────────────────────────────────────────────────────────
+
+// BrandingAssetKind identifica el tipo de asset de branding del tenant.
+type BrandingAssetKind string
+
+const (
+	BrandingAssetLogo  BrandingAssetKind = "logo"
+	BrandingAssetCover BrandingAssetKind = "cover"
+)
+
+// BrandingUploadInput representa la subida de un asset de branding.
+type BrandingUploadInput struct {
+	Kind        BrandingAssetKind
+	Filename    string
+	ContentType string
+	Reader      io.Reader
+	Size        int64
+}
+
+// BrandingService gestiona logo, portada y descripción del tenant para la página pública.
+type BrandingService interface {
+	UploadAsset(ctx context.Context, tenantID uuid.UUID, in *BrandingUploadInput) (url string, err error)
+	RemoveAsset(ctx context.Context, tenantID uuid.UUID, kind BrandingAssetKind) error
 }

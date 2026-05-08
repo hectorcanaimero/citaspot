@@ -498,6 +498,10 @@ export const pipelineStages = {
       body: JSON.stringify({ ids: orderedIds }),
     });
   },
+
+  async loadTemplate(): Promise<{ ok: boolean; stages: string[] }> {
+    return request('/api/v1/pipeline-stages/load-template', { method: 'POST' });
+  },
 };
 
 // ── Treatments ───────────────────────────────────────────────────────────────
@@ -747,6 +751,9 @@ export interface PublicProfile {
   booking_success_text?: string;
   bot_name?: string;
   bot_greeting?: string;
+  logo_url?: string;
+  cover_url?: string;
+  description?: string;
 }
 
 export interface TenantSettings {
@@ -755,7 +762,12 @@ export interface TenantSettings {
   booking_success_text: string;
   bot_name: string;
   bot_greeting: string;
+  logo_url?: string;
+  cover_url?: string;
+  description?: string;
 }
+
+export type BrandingAssetKind = 'logo' | 'cover';
 
 export const publicApi = {
   async getProfile(slug: string): Promise<PublicProfile> {
@@ -818,6 +830,37 @@ export const settingsApi = {
       method: 'PATCH',
       body: JSON.stringify(data),
     });
+  },
+};
+
+// ── Branding (logo / portada de la página pública) ───────────────────────────
+
+async function uploadBrandingAsset(kind: BrandingAssetKind, file: File): Promise<{ url: string }> {
+  const token = await getToken();
+  const form = new FormData();
+  form.append('file', file);
+
+  const res = await fetch(`${API_URL}/api/v1/tenant/branding/${kind}`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: form,
+  });
+
+  if (res.status === 401) {
+    throw new APIError(401, 'Sesión expirada. Por favor inicia sesión de nuevo.', 'session_expired');
+  }
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ message: 'Error al subir el archivo' }));
+    throw new APIError(res.status, body.message ?? body.error ?? 'Error al subir el archivo');
+  }
+  return res.json();
+}
+
+export const brandingApi = {
+  uploadLogo: (file: File) => uploadBrandingAsset('logo', file),
+  uploadCover: (file: File) => uploadBrandingAsset('cover', file),
+  async remove(kind: BrandingAssetKind): Promise<void> {
+    return request(`/api/v1/tenant/branding/${kind}`, { method: 'DELETE' });
   },
 };
 

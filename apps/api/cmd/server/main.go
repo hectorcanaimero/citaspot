@@ -25,6 +25,7 @@ import (
 	"github.com/citaspot/api/docs"
 	"github.com/citaspot/api/internal/client/evolution"
 	"github.com/citaspot/api/internal/client/rabbitmq"
+	"github.com/citaspot/api/internal/client/storage"
 	"github.com/citaspot/api/internal/config"
 	"github.com/citaspot/api/internal/domain"
 	"github.com/citaspot/api/internal/engine"
@@ -145,11 +146,34 @@ func main() {
 	taskSvc      := service.NewTaskSvc(taskRepo)
 	ruleSvc      := service.NewRuleSvc(ruleRepo, ruleExecRepo)
 
+	// ── MinIO (storage de branding assets) ──────────────────────────────────
+	var brandingSvc domain.BrandingService
+	if cfg.MinIOEndpoint != "" {
+		storageCtx, storageCancel := context.WithTimeout(ctx, 10*time.Second)
+		storageClient, storageErr := storage.New(storageCtx, storage.Config{
+			Endpoint:  cfg.MinIOEndpoint,
+			AccessKey: cfg.MinIOAccessKey,
+			SecretKey: cfg.MinIOSecretKey,
+			UseSSL:    cfg.MinIOUseSSL,
+			Bucket:    cfg.MinIOBucket,
+			PublicURL: cfg.MinIOPublicURL,
+		})
+		storageCancel()
+		if storageErr != nil {
+			slog.Error("MinIO init falló — uploads de branding deshabilitados", "err", storageErr)
+		} else {
+			brandingSvc = service.NewBrandingSvc(storageClient, authRepo)
+			slog.Info("MinIO listo", "bucket", storageClient.Bucket())
+		}
+	} else {
+		slog.Warn("MINIO_ENDPOINT no configurado — uploads de branding deshabilitados")
+	}
+
 	// ── Motor de reglas ──────────────────────────────────────────────────────
 	actionRegistry := engine.NewActionRegistry()
 	actionRegistry.Register(actions.NewSendWhatsAppAction(waClient))
 	actionRegistry.Register(actions.NewCreateTaskAction(taskRepo))
-	actionRegistry.Register(actions.NewMoveStageAction(customerRepo))
+	actionRegistry.Register(actions.NewMoveStageAction(customerRepo, publisher))
 	actionRegistry.Register(actions.NewUpdateFieldAction(customerRepo))
 
 	ruleExecutor := engine.NewRuleExecutor(ruleRepo, ruleExecRepo, authRepo, actionRegistry)
@@ -171,6 +195,10 @@ func main() {
 	taskHandler      := handler.NewTaskHandler(taskSvc)
 	ruleHandler      := handler.NewRuleHandler(ruleSvc)
 	crmHandler       := handler.NewCRMHandler(crmMetricsRepo)
+	var brandingHandler *handler.BrandingHandler
+	if brandingSvc != nil {
+		brandingHandler = handler.NewBrandingHandler(brandingSvc)
+	}
 
 	// ── Workers background ────────────────────────────────────────────────────
 	reminderWorker := worker.NewReminderWorker(reminderRepo, notifRepo, waClient)
@@ -399,19 +427,32 @@ func main() {
 			return fiber.NewError(500, "error interno")
 		}
 
-		// Auto-seed CRM pipeline para tenants dentales
+		// Auto-seed CRM por business_type — pipeline aplica a todos los verticales
+		// con template; rule templates y knowledge siguen siendo dental-only.
 		tenant := middleware.TenantFromContext(c)
-		if tenant != nil && tenant.BusinessType == "dental" {
+		if tenant != nil {
+			bt := tenant.BusinessType
 			go func() {
 				bgCtx := context.Background()
-				if err := seed.SeedDentalPipeline(bgCtx, pool, tenantID); err != nil {
-					slog.Warn("onboarding: error seeding dental pipeline", "tenant_id", tenantID, "error", err)
-				} else {
-					slog.Info("onboarding: dental pipeline seeded", "tenant_id", tenantID)
+				if seeded, err := seed.SeedPipelineForBusinessType(bgCtx, pool, tenantID, bt); err != nil {
+					slog.Warn("onboarding: error seeding pipeline", "tenant_id", tenantID, "business_type", bt, "error", err)
+				} else if len(seeded) > 0 {
+					slog.Info("onboarding: pipeline seeded", "tenant_id", tenantID, "business_type", bt, "stages", len(seeded))
 				}
-				// Rule templates son globales (idempotent) — safe to call multiple times
-				if err := seed.SeedDentalRuleTemplates(bgCtx, pool); err != nil {
-					slog.Warn("onboarding: error seeding dental rule templates", "error", err)
+				// Templates genericos vertical-agnosticos (post-cita, etc) — corren para todos los tenants.
+				if err := seed.SeedGenericRuleTemplates(bgCtx, pool); err != nil {
+					slog.Warn("onboarding: error seeding generic rule templates", "error", err)
+				}
+				if bt == "dental" {
+					// Rule templates son globales (idempotent) — safe to call multiple times
+					if err := seed.SeedDentalRuleTemplates(bgCtx, pool); err != nil {
+						slog.Warn("onboarding: error seeding dental rule templates", "error", err)
+					}
+					if err := seed.SeedDentalKnowledge(bgCtx, pool, tenantID); err != nil {
+						slog.Warn("onboarding: error seeding dental knowledge", "tenant_id", tenantID, "error", err)
+					} else {
+						slog.Info("onboarding: dental knowledge seeded", "tenant_id", tenantID)
+					}
 				}
 			}()
 		}
@@ -470,6 +511,14 @@ func main() {
 	protected.Get("/settings", settingsHandler.Get)
 	protected.Patch("/settings", settingsHandler.Update)
 
+	// Tenant branding (logo + portada). Solo registrado si MinIO está disponible.
+	if brandingHandler != nil {
+		branding := protected.Group("/tenant/branding")
+		branding.Post("/logo", brandingHandler.UploadLogo)
+		branding.Post("/cover", brandingHandler.UploadCover)
+		branding.Delete("/:kind", brandingHandler.Remove)
+	}
+
 	// Schedule Blocks
 	blocks := protected.Group("/schedule-blocks")
 	blocks.Post("/", blockHandler.Create)
@@ -480,6 +529,25 @@ func main() {
 	stages := protected.Group("/pipeline-stages")
 	stages.Get("/", pipelineHandler.List)
 	stages.Post("/", pipelineHandler.Create)
+	stages.Post("/load-template", func(c *fiber.Ctx) error {
+		tenantID := middleware.TenantIDFromContext(c)
+		if tenantID == uuid.Nil {
+			return fiber.NewError(403, "tenant no identificado")
+		}
+		tenant := middleware.TenantFromContext(c)
+		if tenant == nil {
+			return fiber.NewError(403, "tenant no identificado")
+		}
+		seeded, err := seed.SeedPipelineForBusinessType(c.Context(), pool, tenantID, tenant.BusinessType)
+		if err != nil {
+			slog.Error("pipeline load-template: failed", "tenant_id", tenantID, "error", err)
+			return fiber.NewError(500, "error interno")
+		}
+		if len(seeded) == 0 {
+			return fiber.NewError(409, "el pipeline ya tiene etapas o el vertical no tiene template")
+		}
+		return c.JSON(fiber.Map{"ok": true, "stages": seeded})
+	})
 	stages.Put("/reorder", pipelineHandler.Reorder)
 	stages.Get("/:id", pipelineHandler.GetByID)
 	stages.Patch("/:id", pipelineHandler.Update)

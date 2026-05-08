@@ -121,6 +121,7 @@ func (s *appointmentSvc) Create(ctx context.Context, tenantID uuid.UUID, req *do
 
 	// Best-effort: notificar al paciente que la cita está pendiente
 	s.notifyAppointmentStatus(ctx, tenantID, appt.ID, "pending")
+	s.emitAppointmentEvent(ctx, tenantID, appt.ID, "created")
 
 	return appt, nil
 }
@@ -289,9 +290,15 @@ func (s *appointmentSvc) publishRuleEvent(ctx context.Context, event domain.Rule
 }
 
 // emitAppointmentEvent emite un evento de cita para el motor de reglas.
-func (s *appointmentSvc) emitAppointmentEvent(ctx context.Context, tenantID, apptID uuid.UUID, status string) {
+// El parámetro `trigger` puede ser un status real ("completed", "cancelled",
+// "no_show", "confirmed") o el pseudo-trigger "created" para la creación.
+func (s *appointmentSvc) emitAppointmentEvent(ctx context.Context, tenantID, apptID uuid.UUID, trigger string) {
 	eventType := ""
-	switch status {
+	switch trigger {
+	case "created":
+		eventType = "appointment.created"
+	case "confirmed":
+		eventType = "appointment.confirmed"
 	case "completed":
 		eventType = "appointment.completed"
 	case "cancelled":
@@ -319,7 +326,8 @@ func (s *appointmentSvc) emitAppointmentEvent(ctx context.Context, tenantID, app
 			"customer_id":     appt.CustomerID.String(),
 			"professional_id": appt.ProfessionalID.String(),
 			"service_id":      appt.ServiceID.String(),
-			"status":          status,
+			"status":          appt.Status,
+			"trigger":         trigger,
 			"starts_at":       appt.StartsAt.Format(time.RFC3339),
 			"customer_phone":  appt.CustomerPhone,
 			"customer_name":   appt.CustomerName,

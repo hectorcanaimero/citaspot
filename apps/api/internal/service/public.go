@@ -65,6 +65,9 @@ func (s *publicSvc) GetProfile(ctx context.Context, slug string) (*domain.Public
 		BookingSuccessText: tenant.Settings.BookingSuccessText,
 		BotName:            tenant.Settings.BotName,
 		BotGreeting:        tenant.Settings.BotGreeting,
+		LogoURL:            tenant.Settings.LogoURL,
+		CoverURL:           tenant.Settings.CoverURL,
+		Description:        tenant.Settings.Description,
 	}, nil
 }
 

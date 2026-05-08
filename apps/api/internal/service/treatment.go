@@ -53,6 +53,8 @@ func (s *treatmentSvc) Create(ctx context.Context, tenantID uuid.UUID, input *do
 	if err := s.repo.Create(ctx, t); err != nil {
 		return nil, fmt.Errorf("treatmentSvc.Create: %w", err)
 	}
+
+	s.emitTreatmentEvent(ctx, tenantID, t, "proposed")
 	return t, nil
 }
 
@@ -147,12 +149,20 @@ func (s *treatmentSvc) publishRuleEvent(ctx context.Context, event domain.RuleEv
 func (s *treatmentSvc) emitTreatmentEvent(ctx context.Context, tenantID uuid.UUID, t *domain.Treatment, newStatus string) {
 	eventType := ""
 	switch newStatus {
+	case "proposed":
+		eventType = "treatment.proposed"
 	case "accepted":
 		eventType = "treatment.accepted"
 	case "completed":
 		eventType = "treatment.completed"
 	default:
 		return
+	}
+
+	previousStatus := t.Status
+	if previousStatus == newStatus {
+		// Caso creación: t.Status ya quedó seteado a newStatus en Create antes de emitir.
+		previousStatus = ""
 	}
 
 	s.publishRuleEvent(ctx, domain.RuleEvent{
@@ -168,7 +178,7 @@ func (s *treatmentSvc) emitTreatmentEvent(ctx context.Context, tenantID uuid.UUI
 			"treatment_type":  t.TreatmentType,
 			"name":            t.Name,
 			"status":          newStatus,
-			"previous_status": t.Status,
+			"previous_status": previousStatus,
 		},
 		Timestamp: time.Now(),
 	})

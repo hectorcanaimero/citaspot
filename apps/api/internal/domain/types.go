@@ -38,6 +38,10 @@ type TenantSettings struct {
 	BookingSuccessText string `json:"booking_success_text"`
 	BotName            string `json:"bot_name"`
 	BotGreeting        string `json:"bot_greeting"`
+	// Branding de la página pública de reservas
+	LogoURL     string `json:"logo_url"`
+	CoverURL    string `json:"cover_url"`
+	Description string `json:"description"`
 }
 
 // User representa un usuario con acceso al dashboard.
@@ -339,6 +343,9 @@ type PublicProfile struct {
 	BookingSuccessText string `json:"booking_success_text,omitempty"`
 	BotName            string `json:"bot_name,omitempty"`
 	BotGreeting        string `json:"bot_greeting,omitempty"`
+	LogoURL            string `json:"logo_url,omitempty"`
+	CoverURL           string `json:"cover_url,omitempty"`
+	Description        string `json:"description,omitempty"`
 }
 
 // ── WhatsApp / Conversaciones ─────────────────────────────────────────────────

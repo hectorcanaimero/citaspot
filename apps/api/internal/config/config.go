@@ -47,6 +47,14 @@ type Config struct {
 	StripeWebhookSecret string
 	StripePriceStarter  string // Price ID del plan Starter ($10/mes)
 	StripePricePro      string // Price ID del plan Professional ($25/mes)
+
+	// MinIO (storage de assets — logos, portadas)
+	MinIOEndpoint  string // host:port sin scheme
+	MinIOAccessKey string
+	MinIOSecretKey string
+	MinIOUseSSL    bool
+	MinIOBucket    string // bucket donde se guardan los assets
+	MinIOPublicURL string // base URL pública (ej: https://s3.tudominio.com) para servir al browser
 }
 
 // Load carga la configuración desde variables de entorno con defaults para desarrollo.
@@ -76,6 +84,13 @@ func Load() *Config {
 		StripeWebhookSecret: getEnv("STRIPE_WEBHOOK_SECRET", ""),
 		StripePriceStarter:  getEnv("STRIPE_PRICE_STARTER", ""),
 		StripePricePro:      getEnv("STRIPE_PRICE_PRO", ""),
+
+		MinIOEndpoint:  getEnv("MINIO_ENDPOINT", ""),
+		MinIOAccessKey: getEnv("MINIO_ACCESS_KEY", ""),
+		MinIOSecretKey: getEnv("MINIO_SECRET_KEY", ""),
+		MinIOUseSSL:    getEnv("MINIO_USE_SSL", "false") == "true",
+		MinIOBucket:    getEnv("MINIO_BUCKET", "citaspot-tenant-assets"),
+		MinIOPublicURL: getEnv("MINIO_PUBLIC_URL", ""),
 	}
 }
 

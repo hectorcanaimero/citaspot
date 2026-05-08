@@ -100,20 +100,50 @@ export default function BookingPage() {
   }
 
   // Header del negocio
-  const Header = () => (
-    <div className="mb-6 text-center">
-      <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-600 text-white text-2xl font-bold shadow-lg">
-        {profile.name[0]}
+  const Header = () => {
+    const hasCover = Boolean(profile.cover_url);
+    const hasLogo  = Boolean(profile.logo_url);
+
+    return (
+      <div className="mb-6">
+        {hasCover ? (
+          <div
+            className="relative h-32 w-full overflow-hidden rounded-2xl bg-neutral-200 shadow-sm sm:h-40"
+            style={{ backgroundImage: `url(${profile.cover_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
+          >
+            <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/0 to-black/0" />
+          </div>
+        ) : (
+          <div className="h-20 w-full rounded-2xl bg-gradient-to-br from-primary-100 via-primary-50 to-sky-50 sm:h-24" />
+        )}
+
+        <div className={`flex flex-col items-center text-center ${hasCover ? '-mt-10' : '-mt-12'}`}>
+          {hasLogo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={profile.logo_url}
+              alt={profile.name}
+              className="h-20 w-20 rounded-2xl border-4 border-white bg-white object-cover shadow-lg"
+            />
+          ) : (
+            <div className="flex h-20 w-20 items-center justify-center rounded-2xl border-4 border-white bg-primary-600 text-3xl font-bold text-white shadow-lg">
+              {profile.name[0]}
+            </div>
+          )}
+          <h1 className="mt-3 text-xl font-bold text-neutral-900">{profile.name}</h1>
+          {profile.city && (
+            <p className="mt-0.5 text-sm text-neutral-500">{profile.city}</p>
+          )}
+          {profile.description && (
+            <p className="mt-2 max-w-md px-2 text-sm text-neutral-600">{profile.description}</p>
+          )}
+          {profile.booking_intro_text && (
+            <p className="mt-2 max-w-md px-2 text-sm text-neutral-600">{profile.booking_intro_text}</p>
+          )}
+        </div>
       </div>
-      <h1 className="text-xl font-bold text-neutral-900">{profile.name}</h1>
-      {profile.city && (
-        <p className="mt-0.5 text-sm text-neutral-500">{profile.city}</p>
-      )}
-      {profile.booking_intro_text && (
-        <p className="text-neutral-600 mt-2 text-sm">{profile.booking_intro_text}</p>
-      )}
-    </div>
-  );
+    );
+  };
 
   // ── Success ──────────────────────────────────────────────────────────────────
   if (step === 'success' && booked) {
