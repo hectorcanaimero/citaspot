@@ -199,16 +199,21 @@ type ScheduleBlock struct {
 
 // Customer es un cliente del negocio.
 type Customer struct {
-	ID          uuid.UUID `json:"id"`
-	TenantID    uuid.UUID `json:"tenant_id"`
-	Name        string    `json:"name"`
-	Phone       string    `json:"phone,omitempty"`
-	Email       string    `json:"email,omitempty"`
-	Notes       string    `json:"notes,omitempty"`
-	Tags        []string  `json:"tags"`
-	WaOptIn     bool      `json:"wa_opt_in"`
-	TotalVisits int       `json:"total_visits"`
-	CreatedAt   time.Time `json:"created_at"`
+	ID                uuid.UUID  `json:"id"`
+	TenantID          uuid.UUID  `json:"tenant_id"`
+	Name              string     `json:"name"`
+	Phone             string     `json:"phone,omitempty"`
+	Email             string     `json:"email,omitempty"`
+	Notes             string     `json:"notes,omitempty"`
+	Tags              []string   `json:"tags"`
+	WaOptIn           bool       `json:"wa_opt_in"`
+	TotalVisits       int        `json:"total_visits"`
+	StageID           *uuid.UUID `json:"stage_id,omitempty"`
+	LastVisitAt       *time.Time `json:"last_visit_at,omitempty"`
+	NextRecallAt      *time.Time `json:"next_recall_at,omitempty"`
+	LifetimeValue     float64    `json:"lifetime_value"`
+	AcquisitionSource string     `json:"acquisition_source,omitempty"`
+	CreatedAt         time.Time  `json:"created_at"`
 }
 
 // ── Appointment ───────────────────────────────────────────────────────────────
@@ -220,6 +225,7 @@ type Appointment struct {
 	CustomerID         uuid.UUID  `json:"customer_id"`
 	ProfessionalID     uuid.UUID  `json:"professional_id"`
 	ServiceID          uuid.UUID  `json:"service_id"`
+	TreatmentID        *uuid.UUID `json:"treatment_id,omitempty"`
 	StartsAt           time.Time  `json:"starts_at"`
 	EndsAt             time.Time  `json:"ends_at"`
 	Status             string     `json:"status"`

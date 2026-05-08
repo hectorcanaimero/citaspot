@@ -21,12 +21,14 @@ func NewCustomerRepository(db *pgxpool.Pool) domain.CustomerRepository {
 	return &customerRepository{db: db}
 }
 
-// scanCustomer escanea una fila en un Customer, manejando campos nullable (email, notes).
+// scanCustomer escanea una fila en un Customer, manejando campos nullable.
 func scanCustomer(row interface{ Scan(dest ...any) error }, c *domain.Customer) error {
-	var email, notes *string
+	var email, notes, acquisitionSource *string
 	if err := row.Scan(
 		&c.ID, &c.TenantID, &c.Name, &c.Phone, &email,
-		&notes, &c.Tags, &c.WaOptIn, &c.TotalVisits, &c.CreatedAt,
+		&notes, &c.Tags, &c.WaOptIn, &c.TotalVisits,
+		&c.StageID, &c.LastVisitAt, &c.NextRecallAt, &c.LifetimeValue, &acquisitionSource,
+		&c.CreatedAt,
 	); err != nil {
 		return err
 	}
@@ -35,6 +37,9 @@ func scanCustomer(row interface{ Scan(dest ...any) error }, c *domain.Customer) 
 	}
 	if notes != nil {
 		c.Notes = *notes
+	}
+	if acquisitionSource != nil {
+		c.AcquisitionSource = *acquisitionSource
 	}
 	return nil
 }
@@ -47,7 +52,9 @@ func (r *customerRepository) FindOrCreateByPhone(ctx context.Context, tenantID u
 		c = &domain.Customer{}
 		// Intentar encontrar primero
 		err := scanCustomer(tx.QueryRow(ctx, `
-			SELECT id, tenant_id, name, phone, email, notes, tags, wa_opt_in, total_visits, created_at
+			SELECT id, tenant_id, name, phone, email, notes, tags, wa_opt_in, total_visits,
+				       stage_id, last_visit_at, next_recall_at, lifetime_value, acquisition_source,
+				       created_at
 			FROM customers
 			WHERE tenant_id = $1 AND phone = $2
 		`, tenantID, phone), c)
@@ -64,7 +71,9 @@ func (r *customerRepository) FindOrCreateByPhone(ctx context.Context, tenantID u
 		err = scanCustomer(tx.QueryRow(ctx, `
 			INSERT INTO customers (id, tenant_id, name, phone, wa_opt_in, created_at)
 			VALUES ($1, $2, $3, $4, TRUE, NOW())
-			RETURNING id, tenant_id, name, phone, email, notes, tags, wa_opt_in, total_visits, created_at
+			RETURNING id, tenant_id, name, phone, email, notes, tags, wa_opt_in, total_visits,
+			          stage_id, last_visit_at, next_recall_at, lifetime_value, acquisition_source,
+			          created_at
 		`, c.ID, c.TenantID, c.Name, c.Phone), c)
 		if err != nil {
 			return fmt.Errorf("customerRepository.FindOrCreateByPhone: create: %w", err)
@@ -83,7 +92,9 @@ func (r *customerRepository) GetByID(ctx context.Context, tenantID, id uuid.UUID
 	err := withTenant(ctx, r.db, tenantID, func(tx pgx.Tx) error {
 		c = &domain.Customer{}
 		err := scanCustomer(tx.QueryRow(ctx, `
-			SELECT id, tenant_id, name, phone, email, notes, tags, wa_opt_in, total_visits, created_at
+			SELECT id, tenant_id, name, phone, email, notes, tags, wa_opt_in, total_visits,
+				       stage_id, last_visit_at, next_recall_at, lifetime_value, acquisition_source,
+				       created_at
 			FROM customers
 			WHERE tenant_id = $1 AND id = $2
 		`, tenantID, id), c)
@@ -114,7 +125,9 @@ func (r *customerRepository) List(ctx context.Context, tenantID uuid.UUID, searc
 
 		if search != "" {
 			rows, err = tx.Query(ctx, `
-				SELECT id, tenant_id, name, phone, email, notes, tags, wa_opt_in, total_visits, created_at
+				SELECT id, tenant_id, name, phone, email, notes, tags, wa_opt_in, total_visits,
+				       stage_id, last_visit_at, next_recall_at, lifetime_value, acquisition_source,
+				       created_at
 				FROM customers
 				WHERE tenant_id = $1
 				  AND (name ILIKE $2 OR phone ILIKE $2)
@@ -123,7 +136,9 @@ func (r *customerRepository) List(ctx context.Context, tenantID uuid.UUID, searc
 			`, tenantID, "%"+search+"%", limit, offset)
 		} else {
 			rows, err = tx.Query(ctx, `
-				SELECT id, tenant_id, name, phone, email, notes, tags, wa_opt_in, total_visits, created_at
+				SELECT id, tenant_id, name, phone, email, notes, tags, wa_opt_in, total_visits,
+				       stage_id, last_visit_at, next_recall_at, lifetime_value, acquisition_source,
+				       created_at
 				FROM customers
 				WHERE tenant_id = $1
 				ORDER BY name ASC

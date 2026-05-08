@@ -114,6 +114,11 @@ func main() {
 	notifRepo     := repository.NewNotificationRepository(pool)
 	reminderRepo  := repository.NewReminderRepository(pool)
 	knowledgeRepo := repository.NewKnowledgeRepository(pool)
+	pipelineRepo  := repository.NewPipelineStageRepository(pool)
+	treatmentRepo := repository.NewTreatmentRepository(pool)
+	taskRepo      := repository.NewTaskRepository(pool)
+	ruleRepo      := repository.NewRuleRepository(pool)
+	ruleExecRepo  := repository.NewRuleExecutionRepository(pool)
 
 	// ── Servicios ─────────────────────────────────────────────────────────────
 	authSvc    := service.NewAuthService(authRepo, cfg)
@@ -131,6 +136,11 @@ func main() {
 	// publisher puede ser nil si RabbitMQ no está disponible (modo degradado)
 	knowledgeSvc := service.NewKnowledgeSvc(knowledgeRepo, publisher)
 
+	pipelineSvc  := service.NewPipelineStageSvc(pipelineRepo)
+	treatmentSvc := service.NewTreatmentSvc(treatmentRepo)
+	taskSvc      := service.NewTaskSvc(taskRepo)
+	ruleSvc      := service.NewRuleSvc(ruleRepo)
+
 	// ── Handlers ──────────────────────────────────────────────────────────────
 	authHandler      := handler.NewAuthHandler(authSvc)
 	profHandler      := handler.NewProfessionalHandler(profSvc)
@@ -143,6 +153,10 @@ func main() {
 	settingsHandler  := handler.NewSettingsHandler(authRepo)
 	blockHandler     := handler.NewScheduleBlockHandler(scheduleRepo)
 	billingHandler   := handler.NewBillingHandler(authRepo, rdb, cfg.StripeSecretKey, cfg.StripeWebhookSecret, cfg.StripePriceStarter, cfg.StripePricePro)
+	pipelineHandler  := handler.NewPipelineStageHandler(pipelineSvc)
+	treatmentHandler := handler.NewTreatmentHandler(treatmentSvc)
+	taskHandler      := handler.NewTaskHandler(taskSvc)
+	ruleHandler      := handler.NewRuleHandler(ruleSvc, ruleExecRepo)
 
 	// ── Workers background ────────────────────────────────────────────────────
 	reminderWorker := worker.NewReminderWorker(reminderRepo, notifRepo, waClient)
@@ -421,6 +435,41 @@ func main() {
 	blocks.Post("/", blockHandler.Create)
 	blocks.Get("/", blockHandler.List)
 	blocks.Delete("/:id", blockHandler.Delete)
+
+	// Pipeline Stages
+	stages := protected.Group("/pipeline-stages")
+	stages.Get("/", pipelineHandler.List)
+	stages.Post("/", pipelineHandler.Create)
+	stages.Put("/reorder", pipelineHandler.Reorder)
+	stages.Get("/:id", pipelineHandler.GetByID)
+	stages.Patch("/:id", pipelineHandler.Update)
+	stages.Delete("/:id", pipelineHandler.Delete)
+
+	// Treatments
+	treatments := protected.Group("/treatments")
+	treatments.Get("/", treatmentHandler.List)
+	treatments.Post("/", treatmentHandler.Create)
+	treatments.Get("/:id", treatmentHandler.GetByID)
+	treatments.Patch("/:id", treatmentHandler.Update)
+	treatments.Patch("/:id/status", treatmentHandler.UpdateStatus)
+
+	// Tasks
+	tasks := protected.Group("/tasks")
+	tasks.Get("/", taskHandler.List)
+	tasks.Post("/", taskHandler.Create)
+	tasks.Get("/:id", taskHandler.GetByID)
+	tasks.Patch("/:id", taskHandler.Update)
+	tasks.Post("/:id/complete", taskHandler.Complete)
+	tasks.Post("/:id/dismiss", taskHandler.Dismiss)
+
+	// Rules
+	rules := protected.Group("/rules")
+	rules.Get("/", ruleHandler.List)
+	rules.Post("/", ruleHandler.Create)
+	rules.Get("/:id", ruleHandler.GetByID)
+	rules.Patch("/:id", ruleHandler.Update)
+	rules.Delete("/:id", ruleHandler.Delete)
+	rules.Get("/:id/executions", ruleHandler.ListExecutions)
 
 	// ── Arrancar servidor ─────────────────────────────────────────────────────
 	slog.Info("Core API iniciando", "port", cfg.Port, "env", cfg.AppEnv)

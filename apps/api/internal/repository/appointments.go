@@ -27,15 +27,15 @@ func (r *appointmentRepository) Create(ctx context.Context, a *domain.Appointmen
 	return withTenant(ctx, r.db, a.TenantID, func(tx pgx.Tx) error {
 		_, err := tx.Exec(ctx, `
 			INSERT INTO appointments (
-				id, tenant_id, customer_id, professional_id, service_id,
+				id, tenant_id, customer_id, professional_id, service_id, treatment_id,
 				starts_at, ends_at, status, source, price, notes,
 				created_at, updated_at
 			) VALUES (
-				$1, $2, $3, $4, $5,
-				$6, $7, $8, $9, $10, $11,
+				$1, $2, $3, $4, $5, $6,
+				$7, $8, $9, $10, $11, $12,
 				NOW(), NOW()
 			)
-		`, a.ID, a.TenantID, a.CustomerID, a.ProfessionalID, a.ServiceID,
+		`, a.ID, a.TenantID, a.CustomerID, a.ProfessionalID, a.ServiceID, a.TreatmentID,
 			a.StartsAt, a.EndsAt, a.Status, a.Source, a.Price, a.Notes)
 		if err != nil {
 			return fmt.Errorf("appointmentRepository.Create: %w", err)
@@ -54,6 +54,7 @@ func (r *appointmentRepository) GetByID(ctx context.Context, tenantID, id uuid.U
 		err := tx.QueryRow(ctx, `
 			SELECT
 				ap.id, ap.tenant_id, ap.customer_id, ap.professional_id, ap.service_id,
+				ap.treatment_id,
 				ap.starts_at, ap.ends_at, ap.status, ap.source, ap.price, ap.notes,
 				ap.internal_notes, ap.confirmed_at, ap.cancelled_at, ap.cancellation_reason,
 				ap.created_at, ap.updated_at,
@@ -67,6 +68,7 @@ func (r *appointmentRepository) GetByID(ctx context.Context, tenantID, id uuid.U
 			WHERE ap.tenant_id = $1 AND ap.id = $2
 		`, tenantID, id).Scan(
 			&a.ID, &a.TenantID, &a.CustomerID, &a.ProfessionalID, &a.ServiceID,
+			&a.TreatmentID,
 			&a.StartsAt, &a.EndsAt, &a.Status, &a.Source, &a.Price, &notes,
 			&internalNotes, &a.ConfirmedAt, &a.CancelledAt, &cancellationReason,
 			&a.CreatedAt, &a.UpdatedAt,
@@ -107,6 +109,7 @@ func (r *appointmentRepository) ListByDate(ctx context.Context, tenantID uuid.UU
 		rows, err := tx.Query(ctx, `
 			SELECT
 				ap.id, ap.tenant_id, ap.customer_id, ap.professional_id, ap.service_id,
+				ap.treatment_id,
 				ap.starts_at, ap.ends_at, ap.status, ap.source, ap.price, ap.notes,
 				ap.internal_notes, ap.confirmed_at, ap.cancelled_at, ap.cancellation_reason,
 				ap.created_at, ap.updated_at,
@@ -132,6 +135,7 @@ func (r *appointmentRepository) ListByDate(ctx context.Context, tenantID uuid.UU
 			var notes, internalNotes, cancellationReason *string
 			if err := rows.Scan(
 				&a.ID, &a.TenantID, &a.CustomerID, &a.ProfessionalID, &a.ServiceID,
+				&a.TreatmentID,
 				&a.StartsAt, &a.EndsAt, &a.Status, &a.Source, &a.Price, &notes,
 				&internalNotes, &a.ConfirmedAt, &a.CancelledAt, &cancellationReason,
 				&a.CreatedAt, &a.UpdatedAt,
@@ -264,6 +268,7 @@ func (r *appointmentRepository) ListFiltered(ctx context.Context, tenantID uuid.
 		dataSQL := fmt.Sprintf(`
 			SELECT
 				ap.id, ap.tenant_id, ap.customer_id, ap.professional_id, ap.service_id,
+				ap.treatment_id,
 				ap.starts_at, ap.ends_at, ap.status, ap.source, ap.price, ap.notes,
 				ap.internal_notes, ap.confirmed_at, ap.cancelled_at, ap.cancellation_reason,
 				ap.created_at, ap.updated_at,
@@ -295,6 +300,7 @@ func (r *appointmentRepository) ListFiltered(ctx context.Context, tenantID uuid.
 			var notes, internalNotes, cancellationReason *string
 			if err := rows.Scan(
 				&a.ID, &a.TenantID, &a.CustomerID, &a.ProfessionalID, &a.ServiceID,
+				&a.TreatmentID,
 				&a.StartsAt, &a.EndsAt, &a.Status, &a.Source, &a.Price, &notes,
 				&internalNotes, &a.ConfirmedAt, &a.CancelledAt, &cancellationReason,
 				&a.CreatedAt, &a.UpdatedAt,
