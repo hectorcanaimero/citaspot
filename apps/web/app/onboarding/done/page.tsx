@@ -1,15 +1,34 @@
 'use client';
 
 // Paso 4 del onboarding: confirmación y CTA al dashboard.
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CheckCircle2, Calendar, Scissors, Clock, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card }   from '@/components/ui/card';
 import { useTranslations } from '@/lib/i18n';
+import { auth } from '@/lib/api';
 
 export default function OnboardingDonePage() {
   const t      = useTranslations();
   const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [error, setError]     = useState<string | null>(null);
+
+  // Marca el onboarding como completado en backend antes de entrar al dashboard.
+  // Si no se llama, tenant.onboarding_done queda en false y el dashboard rebota
+  // al usuario de vuelta a /onboarding → bucle infinito.
+  async function handleGoToDashboard() {
+    setLoading(true);
+    setError(null);
+    try {
+      await auth.completeOnboarding();
+      router.push('/dashboard');
+    } catch {
+      setError(t.onboarding.completeError);
+      setLoading(false);
+    }
+  }
 
   const STEPS_DONE = [
     { icon: Scissors,      label: t.onboarding.servicesCreated },
@@ -38,10 +57,22 @@ export default function OnboardingDonePage() {
           </div>
         </Card>
 
-        <Button size="lg" className="w-full" onClick={() => router.push('/dashboard')}>
-          <Calendar className="mr-2 h-4 w-4" />
-          {t.onboarding.goToDashboard}
+        <Button size="lg" className="w-full" disabled={loading} onClick={handleGoToDashboard}>
+          {loading ? (
+            t.onboarding.goToDashboardLoading
+          ) : (
+            <>
+              <Calendar className="mr-2 h-4 w-4" />
+              {t.onboarding.goToDashboard}
+            </>
+          )}
         </Button>
+
+        {error && (
+          <p role="alert" className="mt-3 text-sm text-red-600">
+            {error}
+          </p>
+        )}
 
         <p className="mt-4 text-xs text-neutral-400">
           {t.onboarding.publicUrlText}{' '}
