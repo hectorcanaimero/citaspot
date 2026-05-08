@@ -83,16 +83,6 @@ export default function WhatsAppPage() {
     return () => stopPolling();
   }, [fetchStatus]);
 
-  // Si despues del primer fetch el estado es DISCONNECTED, disparar connect automaticamente.
-  // Se ejecuta solo una vez por mount via hasAutoConnectedRef (no loop si connect falla).
-  useEffect(() => {
-    if (loading) return;
-    if (hasAutoConnectedRef.current) return;
-    if (status !== 'DISCONNECTED') return;
-    if (error) return;
-    handleConnect();
-  }, [loading, status, error, handleConnect]);
-
   const handleConnect = useCallback(async () => {
     hasAutoConnectedRef.current = true;
     setConnecting(true);
@@ -109,6 +99,16 @@ export default function WhatsAppPage() {
       setConnecting(false);
     }
   }, [t]);
+
+  // Si despues del primer fetch el estado es DISCONNECTED, disparar connect automaticamente.
+  // Se ejecuta solo una vez por mount via hasAutoConnectedRef (no loop si connect falla).
+  useEffect(() => {
+    if (loading) return;
+    if (hasAutoConnectedRef.current) return;
+    if (status !== 'DISCONNECTED') return;
+    if (error) return;
+    handleConnect();
+  }, [loading, status, error, handleConnect]);
 
   async function handleDisconnect() {
     setConnecting(true);
