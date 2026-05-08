@@ -225,3 +225,96 @@ type KnowledgeSvc interface {
 	Upload(ctx context.Context, tenantID uuid.UUID, input *KnowledgeUploadInput, fileName string, fileBytes []byte, fileType string) (*KnowledgeDocument, error)
 	Delete(ctx context.Context, tenantID, id uuid.UUID) error
 }
+
+// ── Pipeline Stages ──────────────────────────────────────────────────────────
+
+// PipelineStageRepository operaciones DB para etapas del pipeline.
+type PipelineStageRepository interface {
+	Create(ctx context.Context, s *PipelineStage) error
+	List(ctx context.Context, tenantID uuid.UUID) ([]*PipelineStage, error)
+	GetByID(ctx context.Context, tenantID, id uuid.UUID) (*PipelineStage, error)
+	Update(ctx context.Context, s *PipelineStage) error
+	Delete(ctx context.Context, tenantID, id uuid.UUID) error
+	Reorder(ctx context.Context, tenantID uuid.UUID, items []ReorderStageInput) error
+}
+
+// PipelineStageSvc logica de negocio para etapas del pipeline.
+type PipelineStageSvc interface {
+	Create(ctx context.Context, tenantID uuid.UUID, input *PipelineStageInput) (*PipelineStage, error)
+	List(ctx context.Context, tenantID uuid.UUID) ([]*PipelineStage, error)
+	GetByID(ctx context.Context, tenantID, id uuid.UUID) (*PipelineStage, error)
+	Update(ctx context.Context, tenantID, id uuid.UUID, input *PipelineStageInput) (*PipelineStage, error)
+	Delete(ctx context.Context, tenantID, id uuid.UUID) error
+	Reorder(ctx context.Context, tenantID uuid.UUID, items []ReorderStageInput) error
+}
+
+// ── Treatments ───────────────────────────────────────────────────────────────
+
+// TreatmentRepository operaciones DB para tratamientos.
+type TreatmentRepository interface {
+	Create(ctx context.Context, t *Treatment) error
+	List(ctx context.Context, tenantID uuid.UUID, q *TreatmentListQuery) ([]*Treatment, error)
+	GetByID(ctx context.Context, tenantID, id uuid.UUID) (*Treatment, error)
+	Update(ctx context.Context, t *Treatment) error
+	UpdateStatus(ctx context.Context, tenantID, id uuid.UUID, status string) error
+}
+
+// TreatmentSvc logica de negocio para tratamientos.
+type TreatmentSvc interface {
+	Create(ctx context.Context, tenantID uuid.UUID, input *TreatmentInput) (*Treatment, error)
+	List(ctx context.Context, tenantID uuid.UUID, q *TreatmentListQuery) ([]*Treatment, error)
+	GetByID(ctx context.Context, tenantID, id uuid.UUID) (*Treatment, error)
+	Update(ctx context.Context, tenantID, id uuid.UUID, input *TreatmentInput) (*Treatment, error)
+	UpdateStatus(ctx context.Context, tenantID, id uuid.UUID, input *UpdateTreatmentStatusInput) (*Treatment, error)
+}
+
+// ── Tasks ────────────────────────────────────────────────────────────────────
+
+// TaskRepository operaciones DB para tareas.
+type TaskRepository interface {
+	Create(ctx context.Context, t *Task) error
+	List(ctx context.Context, tenantID uuid.UUID, q *TaskListQuery) ([]*Task, error)
+	GetByID(ctx context.Context, tenantID, id uuid.UUID) (*Task, error)
+	Update(ctx context.Context, t *Task) error
+	Complete(ctx context.Context, tenantID, id uuid.UUID) error
+	Dismiss(ctx context.Context, tenantID, id uuid.UUID) error
+}
+
+// TaskSvc logica de negocio para tareas.
+type TaskSvc interface {
+	Create(ctx context.Context, tenantID uuid.UUID, input *TaskInput) (*Task, error)
+	List(ctx context.Context, tenantID uuid.UUID, q *TaskListQuery) ([]*Task, error)
+	GetByID(ctx context.Context, tenantID, id uuid.UUID) (*Task, error)
+	Update(ctx context.Context, tenantID, id uuid.UUID, input *TaskInput) (*Task, error)
+	Complete(ctx context.Context, tenantID, id uuid.UUID) (*Task, error)
+	Dismiss(ctx context.Context, tenantID, id uuid.UUID) (*Task, error)
+}
+
+// ── Rules ────────────────────────────────────────────────────────────────────
+
+// RuleRepository operaciones DB para reglas de automatizacion.
+type RuleRepository interface {
+	Create(ctx context.Context, r *Rule) error
+	List(ctx context.Context, tenantID uuid.UUID) ([]*Rule, error)
+	GetByID(ctx context.Context, tenantID, id uuid.UUID) (*Rule, error)
+	Update(ctx context.Context, r *Rule) error
+	Delete(ctx context.Context, tenantID, id uuid.UUID) error
+	ListActive(ctx context.Context, tenantID uuid.UUID) ([]*Rule, error)
+	ListTemplates(ctx context.Context) ([]*Rule, error)
+}
+
+// RuleSvc logica de negocio para reglas de automatizacion (CRUD only en Phase 6A).
+type RuleSvc interface {
+	Create(ctx context.Context, tenantID uuid.UUID, input *RuleInput) (*Rule, error)
+	List(ctx context.Context, tenantID uuid.UUID) ([]*Rule, error)
+	GetByID(ctx context.Context, tenantID, id uuid.UUID) (*Rule, error)
+	Update(ctx context.Context, tenantID, id uuid.UUID, input *RuleInput) (*Rule, error)
+	Delete(ctx context.Context, tenantID, id uuid.UUID) error
+}
+
+// RuleExecutionRepository operaciones DB para logs de ejecucion de reglas.
+type RuleExecutionRepository interface {
+	Create(ctx context.Context, e *RuleExecution) error
+	ListByRule(ctx context.Context, tenantID, ruleID uuid.UUID, limit int) ([]*RuleExecution, error)
+	ListByCustomer(ctx context.Context, tenantID, customerID uuid.UUID, limit int) ([]*RuleExecution, error)
+}

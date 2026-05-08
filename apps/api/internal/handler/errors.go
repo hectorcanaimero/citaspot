@@ -49,6 +49,8 @@ func handleServiceError(c *fiber.Ctx, err error) error {
 		return c.Status(http.StatusForbidden).JSON(newError("forbidden", "Acceso denegado"))
 	case errors.Is(err, domain.ErrValidation):
 		return c.Status(http.StatusBadRequest).JSON(newError("validation_error", err.Error()))
+	case errors.Is(err, domain.ErrInvalidStatusTransition):
+		return c.Status(http.StatusBadRequest).JSON(newError("invalid_status_transition", err.Error()))
 	default:
 		// Error inesperado — loggear internamente, no exponer detalles al cliente
 		slog.Error("handler internal error",

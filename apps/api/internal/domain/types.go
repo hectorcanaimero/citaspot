@@ -454,3 +454,191 @@ type NotificationLog struct {
 	SentAt        time.Time  `json:"sent_at"`
 	ErrorMessage  string     `json:"error_message,omitempty"`
 }
+
+// ── CRM Pipeline ──────────────────────────────────────────────────────────────
+
+// PipelineStage es una etapa del pipeline CRM del tenant.
+type PipelineStage struct {
+	ID               uuid.UUID `json:"id"`
+	TenantID         uuid.UUID `json:"tenant_id"`
+	Name             string    `json:"name"`
+	Position         int       `json:"position"`
+	Color            string    `json:"color"`
+	IsDefault        bool      `json:"is_default"`
+	AutoRulesEnabled bool      `json:"auto_rules_enabled"`
+	CreatedAt        time.Time `json:"created_at"`
+}
+
+// PipelineStageInput datos para crear/actualizar una etapa.
+type PipelineStageInput struct {
+	Name             string `json:"name"     validate:"required,min=2,max=100"`
+	Position         int    `json:"position" validate:"min=0"`
+	Color            string `json:"color"    validate:"omitempty,len=7"`
+	IsDefault        *bool  `json:"is_default"`
+	AutoRulesEnabled *bool  `json:"auto_rules_enabled"`
+}
+
+// ReorderStageInput reordena una etapa a una posicion nueva.
+type ReorderStageInput struct {
+	StageID  uuid.UUID `json:"stage_id"  validate:"required"`
+	Position int       `json:"position"  validate:"min=0"`
+}
+
+// ── Treatments ────────────────────────────────────────────────────────────────
+
+// Treatment es un plan de tratamiento asociado a un cliente.
+type Treatment struct {
+	ID                uuid.UUID  `json:"id"`
+	TenantID          uuid.UUID  `json:"tenant_id"`
+	CustomerID        uuid.UUID  `json:"customer_id"`
+	ProfessionalID    uuid.UUID  `json:"professional_id"`
+	Name              string     `json:"name"`
+	TreatmentType     string     `json:"treatment_type"`
+	Status            string     `json:"status"`
+	TotalSessions     *int       `json:"total_sessions,omitempty"`
+	CompletedSessions int        `json:"completed_sessions"`
+	EstimatedCost     *float64   `json:"estimated_cost,omitempty"`
+	PaidAmount        float64    `json:"paid_amount"`
+	Currency          string     `json:"currency"`
+	ToothNumbers      []int      `json:"tooth_numbers,omitempty"`
+	Notes             string     `json:"notes,omitempty"`
+	StartedAt         *time.Time `json:"started_at,omitempty"`
+	CompletedAt       *time.Time `json:"completed_at,omitempty"`
+	NextSessionAt     *time.Time `json:"next_session_at,omitempty"`
+	CreatedAt         time.Time  `json:"created_at"`
+	UpdatedAt         time.Time  `json:"updated_at"`
+}
+
+// TreatmentInput datos para crear/actualizar un tratamiento.
+type TreatmentInput struct {
+	CustomerID     uuid.UUID `json:"customer_id"     validate:"required"`
+	ProfessionalID uuid.UUID `json:"professional_id" validate:"required"`
+	Name           string    `json:"name"            validate:"required,min=2,max=255"`
+	TreatmentType  string    `json:"treatment_type"  validate:"required,oneof=ortodoncia endodoncia implante protesis cirugia periodoncia estetica general"`
+	TotalSessions  *int      `json:"total_sessions"  validate:"omitempty,min=1"`
+	EstimatedCost  *float64  `json:"estimated_cost"  validate:"omitempty,min=0"`
+	Currency       string    `json:"currency"        validate:"omitempty,len=3"`
+	ToothNumbers   []int     `json:"tooth_numbers"`
+	Notes          string    `json:"notes"`
+}
+
+// UpdateTreatmentStatusInput datos para cambiar el estado de un tratamiento.
+type UpdateTreatmentStatusInput struct {
+	Status string `json:"status" validate:"required,oneof=proposed accepted in_progress completed abandoned"`
+}
+
+// TreatmentListQuery filtros para listar tratamientos.
+type TreatmentListQuery struct {
+	CustomerID     *uuid.UUID `json:"customer_id"`
+	ProfessionalID *uuid.UUID `json:"professional_id"`
+	Status         string     `json:"status"`
+}
+
+// ── Tasks ─────────────────────────────────────────────────────────────────────
+
+// Task es una tarea asignable a un profesional.
+type Task struct {
+	ID            uuid.UUID  `json:"id"`
+	TenantID      uuid.UUID  `json:"tenant_id"`
+	AssignedTo    *uuid.UUID `json:"assigned_to,omitempty"`
+	CustomerID    *uuid.UUID `json:"customer_id,omitempty"`
+	AppointmentID *uuid.UUID `json:"appointment_id,omitempty"`
+	TreatmentID   *uuid.UUID `json:"treatment_id,omitempty"`
+	Title         string     `json:"title"`
+	Description   string     `json:"description,omitempty"`
+	Status        string     `json:"status"`
+	DueAt         *time.Time `json:"due_at,omitempty"`
+	CompletedAt   *time.Time `json:"completed_at,omitempty"`
+	Source        string     `json:"source"`
+	RuleID        *uuid.UUID `json:"rule_id,omitempty"`
+	CreatedAt     time.Time  `json:"created_at"`
+}
+
+// TaskInput datos para crear/actualizar una tarea.
+type TaskInput struct {
+	AssignedTo    *uuid.UUID `json:"assigned_to"`
+	CustomerID    *uuid.UUID `json:"customer_id"`
+	AppointmentID *uuid.UUID `json:"appointment_id"`
+	TreatmentID   *uuid.UUID `json:"treatment_id"`
+	Title         string     `json:"title"       validate:"required,min=2,max=255"`
+	Description   string     `json:"description"`
+	DueAt         *time.Time `json:"due_at"`
+}
+
+// TaskListQuery filtros para listar tareas.
+type TaskListQuery struct {
+	AssignedTo *uuid.UUID `json:"assigned_to"`
+	CustomerID *uuid.UUID `json:"customer_id"`
+	Status     string     `json:"status"`
+	DueBefore  *time.Time `json:"due_before"`
+}
+
+// ── Rules ─────────────────────────────────────────────────────────────────────
+
+// RuleCondition es una condicion que debe cumplirse para que la regla se ejecute.
+type RuleCondition struct {
+	Field string `json:"field"`
+	Op    string `json:"op"`
+	Value any    `json:"value"`
+}
+
+// RuleAction es una accion a ejecutar cuando la regla se dispara.
+type RuleAction struct {
+	Type     string         `json:"type"`
+	Template string         `json:"template"`
+	Params   map[string]any `json:"params"`
+}
+
+// RuleTriggerSchedule configuracion para reglas temporales.
+type RuleTriggerSchedule struct {
+	IntervalDays   int    `json:"interval_days"`
+	ReferenceField string `json:"reference_field"`
+}
+
+// Rule es una regla de automatizacion CRM.
+type Rule struct {
+	ID              uuid.UUID            `json:"id"`
+	TenantID        uuid.UUID            `json:"tenant_id"`
+	Name            string               `json:"name"`
+	Description     string               `json:"description,omitempty"`
+	TriggerType     string               `json:"trigger_type"`
+	TriggerEvent    string               `json:"trigger_event,omitempty"`
+	TriggerSchedule *RuleTriggerSchedule `json:"trigger_schedule,omitempty"`
+	Conditions      []RuleCondition      `json:"conditions"`
+	Actions         []RuleAction         `json:"actions"`
+	IsActive        bool                 `json:"is_active"`
+	IsTemplate      bool                 `json:"is_template"`
+	TemplateKey     string               `json:"template_key,omitempty"`
+	CooldownHours   int                  `json:"cooldown_hours"`
+	Priority        int                  `json:"priority"`
+	CreatedAt       time.Time            `json:"created_at"`
+	UpdatedAt       time.Time            `json:"updated_at"`
+}
+
+// RuleInput datos para crear/actualizar una regla.
+type RuleInput struct {
+	Name            string               `json:"name"            validate:"required,min=2,max=255"`
+	Description     string               `json:"description"`
+	TriggerType     string               `json:"trigger_type"    validate:"required,oneof=event temporal"`
+	TriggerEvent    string               `json:"trigger_event"   validate:"omitempty"`
+	TriggerSchedule *RuleTriggerSchedule `json:"trigger_schedule"`
+	Conditions      []RuleCondition      `json:"conditions"`
+	Actions         []RuleAction         `json:"actions"         validate:"required,min=1"`
+	IsActive        *bool                `json:"is_active"`
+	CooldownHours   int                  `json:"cooldown_hours"  validate:"min=0"`
+	Priority        int                  `json:"priority"        validate:"min=0"`
+}
+
+// RuleExecution es el registro de una ejecucion de regla.
+type RuleExecution struct {
+	ID                 uuid.UUID       `json:"id"`
+	TenantID           uuid.UUID       `json:"tenant_id"`
+	RuleID             uuid.UUID       `json:"rule_id"`
+	CustomerID         *uuid.UUID      `json:"customer_id,omitempty"`
+	TriggeredAt        time.Time       `json:"triggered_at"`
+	TriggerEvent       string          `json:"trigger_event,omitempty"`
+	ConditionsSnapshot []RuleCondition `json:"conditions_snapshot,omitempty"`
+	ActionsResult      []RuleAction    `json:"actions_result,omitempty"`
+	Status             string          `json:"status"`
+	ErrorMessage       string          `json:"error_message,omitempty"`
+}

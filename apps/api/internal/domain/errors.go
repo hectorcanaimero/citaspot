@@ -43,4 +43,7 @@ var (
 	// ErrWAPermanentFailure se retorna cuando WhatsApp rechaza el envío de forma permanente
 	// (ej: número no existe). No tiene sentido reintentar estos mensajes.
 	ErrWAPermanentFailure = errors.New("whatsapp: fallo permanente de envío")
+
+	// ErrInvalidStatusTransition se retorna cuando un cambio de estado no es valido.
+	ErrInvalidStatusTransition = errors.New("transición de estado no válida")
 )
