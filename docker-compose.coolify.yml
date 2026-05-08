@@ -1,8 +1,9 @@
 # CitaSpot — Docker Compose para Coolify
 #
 # Servicios EXTERNOS (otro servidor):
-#   - RabbitMQ   → RABBITMQ_URL apunta a IP externa
+#   - RabbitMQ      → RABBITMQ_URL apunta a IP externa
 #   - Evolution API → EVOLUTION_API_URL apunta a IP externa
+#   - MinIO         → MINIO_ENDPOINT / MINIO_PUBLIC_URL apuntan al S3-compat externo
 #
 # ── Configurar en Coolify UI ──────────────────────────────────────────────────
 #   Dominios (FQDN):
@@ -17,6 +18,7 @@
 #   WEBHOOK_SECRET
 #   STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_PRICE_STARTER, STRIPE_PRICE_PRO
 #   GEMINI_API_KEY, OPENAI_API_KEY
+#   MINIO_ENDPOINT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY, MINIO_USE_SSL, MINIO_BUCKET, MINIO_PUBLIC_URL
 #   GITHUB_OWNER
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -90,6 +92,12 @@ services:
       - STRIPE_PRICE_STARTER=${STRIPE_PRICE_STARTER}
       - STRIPE_PRICE_PRO=${STRIPE_PRICE_PRO}
       - CORS_ORIGINS=${CORS_ORIGINS}
+      - MINIO_ENDPOINT=${MINIO_ENDPOINT}
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
+      - MINIO_USE_SSL=${MINIO_USE_SSL}
+      - MINIO_BUCKET=${MINIO_BUCKET}
+      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL}
     healthcheck:
       test: [ "CMD-SHELL", "wget -qO- http://localhost:3001/health/ready || exit 1" ]
       interval: 30s
