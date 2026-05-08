@@ -310,6 +310,7 @@ type RuleSvc interface {
 	GetByID(ctx context.Context, tenantID, id uuid.UUID) (*Rule, error)
 	Update(ctx context.Context, tenantID, id uuid.UUID, input *RuleInput) (*Rule, error)
 	Delete(ctx context.Context, tenantID, id uuid.UUID) error
+	ListExecutions(ctx context.Context, tenantID, ruleID uuid.UUID, limit int) ([]*RuleExecution, error)
 }
 
 // RuleExecutionRepository operaciones DB para logs de ejecucion de reglas.

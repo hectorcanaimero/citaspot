@@ -14,12 +14,11 @@ import (
 
 type RuleHandler struct {
 	svc      domain.RuleSvc
-	execRepo domain.RuleExecutionRepository
 	validate *validator.Validate
 }
 
-func NewRuleHandler(svc domain.RuleSvc, execRepo domain.RuleExecutionRepository) *RuleHandler {
-	return &RuleHandler{svc: svc, execRepo: execRepo, validate: validator.New()}
+func NewRuleHandler(svc domain.RuleSvc) *RuleHandler {
+	return &RuleHandler{svc: svc, validate: validator.New()}
 }
 
 func (h *RuleHandler) List(c *fiber.Ctx) error {
@@ -106,7 +105,7 @@ func (h *RuleHandler) ListExecutions(c *fiber.Ctx) error {
 		limit = 20
 	}
 
-	execs, err := h.execRepo.ListByRule(c.Context(), tenantID, id, limit)
+	execs, err := h.svc.ListExecutions(c.Context(), tenantID, id, limit)
 	if err != nil {
 		return handleServiceError(c, err)
 	}

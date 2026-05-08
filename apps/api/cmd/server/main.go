@@ -139,7 +139,7 @@ func main() {
 	pipelineSvc  := service.NewPipelineStageSvc(pipelineRepo)
 	treatmentSvc := service.NewTreatmentSvc(treatmentRepo)
 	taskSvc      := service.NewTaskSvc(taskRepo)
-	ruleSvc      := service.NewRuleSvc(ruleRepo)
+	ruleSvc      := service.NewRuleSvc(ruleRepo, ruleExecRepo)
 
 	// ── Handlers ──────────────────────────────────────────────────────────────
 	authHandler      := handler.NewAuthHandler(authSvc)
@@ -156,7 +156,7 @@ func main() {
 	pipelineHandler  := handler.NewPipelineStageHandler(pipelineSvc)
 	treatmentHandler := handler.NewTreatmentHandler(treatmentSvc)
 	taskHandler      := handler.NewTaskHandler(taskSvc)
-	ruleHandler      := handler.NewRuleHandler(ruleSvc, ruleExecRepo)
+	ruleHandler      := handler.NewRuleHandler(ruleSvc)
 
 	// ── Workers background ────────────────────────────────────────────────────
 	reminderWorker := worker.NewReminderWorker(reminderRepo, notifRepo, waClient)

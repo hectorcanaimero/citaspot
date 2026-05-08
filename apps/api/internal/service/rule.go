@@ -10,11 +10,12 @@ import (
 )
 
 type ruleSvc struct {
-	repo domain.RuleRepository
+	repo     domain.RuleRepository
+	execRepo domain.RuleExecutionRepository
 }
 
-func NewRuleSvc(repo domain.RuleRepository) domain.RuleSvc {
-	return &ruleSvc{repo: repo}
+func NewRuleSvc(repo domain.RuleRepository, execRepo domain.RuleExecutionRepository) domain.RuleSvc {
+	return &ruleSvc{repo: repo, execRepo: execRepo}
 }
 
 func (s *ruleSvc) Create(ctx context.Context, tenantID uuid.UUID, input *domain.RuleInput) (*domain.Rule, error) {
@@ -102,4 +103,8 @@ func (s *ruleSvc) Update(ctx context.Context, tenantID, id uuid.UUID, input *dom
 
 func (s *ruleSvc) Delete(ctx context.Context, tenantID, id uuid.UUID) error {
 	return s.repo.Delete(ctx, tenantID, id)
+}
+
+func (s *ruleSvc) ListExecutions(ctx context.Context, tenantID, ruleID uuid.UUID, limit int) ([]*domain.RuleExecution, error) {
+	return s.execRepo.ListByRule(ctx, tenantID, ruleID, limit)
 }
