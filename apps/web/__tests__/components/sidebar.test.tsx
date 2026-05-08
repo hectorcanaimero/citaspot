@@ -104,37 +104,37 @@ describe('Sidebar', () => {
     vi.mocked(usePathname).mockReturnValue('/dashboard');
     render(<Sidebar />);
     const link = screen.getByText('Dashboard').closest('a');
-    expect(link?.className).toContain('bg-primary-50');
-    expect(link?.className).toContain('text-primary-700');
+    expect(link?.className).toContain('bg-sidebar-active');
+    expect(link?.className).toContain('text-white');
   });
 
   it('Dashboard NO está activo en /dashboard/agenda', () => {
     vi.mocked(usePathname).mockReturnValue('/dashboard/agenda');
     render(<Sidebar />);
     const link = screen.getByText('Dashboard').closest('a');
-    expect(link?.className).not.toContain('bg-primary-50');
+    expect(link?.className).not.toContain('bg-sidebar-active');
   });
 
   it('Agenda está activa en /dashboard/agenda', () => {
     vi.mocked(usePathname).mockReturnValue('/dashboard/agenda');
     render(<Sidebar />);
     const link = screen.getByText('Agenda').closest('a');
-    expect(link?.className).toContain('bg-primary-50');
-    expect(link?.className).toContain('text-primary-700');
+    expect(link?.className).toContain('bg-sidebar-active');
+    expect(link?.className).toContain('text-white');
   });
 
   it('Clientes está activo en subrutas de /dashboard/clients', () => {
     vi.mocked(usePathname).mockReturnValue('/dashboard/clients/123');
     render(<Sidebar />);
     const link = screen.getByText('Clientes').closest('a');
-    expect(link?.className).toContain('bg-primary-50');
+    expect(link?.className).toContain('bg-sidebar-active');
   });
 
-  it('ítems no activos tienen clase de texto neutro', () => {
+  it('ítems no activos tienen clase de texto sidebar', () => {
     vi.mocked(usePathname).mockReturnValue('/dashboard');
     render(<Sidebar />);
     const link = screen.getByText('Agenda').closest('a');
-    expect(link?.className).toContain('text-neutral-600');
+    expect(link?.className).toContain('text-sidebar-text');
   });
 
   // ── Logout ───────────────────────────────────────────────────────────────────
@@ -154,15 +154,15 @@ describe('Sidebar', () => {
 
   // ── Estructura ──────────────────────────────────────────────────────────────
 
-  it('la barra lateral tiene ancho fijo w-60', () => {
+  it('la barra lateral tiene ancho fijo en escritorio', () => {
     const { container } = render(<Sidebar />);
     const aside = container.querySelector('aside');
-    expect(aside?.className).toContain('w-60');
+    expect(aside?.className).toContain('w-[220px]');
   });
 
-  it('la nav contiene exactamente 10 ítems', () => {
+  it('la nav contiene los 14 ítems del dashboard', () => {
     render(<Sidebar />);
     const links = document.querySelectorAll('nav a');
-    expect(links).toHaveLength(10);
+    expect(links).toHaveLength(14);
   });
 });

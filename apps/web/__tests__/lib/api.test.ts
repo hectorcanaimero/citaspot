@@ -93,10 +93,12 @@ describe('appointments.list', () => {
     });
   });
 
-  it('redirige a /login en error 401', async () => {
+  it('lanza APIError "session_expired" en error 401', async () => {
     mockFetch(401, { error: 'Unauthorized' });
-    await expect(appointments.list('2026-03-07')).rejects.toThrow(APIError);
-    expect(window.location.href).toBe('/login');
+    await expect(appointments.list('2026-03-07')).rejects.toMatchObject({
+      status: 401,
+      code: 'session_expired',
+    });
   });
 });
 

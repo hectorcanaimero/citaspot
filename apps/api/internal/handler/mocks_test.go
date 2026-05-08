@@ -173,6 +173,14 @@ func (m *mockAppointmentSvc) Cancel(ctx context.Context, tenantID, id uuid.UUID,
 	return nil
 }
 
+func (m *mockAppointmentSvc) ListFiltered(ctx context.Context, tenantID uuid.UUID, q *domain.AppointmentListQuery) (*domain.PaginatedAppointments, error) {
+	return &domain.PaginatedAppointments{Data: []*domain.AppointmentWithDetails{}}, nil
+}
+
+func (m *mockAppointmentSvc) Reschedule(ctx context.Context, tenantID, id uuid.UUID, req *domain.RescheduleRequest) error {
+	return nil
+}
+
 // ── AvailabilityService ───────────────────────────────────────────────────────
 
 type mockAvailabilitySvc struct {
@@ -213,6 +221,14 @@ func (m *mockCustomerRepo) List(ctx context.Context, tenantID uuid.UUID, search 
 		return m.listFn(ctx, tenantID, search, limit, offset)
 	}
 	return []*domain.Customer{}, nil
+}
+
+func (m *mockCustomerRepo) UpdateStage(ctx context.Context, tenantID, customerID, stageID uuid.UUID) error {
+	return nil
+}
+
+func (m *mockCustomerRepo) UpdateField(ctx context.Context, tenantID, customerID uuid.UUID, field string, value any) error {
+	return nil
 }
 
 // ── KnowledgeSvc ─────────────────────────────────────────────────────────────
@@ -421,6 +437,18 @@ func (m *mockAuthRepo) FindTenantStripeIDs(ctx context.Context, tenantID uuid.UU
 		return m.findTenantStripeIDsFn(ctx, tenantID)
 	}
 	return "", "", nil
+}
+
+func (m *mockAuthRepo) CompleteOnboarding(ctx context.Context, tenantID uuid.UUID) error {
+	return nil
+}
+
+func (m *mockAuthRepo) GetTenantSettings(ctx context.Context, tenantID uuid.UUID) (*domain.TenantSettings, error) {
+	return &domain.TenantSettings{}, nil
+}
+
+func (m *mockAuthRepo) UpdateTenantSettings(ctx context.Context, tenantID uuid.UUID, s *domain.TenantSettings) error {
+	return nil
 }
 
 // ── PublicSvc ─────────────────────────────────────────────────────────────────
