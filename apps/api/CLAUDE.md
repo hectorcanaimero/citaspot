@@ -96,7 +96,7 @@ apps/api/
 │   │   ├── 011_notification_logs.sql
 │   │   └── 012_fix_notification_logs_rls.sql
 │   └── queries/                 ← Queries SQL para sqlc (configurado en sqlc.yaml)
-├── go.mod                       ← Go 1.24.0
+├── go.mod                       ← Go 1.25
 ├── go.sum
 ├── sqlc.yaml
 ├── Dockerfile.dev
@@ -401,7 +401,7 @@ func TestAppointmentService_Create_SlotConflict(t *testing.T) {
 
 ---
 
-## 📦 DEPENDENCIAS REALES (go.mod — Go 1.24.0)
+## 📦 DEPENDENCIAS REALES (go.mod — Go 1.25)
 
 ```go
 github.com/gofiber/fiber/v2             v2.52.6    // HTTP framework

@@ -1,7 +1,7 @@
 # Dockerfile de desarrollo para el Core API (Go)
 # Usa Air para hot-reload automático al guardar archivos .go
-# Go 1.24 para alinear con dependencias (validator, x/crypto, etc.)
-FROM golang:1.24-alpine
+# Go 1.25 para alinear con dependencias (minio-go v7.1+, validator, x/crypto, etc.)
+FROM golang:1.25-alpine
 
 # Dependencias del sistema
 RUN apk add --no-cache git
