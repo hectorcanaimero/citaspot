@@ -324,3 +324,10 @@ type RuleExecutionRepository interface {
 	ListByCustomer(ctx context.Context, tenantID, customerID uuid.UUID, limit int) ([]*RuleExecution, error)
 	HasRecentExecution(ctx context.Context, tenantID, ruleID, customerID uuid.UUID, cooldownHours int) (bool, error)
 }
+
+// ── CRM Metrics ─────────────────────────────────────────────────────────────
+
+// CRMMetricsRepository operaciones DB para metricas agregadas del CRM.
+type CRMMetricsRepository interface {
+	GetMetrics(ctx context.Context, tenantID uuid.UUID) (*CRMMetrics, error)
+}

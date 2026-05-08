@@ -9,11 +9,12 @@ import {
   CalendarDays, AlertCircle, ChevronLeft, ChevronRight,
   Wifi, WifiOff, BookOpen, Users, Plus, ArrowUpRight,
   MessageCircle, XCircle, User, Tag, Sparkles,
+  Activity, Zap,
 } from 'lucide-react';
 import {
   appointments, Appointment, whatsapp, knowledge,
   professionals, Professional, KnowledgeDocument,
-  auth, TenantDTO, APIError,
+  auth, TenantDTO, APIError, crm, CRMMetrics,
 } from '@/lib/api';
 import { useTranslations, useDateLocale } from '@/lib/i18n';
 
@@ -81,6 +82,9 @@ export default function DashboardPage() {
   const [tenant, setTenant]         = useState<TenantDTO | null>(null);
   const [greeting, setGreeting]     = useState('');
 
+  const [crmMetrics, setCrmMetrics] = useState<CRMMetrics | null>(null);
+  const [crmLoading, setCrmLoading] = useState(true);
+
   const dateStr = toDateStr(date);
   const isToday = dateStr === toDateStr(new Date());
 
@@ -134,6 +138,13 @@ export default function DashboardPage() {
     professionals.list()
       .then((res) => setProfList(res.data ?? []))
       .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    crm.getMetrics()
+      .then(setCrmMetrics)
+      .catch(() => {})
+      .finally(() => setCrmLoading(false));
   }, []);
 
   // Avanzar estado de una cita
@@ -546,6 +557,99 @@ export default function DashboardPage() {
                 className="mt-3 flex items-center justify-between rounded-lg border border-neutral-200 px-3 py-2 text-xs font-medium text-neutral-600 transition-colors hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700"
               >
                 {t.dashboard.viewTeam}
+                <ArrowUpRight className="h-3.5 w-3.5" />
+              </Link>
+            </div>
+
+            {/* Widget CRM */}
+            <div className="rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-neutral-900">{t.dashboard.crmTitle}</h3>
+                <Activity className="h-4 w-4 text-neutral-400" />
+              </div>
+
+              {crmLoading ? (
+                <div className="space-y-2">
+                  <div className="h-8 w-16 animate-pulse rounded-lg bg-neutral-100" />
+                  <div className="h-4 w-28 animate-pulse rounded bg-neutral-100" />
+                </div>
+              ) : !crmMetrics ? (
+                <p className="text-xs text-neutral-400">{t.dashboard.noMetricsYet}</p>
+              ) : (
+                <>
+                  {/* KPIs en grid 2x2 */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="rounded-lg bg-primary-50 p-2.5">
+                      <p className="text-xs text-primary-600">{t.dashboard.activeTreatments}</p>
+                      <p className="text-lg font-black text-primary-700">{crmMetrics.active_treatments}</p>
+                    </div>
+                    <div className="rounded-lg bg-amber-50 p-2.5">
+                      <p className="text-xs text-amber-600">{t.dashboard.pendingTasks}</p>
+                      <p className="text-lg font-black text-amber-700">{crmMetrics.pending_tasks}</p>
+                    </div>
+                    <div className="rounded-lg bg-sky-50 p-2.5">
+                      <p className="text-xs text-sky-600">{t.dashboard.rulesFired}</p>
+                      <p className="text-lg font-black text-sky-700">{crmMetrics.rules_fired_30d}</p>
+                    </div>
+                    <div className="rounded-lg bg-emerald-50 p-2.5">
+                      <p className="text-xs text-emerald-600">{t.dashboard.successRate}</p>
+                      <p className="text-lg font-black text-emerald-700">
+                        {Math.round(crmMetrics.rules_success_rate * 100)}%
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Pipeline distribution - simple horizontal bar */}
+                  {crmMetrics.customers_per_stage.length > 0 && (
+                    <div className="mt-3">
+                      <p className="mb-2 text-xs font-medium text-neutral-500">{t.dashboard.pipelineDistribution}</p>
+                      <div className="space-y-1.5">
+                        {crmMetrics.customers_per_stage.map((stage) => {
+                          const maxCount = Math.max(...crmMetrics.customers_per_stage.map(s => s.count), 1);
+                          const pct = (stage.count / maxCount) * 100;
+                          return (
+                            <div key={stage.stage_id} className="flex items-center gap-2">
+                              <span className="w-24 truncate text-xs text-neutral-600">{stage.stage_name}</span>
+                              <div className="flex-1">
+                                <div className="h-2 overflow-hidden rounded-full bg-neutral-100">
+                                  <div
+                                    className="h-full rounded-full transition-all"
+                                    style={{ width: `${pct}%`, backgroundColor: stage.color }}
+                                  />
+                                </div>
+                              </div>
+                              <span className="w-6 text-right text-xs font-semibold text-neutral-700">{stage.count}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Top rules */}
+                  {crmMetrics.top_rules.length > 0 && (
+                    <div className="mt-3 border-t border-neutral-100 pt-3">
+                      <div className="space-y-1.5">
+                        {crmMetrics.top_rules.slice(0, 3).map((rule) => (
+                          <div key={rule.rule_id} className="flex items-center justify-between">
+                            <span className="flex items-center gap-1.5 text-xs text-neutral-600">
+                              <Zap className="h-3 w-3 text-amber-500" />
+                              {rule.rule_name}
+                            </span>
+                            <span className="text-xs font-semibold text-neutral-500">{rule.executions}x</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+
+              <Link
+                href="/dashboard/crm"
+                className="mt-3 flex items-center justify-between rounded-lg border border-neutral-200 px-3 py-2 text-xs font-medium text-neutral-600 transition-colors hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700"
+              >
+                {t.dashboard.viewCRM}
                 <ArrowUpRight className="h-3.5 w-3.5" />
               </Link>
             </div>

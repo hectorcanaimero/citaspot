@@ -885,5 +885,35 @@ export const billing = {
   },
 };
 
+// ── CRM ──────────────────────────────────────────────────────────────────────
+
+export interface StageCustomerCount {
+  stage_id: string;
+  stage_name: string;
+  color: string;
+  count: number;
+}
+
+export interface TopRuleMetric {
+  rule_id: string;
+  rule_name: string;
+  executions: number;
+}
+
+export interface CRMMetrics {
+  rules_fired_30d: number;
+  rules_success_rate: number;
+  active_treatments: number;
+  pending_tasks: number;
+  customers_per_stage: StageCustomerCount[];
+  top_rules: TopRuleMetric[];
+}
+
+export const crm = {
+  async getMetrics(): Promise<CRMMetrics> {
+    return request('/api/v1/crm/metrics');
+  },
+};
+
 // Compatibilidad con el export anterior
 export const api = { health: () => request<{ status: string }>('/health') };

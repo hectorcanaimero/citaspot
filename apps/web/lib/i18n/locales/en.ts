@@ -95,6 +95,15 @@ export const en = {
     noActiveProfs: 'No active professionals',
     viewTeam: 'View team',
     errorLoadingAppts: 'Error loading appointments',
+    // CRM metrics widget
+    crmTitle: 'CRM',
+    activeTreatments: 'Active treatments',
+    pendingTasks: 'Pending tasks',
+    rulesFired: 'Rules fired (30d)',
+    successRate: 'Success rate',
+    pipelineDistribution: 'Pipeline',
+    noMetricsYet: 'No CRM data yet',
+    viewCRM: 'View CRM',
   },
   agenda: {
     newAppointment: 'New appointment',

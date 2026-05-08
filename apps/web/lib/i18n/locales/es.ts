@@ -90,6 +90,15 @@ export const es = {
     noActiveProfs: 'Sin profesionales activos',
     viewTeam: 'Ver equipo',
     errorLoadingAppts: 'Error al cargar las citas',
+    // CRM metrics widget
+    crmTitle: 'CRM',
+    activeTreatments: 'Tratamientos activos',
+    pendingTasks: 'Tareas pendientes',
+    rulesFired: 'Reglas ejecutadas (30d)',
+    successRate: 'Tasa de exito',
+    pipelineDistribution: 'Pipeline',
+    noMetricsYet: 'Sin datos de CRM aun',
+    viewCRM: 'Ver CRM',
   },
   agenda: {
     newAppointment: 'Nueva cita',

@@ -661,3 +661,30 @@ type RuleEvent struct {
 	Payload    map[string]any `json:"payload"`
 	Timestamp  time.Time      `json:"timestamp"`
 }
+
+// ── CRM Metrics ─────────────────────────────────────────────────────────────
+
+// CRMMetrics agrega metricas del CRM para el dashboard.
+type CRMMetrics struct {
+	RulesFired30d     int                  `json:"rules_fired_30d"`
+	RulesSuccessRate  float64              `json:"rules_success_rate"`
+	ActiveTreatments  int                  `json:"active_treatments"`
+	PendingTasks      int                  `json:"pending_tasks"`
+	CustomersPerStage []StageCustomerCount `json:"customers_per_stage"`
+	TopRules          []TopRuleMetric      `json:"top_rules"`
+}
+
+// StageCustomerCount cantidad de clientes en una etapa del pipeline.
+type StageCustomerCount struct {
+	StageID   uuid.UUID `json:"stage_id"`
+	StageName string    `json:"stage_name"`
+	Color     string    `json:"color"`
+	Count     int       `json:"count"`
+}
+
+// TopRuleMetric regla con mas ejecuciones en los ultimos 30 dias.
+type TopRuleMetric struct {
+	RuleID     uuid.UUID `json:"rule_id"`
+	RuleName   string    `json:"rule_name"`
+	Executions int       `json:"executions"`
+}

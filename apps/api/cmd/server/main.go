@@ -33,6 +33,7 @@ import (
 	"github.com/citaspot/api/internal/logger"
 	"github.com/citaspot/api/internal/middleware"
 	"github.com/citaspot/api/internal/repository"
+	"github.com/citaspot/api/internal/seed"
 	"github.com/citaspot/api/internal/service"
 	"github.com/citaspot/api/internal/worker"
 )
@@ -121,6 +122,7 @@ func main() {
 	taskRepo      := repository.NewTaskRepository(pool)
 	ruleRepo      := repository.NewRuleRepository(pool)
 	ruleExecRepo  := repository.NewRuleExecutionRepository(pool)
+	crmMetricsRepo := repository.NewCRMMetricsRepository(pool)
 
 	// ── Servicios ─────────────────────────────────────────────────────────────
 	authSvc    := service.NewAuthService(authRepo, cfg)
@@ -168,6 +170,7 @@ func main() {
 	treatmentHandler := handler.NewTreatmentHandler(treatmentSvc)
 	taskHandler      := handler.NewTaskHandler(taskSvc)
 	ruleHandler      := handler.NewRuleHandler(ruleSvc)
+	crmHandler       := handler.NewCRMHandler(crmMetricsRepo)
 
 	// ── Workers background ────────────────────────────────────────────────────
 	reminderWorker := worker.NewReminderWorker(reminderRepo, notifRepo, waClient)
@@ -395,6 +398,24 @@ func main() {
 		if err := authRepo.CompleteOnboarding(c.Context(), tenantID); err != nil {
 			return fiber.NewError(500, "error interno")
 		}
+
+		// Auto-seed CRM pipeline para tenants dentales
+		tenant := middleware.TenantFromContext(c)
+		if tenant != nil && tenant.BusinessType == "dental" {
+			go func() {
+				bgCtx := context.Background()
+				if err := seed.SeedDentalPipeline(bgCtx, pool, tenantID); err != nil {
+					slog.Warn("onboarding: error seeding dental pipeline", "tenant_id", tenantID, "error", err)
+				} else {
+					slog.Info("onboarding: dental pipeline seeded", "tenant_id", tenantID)
+				}
+				// Rule templates son globales (idempotent) — safe to call multiple times
+				if err := seed.SeedDentalRuleTemplates(bgCtx, pool); err != nil {
+					slog.Warn("onboarding: error seeding dental rule templates", "error", err)
+				}
+			}()
+		}
+
 		return c.JSON(fiber.Map{"ok": true})
 	})
 
@@ -489,6 +510,9 @@ func main() {
 	rules.Patch("/:id", ruleHandler.Update)
 	rules.Delete("/:id", ruleHandler.Delete)
 	rules.Get("/:id/executions", ruleHandler.ListExecutions)
+
+	// CRM Metrics
+	protected.Get("/crm/metrics", crmHandler.Metrics)
 
 	// ── Arrancar servidor ─────────────────────────────────────────────────────
 	slog.Info("Core API iniciando", "port", cfg.Port, "env", cfg.AppEnv)
