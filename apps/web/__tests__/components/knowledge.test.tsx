@@ -59,7 +59,7 @@ const DOC_2 = {
 
 // ── Import del componente ─────────────────────────────────────────────────────
 
-import KnowledgePage from '@/app/(dashboard)/knowledge/page';
+import KnowledgePage from '@/app/dashboard/knowledge/page';
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 

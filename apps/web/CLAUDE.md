@@ -22,15 +22,14 @@ apps/web/
 │   │   ├── login/page.tsx
 │   │   └── register/page.tsx
 │   │
-│   ├── (dashboard)/             ← Rutas protegidas — requieren auth
+│   ├── dashboard/               ← Rutas protegidas — URLs /dashboard/* (auth via middleware + layout)
 │   │   ├── layout.tsx           ← Sidebar + Header + auth guard
 │   │   ├── page.tsx             ← Overview / home del dashboard
-│   │   ├── appointments/
-│   │   │   ├── page.tsx         ← Vista de calendario de citas
-│   │   │   └── [id]/page.tsx   ← Detalle de una cita
+│   │   ├── agenda/
+│   │   │   └── page.tsx         ← Vista de calendario de citas
 │   │   ├── clients/
 │   │   │   ├── page.tsx         ← Lista de clientes
-│   │   │   └── [id]/page.tsx   ← Perfil del cliente
+│   │   │   └── [id]/page.tsx    ← Perfil del cliente
 │   │   ├── services/
 │   │   │   └── page.tsx         ← Gestión de servicios y precios
 │   │   ├── team/
@@ -41,8 +40,25 @@ apps/web/
 │   │   │   └── page.tsx         ← Conectar/ver estado del número WA
 │   │   ├── analytics/
 │   │   │   └── page.tsx         ← KPIs: ocupación, no-shows, etc.
+│   │   ├── pipeline/
+│   │   │   └── page.tsx         ← Etapas CRM
+│   │   ├── treatments/
+│   │   │   └── page.tsx         ← Tratamientos
+│   │   ├── tasks/
+│   │   │   └── page.tsx         ← Tareas
+│   │   ├── automations/
+│   │   │   ├── page.tsx         ← Lista de reglas
+│   │   │   ├── new/page.tsx     ← Crear regla
+│   │   │   └── [id]/page.tsx    ← Editar regla
+│   │   ├── faq/
+│   │   │   └── page.tsx         ← Ayuda / FAQ
 │   │   └── settings/
-│   │       └── page.tsx         ← Configuración general del negocio
+│   │       ├── layout.tsx       ← Sub-layout de settings
+│   │       ├── page.tsx         ← Settings root
+│   │       ├── account/page.tsx
+│   │       ├── business/page.tsx
+│   │       ├── customization/page.tsx
+│   │       └── subscription/page.tsx
 │   │
 │   ├── (booking)/               ← Rutas públicas — sin auth
 │   │   └── book/

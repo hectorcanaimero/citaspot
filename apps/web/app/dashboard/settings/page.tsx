@@ -1,1 +1,5 @@
-export { default } from '@/app/(dashboard)/settings/page';
+import { redirect } from 'next/navigation';
+
+export default function SettingsPage() {
+  redirect('/dashboard/settings/business');
+}
