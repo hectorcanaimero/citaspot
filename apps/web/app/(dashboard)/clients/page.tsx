@@ -8,10 +8,12 @@ import { Spinner } from '@/components/ui/spinner';
 import { customers, Customer } from '@/lib/api';
 import { format } from 'date-fns';
 import { useTranslations, useDateLocale } from '@/lib/i18n';
+import { useRouter } from 'next/navigation';
 
 export default function ClientsPage() {
   const t          = useTranslations();
   const dateLocale = useDateLocale();
+  const router     = useRouter();
   const [list, setList]       = useState<Customer[]>([]);
   const [search, setSearch]   = useState('');
   const [loading, setLoading] = useState(true);
@@ -85,7 +87,11 @@ export default function ClientsPage() {
             </thead>
             <tbody className="divide-y divide-neutral-100">
               {list.map((c) => (
-                <tr key={c.id} className="hover:bg-neutral-50 transition-colors">
+                <tr
+                  key={c.id}
+                  className="hover:bg-neutral-50 transition-colors cursor-pointer"
+                  onClick={() => router.push(`/clients/${c.id}`)}
+                >
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 text-xs font-semibold text-primary-700">

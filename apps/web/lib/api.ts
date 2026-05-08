@@ -441,6 +441,11 @@ export interface Customer {
   tags: string[];
   wa_opt_in: boolean;
   total_visits: number;
+  stage_id?: string | null;
+  last_visit_at?: string | null;
+  next_recall_at?: string | null;
+  lifetime_value?: number;
+  acquisition_source?: string | null;
   created_at: string;
 }
 
@@ -448,6 +453,17 @@ export const customers = {
   async list(search = '', limit = 50, offset = 0): Promise<{ data: Customer[] }> {
     const q = new URLSearchParams({ search, limit: String(limit), offset: String(offset) });
     return request(`/api/v1/customers?${q}`);
+  },
+
+  async getById(id: string): Promise<Customer> {
+    return request(`/api/v1/customers/${id}`);
+  },
+
+  async updateStage(id: string, stageId: string | null): Promise<Customer> {
+    return request(`/api/v1/customers/${id}/stage`, {
+      method: 'PATCH',
+      body: JSON.stringify({ stage_id: stageId }),
+    });
   },
 };
 

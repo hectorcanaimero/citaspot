@@ -2,17 +2,19 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import {
-  Zap, Trash2, ChevronDown, ChevronUp, AlertCircle,
+  Zap, Trash2, ChevronDown, ChevronUp, AlertCircle, Plus, Pencil,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Spinner } from '@/components/ui/spinner';
 import { rules as rulesApi, Rule, RuleExecution } from '@/lib/api';
 import { format } from 'date-fns';
 import { useTranslations, useDateLocale } from '@/lib/i18n';
+import { useRouter } from 'next/navigation';
 
 export default function AutomationsPage() {
   const t = useTranslations();
   const dateLocale = useDateLocale();
+  const router = useRouter();
 
   const [list, setList]         = useState<Rule[]>([]);
   const [loading, setLoading]   = useState(true);
@@ -99,6 +101,14 @@ export default function AutomationsPage() {
             {' / '}
             {t.crm.automations.rulesCount.replace('{n}', String(list.length))}
           </span>
+          <button
+            type="button"
+            onClick={() => router.push('/automations/new')}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-700 transition-colors"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            {t.crm.automations.newRule}
+          </button>
         </div>
       </div>
 
@@ -171,6 +181,13 @@ export default function AutomationsPage() {
                       title={t.crm.automations.executions}
                     >
                       {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </button>
+                    <button
+                      onClick={() => router.push(`/automations/${rule.id}`)}
+                      className="rounded p-1 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600"
+                      title={t.crm.automations.editRule}
+                    >
+                      <Pencil className="h-4 w-4" />
                     </button>
                     <button
                       onClick={() => handleDelete(rule.id)}
