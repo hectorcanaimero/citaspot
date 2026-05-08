@@ -13,12 +13,12 @@ var DefaultDentalPipelineStages = []struct {
 	Position int
 	Color    string
 }{
-	{Name: "Nuevo Paciente", Position: 0, Color: "#6366f1"},
-	{Name: "Consulta Inicial", Position: 1, Color: "#8b5cf6"},
-	{Name: "Plan de Tratamiento", Position: 2, Color: "#a855f7"},
-	{Name: "En Tratamiento", Position: 3, Color: "#f59e0b"},
-	{Name: "Seguimiento", Position: 4, Color: "#10b981"},
-	{Name: "Completado", Position: 5, Color: "#22c55e"},
+	{Name: "Nuevo contacto", Position: 0, Color: "#6366f1"},
+	{Name: "Primera consulta agendada", Position: 1, Color: "#8b5cf6"},
+	{Name: "Presupuesto enviado", Position: 2, Color: "#a855f7"},
+	{Name: "Presupuesto aceptado", Position: 3, Color: "#f59e0b"},
+	{Name: "En tratamiento", Position: 4, Color: "#10b981"},
+	{Name: "Mantenimiento", Position: 5, Color: "#22c55e"},
 	{Name: "Inactivo", Position: 6, Color: "#6b7280"},
 }
 
@@ -57,11 +57,55 @@ var DefaultDentalRuleTemplates = []struct {
 	TemplateKey  string
 }{
 	{
-		Name:        "Recordatorio de recall (6 meses)",
+		Name:        "Recall semestral",
 		Description: "Enviar WhatsApp cuando el paciente no ha visitado en 6 meses",
 		TriggerType: "temporal",
 		TemplateKey: "dental_recall_6m",
-		ActionsJSON: `[{"type":"send_whatsapp","template":"recall_reminder","params":{"interval_days":180}}]`,
+		ActionsJSON: `[{"type":"send_whatsapp","template":"recall_reminder","params":{"interval_days":180}},{"type":"create_task","template":"contact_for_recall","params":{"due_days":1}}]`,
+	},
+	{
+		Name:         "Post-extracción 48h",
+		Description:  "Seguimiento post-operatorio a las 48 horas de una extracción",
+		TriggerType:  "temporal",
+		TemplateKey:  "dental_post_extraction_48h",
+		ActionsJSON:  `[{"type":"send_whatsapp","template":"post_extraction_48h","params":{"interval_hours":48}}]`,
+	},
+	{
+		Name:         "Post-endodoncia 7d",
+		Description:  "Seguimiento una semana después de endodoncia",
+		TriggerType:  "temporal",
+		TemplateKey:  "dental_post_endodoncia_7d",
+		ActionsJSON:  `[{"type":"send_whatsapp","template":"post_endodoncia_7d","params":{"interval_days":7}},{"type":"create_task","template":"verify_evolution","params":{"due_days":7}}]`,
+	},
+	{
+		Name:         "Follow-up presupuesto",
+		Description:  "Seguimiento 7 días después de enviar presupuesto",
+		TriggerType:  "temporal",
+		TemplateKey:  "dental_followup_budget",
+		ActionsJSON:  `[{"type":"send_whatsapp","template":"followup_budget","params":{"interval_days":7}},{"type":"create_task","template":"followup_budget","params":{"due_days":7}}]`,
+	},
+	{
+		Name:         "Bienvenida nuevo paciente",
+		Description:  "Mensaje de bienvenida cuando un paciente nuevo llega por WhatsApp",
+		TriggerType:  "event",
+		TriggerEvent: "customer.created",
+		TemplateKey:  "dental_welcome",
+		ActionsJSON:  `[{"type":"send_whatsapp","template":"welcome_new_patient","params":{}}]`,
+	},
+	{
+		Name:         "Paciente no asistió",
+		Description:  "Seguimiento cuando un paciente no asiste a su cita",
+		TriggerType:  "event",
+		TriggerEvent: "appointment.no_show",
+		TemplateKey:  "dental_no_show",
+		ActionsJSON:  `[{"type":"send_whatsapp","template":"no_show_followup","params":{}},{"type":"create_task","template":"reschedule","params":{"due_days":1}}]`,
+	},
+	{
+		Name:         "Retiro de puntos",
+		Description:  "Recordatorio para agendar retiro de puntos 7 días después de cirugía",
+		TriggerType:  "temporal",
+		TemplateKey:  "dental_suture_removal",
+		ActionsJSON:  `[{"type":"send_whatsapp","template":"suture_removal_reminder","params":{"interval_days":7}},{"type":"create_task","template":"schedule_suture_removal","params":{"due_days":7}}]`,
 	},
 	{
 		Name:         "Seguimiento post-tratamiento",
@@ -72,12 +116,11 @@ var DefaultDentalRuleTemplates = []struct {
 		ActionsJSON:  `[{"type":"create_task","template":"post_treatment_followup","params":{"due_days":7}}]`,
 	},
 	{
-		Name:         "Paciente no asistió",
-		Description:  "Crear tarea de contacto cuando un paciente no asiste a su cita",
-		TriggerType:  "event",
-		TriggerEvent: "appointment.no_show",
-		TemplateKey:  "dental_no_show",
-		ActionsJSON:  `[{"type":"create_task","template":"no_show_followup","params":{"due_days":1}}]`,
+		Name:         "Inactividad 12 meses",
+		Description:  "Mover a etapa Inactivo cuando el paciente no visita en 12 meses",
+		TriggerType:  "temporal",
+		TemplateKey:  "dental_inactivity_12m",
+		ActionsJSON:  `[{"type":"move_stage","template":"move_to_inactive","params":{"interval_days":365}},{"type":"create_task","template":"reactivate_patient","params":{"due_days":1}}]`,
 	},
 }
 
