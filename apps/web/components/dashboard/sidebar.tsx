@@ -1,7 +1,8 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
   CalendarDays,
@@ -15,15 +16,38 @@ import {
   UserCog,
   LayoutDashboard,
   HelpCircle,
+  ChevronsLeft,
+  ChevronsRight,
+  Menu,
+  X,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/browser';
-import { useRouter } from 'next/navigation';
 import { useTranslations } from '@/lib/i18n';
+
+const STORAGE_KEY = 'citaspot_sidebar';
 
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const t = useTranslations();
+
+  const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved === 'collapsed') setCollapsed(true);
+  }, []);
+
+  function toggleCollapse() {
+    const next = !collapsed;
+    setCollapsed(next);
+    localStorage.setItem(STORAGE_KEY, next ? 'collapsed' : 'expanded');
+  }
+
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
 
   const NAV_ITEMS = [
     { href: '/dashboard',            icon: LayoutDashboard, label: t.nav.dashboard   },
@@ -45,34 +69,47 @@ export function Sidebar() {
     router.refresh();
   }
 
-  return (
-    <aside className="flex h-screen w-60 flex-col border-r border-neutral-200 bg-white">
-      {/* Logo */}
-      <div className="flex h-16 items-center gap-3 border-b border-neutral-100 px-5">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-600 text-white text-sm font-bold">
-          A
-        </div>
-        <span className="font-semibold text-neutral-900">CitaSpot</span>
+  const sidebarContent = (
+    <>
+      {/* Header */}
+      <div className={cn(
+        'flex items-center border-b border-sidebar-border h-14',
+        collapsed ? 'justify-center px-0' : 'justify-between px-4',
+      )}>
+        {collapsed ? (
+          <span className="text-white font-bold text-lg">C</span>
+        ) : (
+          <span className="text-white font-bold text-sm tracking-tight">CitaSpot</span>
+        )}
+        <button
+          onClick={toggleCollapse}
+          className="hidden md:flex items-center justify-center text-sidebar-muted hover:text-white transition-colors"
+          title={collapsed ? 'Expandir' : 'Colapsar'}
+        >
+          {collapsed ? <ChevronsRight className="h-4 w-4" /> : <ChevronsLeft className="h-4 w-4" />}
+        </button>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto px-3 py-4">
-        <ul className="flex flex-col gap-0.5">
+      <nav className="flex-1 overflow-y-auto p-1.5">
+        <ul className="flex flex-col gap-px">
           {NAV_ITEMS.map(({ href, icon: Icon, label }) => {
             const active = pathname === href || (href !== '/dashboard' && pathname.startsWith(href));
             return (
               <li key={href}>
                 <Link
                   href={href}
+                  title={collapsed ? label : undefined}
                   className={cn(
-                    'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-150',
+                    'flex items-center rounded-md text-[13px] font-medium transition-colors duration-100',
+                    collapsed ? 'justify-center h-9 w-9 mx-auto' : 'gap-2.5 px-3 py-2',
                     active
-                      ? 'bg-primary-50 text-primary-700'
-                      : 'text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900',
+                      ? 'bg-sidebar-active text-white'
+                      : 'text-sidebar-text hover:text-neutral-200 hover:bg-sidebar-active/50',
                   )}
                 >
                   <Icon className="h-4 w-4 flex-shrink-0" />
-                  {label}
+                  {!collapsed && label}
                 </Link>
               </li>
             );
@@ -81,15 +118,60 @@ export function Sidebar() {
       </nav>
 
       {/* Logout */}
-      <div className="border-t border-neutral-100 p-3">
+      <div className="border-t border-sidebar-border p-1.5">
         <button
           onClick={handleLogout}
-          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-neutral-500 transition-colors hover:bg-neutral-50 hover:text-neutral-700"
+          title={collapsed ? t.nav.logout : undefined}
+          className={cn(
+            'flex w-full items-center rounded-md text-[13px] font-medium text-sidebar-muted transition-colors hover:text-neutral-300 hover:bg-sidebar-active/50',
+            collapsed ? 'justify-center h-9 w-9 mx-auto' : 'gap-2.5 px-3 py-2',
+          )}
         >
           <LogOut className="h-4 w-4" />
-          {t.nav.logout}
+          {!collapsed && t.nav.logout}
         </button>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Mobile hamburger */}
+      <button
+        onClick={() => setMobileOpen(true)}
+        className="fixed top-3 left-3 z-40 flex md:hidden items-center justify-center h-9 w-9 rounded-lg bg-sidebar-bg text-white"
+      >
+        <Menu className="h-5 w-5" />
+      </button>
+
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setMobileOpen(false)}
+          />
+          <aside className="relative flex h-screen w-60 flex-col bg-sidebar-bg">
+            <button
+              onClick={() => setMobileOpen(false)}
+              className="absolute top-3 right-3 text-sidebar-muted hover:text-white"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            {sidebarContent}
+          </aside>
+        </div>
+      )}
+
+      {/* Desktop sidebar */}
+      <aside
+        className={cn(
+          'hidden md:flex h-screen flex-col bg-sidebar-bg transition-all duration-200 ease-in-out flex-shrink-0',
+          collapsed ? 'w-14' : 'w-[220px]',
+        )}
+      >
+        {sidebarContent}
+      </aside>
+    </>
   );
 }

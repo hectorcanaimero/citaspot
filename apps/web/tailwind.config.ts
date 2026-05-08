@@ -1,6 +1,6 @@
 import type { Config } from 'tailwindcss';
 
-// Design tokens CitaSpot — 8px base unit, Inter, violeta-púrpura
+// Design tokens CitaSpot — 8px base unit, Inter, Indigo Deep (Twenty-inspired)
 const config: Config = {
   content: [
     './app/**/*.{js,ts,jsx,tsx,mdx}',
@@ -9,18 +9,19 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Primary — violet (salud, belleza, premium)
+        // Primary — Indigo Deep (Twenty-inspired)
         primary: {
-          50:  '#f5f3ff',
-          100: '#ede9fe',
-          200: '#ddd6fe',
-          300: '#c4b5fd',
-          400: '#a78bfa',
-          500: '#8b5cf6',
-          600: '#7c3aed',
-          700: '#6d28d9',
-          800: '#5b21b6',
-          900: '#4c1d95',
+          50:  '#eef2ff',
+          100: '#e0e7ff',
+          200: '#c7d2fe',
+          300: '#a5b4fc',
+          400: '#818cf8',
+          500: '#6366f1',
+          600: '#4f46e5',
+          700: '#4338ca',
+          800: '#3730a3',
+          900: '#312e81',
+          950: '#1e1b4b',
         },
         // Accent — rose (citas, urgencia, CTAs secundarios)
         accent: {
@@ -30,22 +31,31 @@ const config: Config = {
           600: '#e11d48',
           700: '#be123c',
         },
-        // Success, Warning, Error — semánticos
+        // Semantic
         success: '#10b981',
         warning: '#f59e0b',
         error:   '#ef4444',
-        // Neutrals — grises cálidos
+        // Neutrals — cool grays
         neutral: {
           50:  '#fafafa',
-          100: '#f4f4f5',
-          200: '#e4e4e7',
-          300: '#d4d4d8',
-          400: '#a1a1aa',
-          500: '#71717a',
-          600: '#52525b',
-          700: '#3f3f46',
-          800: '#27272a',
-          900: '#18181b',
+          100: '#f5f5f5',
+          200: '#e5e5e5',
+          300: '#d4d4d4',
+          400: '#a3a3a3',
+          500: '#737373',
+          600: '#525252',
+          700: '#404040',
+          800: '#262626',
+          900: '#171717',
+          950: '#0a0a0a',
+        },
+        // Sidebar dark palette
+        sidebar: {
+          bg:     '#1c1c1e',
+          border: '#2c2c2e',
+          text:   '#8e8e93',
+          active: '#2c2c2e',
+          muted:  '#636366',
         },
       },
       fontFamily: {
@@ -63,19 +73,19 @@ const config: Config = {
         '4xl':['2.25rem',  { lineHeight: '2.5rem' }],
       },
       borderRadius: {
-        sm:   '0.25rem',   // 4px
-        DEFAULT: '0.375rem', // 6px
-        md:   '0.5rem',    // 8px
-        lg:   '0.75rem',   // 12px
-        xl:   '1rem',      // 16px
-        '2xl':'1.5rem',    // 24px
+        sm:      '4px',
+        DEFAULT: '8px',
+        md:      '8px',
+        lg:      '8px',
+        xl:      '12px',
+        '2xl':   '16px',
       },
       boxShadow: {
-        sm:  '0 1px 2px 0 rgb(0 0 0 / 0.05)',
-        DEFAULT: '0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)',
-        md:  '0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.08)',
-        lg:  '0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.08)',
-        xl:  '0 20px 25px -5px rgb(0 0 0 / 0.08), 0 8px 10px -6px rgb(0 0 0 / 0.08)',
+        sm:      'none',
+        DEFAULT: 'none',
+        md:      '0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05)',
+        lg:      '0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.08)',
+        xl:      '0 20px 25px -5px rgb(0 0 0 / 0.08), 0 8px 10px -6px rgb(0 0 0 / 0.08)',
       },
       animation: {
         'spin-slow': 'spin 2s linear infinite',

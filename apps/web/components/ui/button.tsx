@@ -14,18 +14,18 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variants: Record<ButtonVariant, string> = {
   primary:
-    'bg-primary-600 text-white hover:bg-primary-700 focus-visible:ring-primary-500 shadow-sm',
+    'bg-primary-800 text-white hover:bg-primary-700 focus-visible:ring-primary-600',
   secondary:
-    'bg-white text-neutral-700 border border-neutral-200 hover:bg-neutral-50 focus-visible:ring-primary-500 shadow-sm',
+    'bg-white text-neutral-700 border border-neutral-200 hover:bg-neutral-50 focus-visible:ring-primary-600',
   ghost:
-    'text-neutral-600 hover:bg-neutral-100 focus-visible:ring-primary-500',
+    'text-neutral-600 hover:bg-neutral-100 focus-visible:ring-primary-600',
   danger:
-    'bg-error text-white hover:bg-red-600 focus-visible:ring-red-500 shadow-sm',
+    'bg-error text-white hover:bg-red-600 focus-visible:ring-red-500',
 };
 
 const sizes: Record<ButtonSize, string> = {
-  sm: 'h-8  px-3 text-sm  rounded',
-  md: 'h-9  px-4 text-sm  rounded-md',
+  sm: 'h-8  px-3 text-sm  rounded-lg',
+  md: 'h-9  px-4 text-sm  rounded-lg',
   lg: 'h-11 px-6 text-base rounded-lg',
 };
 
