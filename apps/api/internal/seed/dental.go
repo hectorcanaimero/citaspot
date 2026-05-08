@@ -57,6 +57,13 @@ var DefaultDentalRuleTemplates = []struct {
 	TemplateKey  string
 }{
 	{
+		Name:        "Recall trimestral",
+		Description: "Enviar WhatsApp para reactivar paciente inactivo hace 3 meses",
+		TriggerType: "temporal",
+		TemplateKey: "dental_recall_3m",
+		ActionsJSON: `[{"type":"send_whatsapp","template":"Hola {{customer_name}}! Vimos que hace un tiempo que no nos visitas. Para mantener tu salud bucal y prevenir problemas mas serios, te recomendamos agendar un control. Responde SI y te buscamos un horario que te quede comodo.","params":{"interval_days":90}},{"type":"create_task","template":"Contactar a {{customer_name}} para reactivacion 3m","params":{"due_days":1}}]`,
+	},
+	{
 		Name:        "Recall semestral",
 		Description: "Enviar WhatsApp cuando el paciente no ha visitado en 6 meses",
 		TriggerType: "temporal",
@@ -160,6 +167,71 @@ func SeedDentalRuleTemplates(ctx context.Context, pool *pgxpool.Pool) error {
 			r.TriggerType, r.TriggerEvent, r.ActionsJSON, r.TemplateKey)
 		if err != nil {
 			return fmt.Errorf("seed.SeedDentalRuleTemplates: insert '%s': %w", r.TemplateKey, err)
+		}
+	}
+
+	return tx.Commit(ctx)
+}
+
+// Documentos ficticios de Knowledge para clinica dental demo.
+// Email/telefono/direccion son ficticios para evitar exponer datos reales en el demo.
+var DefaultDentalKnowledgeDocs = []struct {
+	Category string
+	Title    string
+	Content  string
+}{
+	{
+		Category: "team",
+		Title:    "Sobre la clinica",
+		Content:  "Clinica Dental Sonrisa es una clinica familiar especializada en odontologia general y estetica. Atendemos pacientes de todas las edades con tecnologia moderna y un equipo profesional. Email: contacto@clinicasonrisa.demo - Telefono: +1-809-555-0100",
+	},
+	{
+		Category: "location",
+		Title:    "Direccion y horarios",
+		Content:  "Direccion: Av. Ficticia 123, Santo Domingo, Republica Dominicana. Horarios: lunes a viernes de 9:00 a 18:00, sabados de 9:00 a 13:00. Cerrado domingos y feriados.",
+	},
+	{
+		Category: "services",
+		Title:    "Servicios disponibles",
+		Content:  "Limpieza dental, blanqueamiento, ortodoncia, endodoncia, extracciones, implantes, protesis, odontopediatria, cirugia oral. Consulta inicial gratuita para nuevos pacientes.",
+	},
+	{
+		Category: "pricing",
+		Title:    "Precios referenciales",
+		Content:  "Limpieza dental: USD 50. Blanqueamiento: USD 200. Consulta inicial: gratuita. Endodoncia: desde USD 300. Implante unitario: desde USD 800. Los precios finales pueden variar segun el caso clinico.",
+	},
+	{
+		Category: "faq",
+		Title:    "Preguntas frecuentes",
+		Content:  "Aceptamos efectivo, tarjeta de credito/debito y transferencia. Para cancelar o reagendar una cita avisanos con al menos 24 horas de anticipacion. Atendemos urgencias el mismo dia llamando al telefono de la clinica. No requerimos referencia medica para la primera consulta.",
+	},
+}
+
+// SeedDentalKnowledge inserta documentos ficticios de Knowledge para un tenant dental.
+// Idempotente: salta documentos ya existentes con mismo title para el tenant.
+func SeedDentalKnowledge(ctx context.Context, pool *pgxpool.Pool, tenantID uuid.UUID) error {
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("seed.SeedDentalKnowledge: begin: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	if _, err := tx.Exec(ctx, "SELECT set_config('app.tenant_id', $1, true)", tenantID.String()); err != nil {
+		return fmt.Errorf("seed.SeedDentalKnowledge: set_config: %w", err)
+	}
+
+	for _, d := range DefaultDentalKnowledgeDocs {
+		_, err := tx.Exec(ctx, `
+			INSERT INTO knowledge_documents
+				(id, tenant_id, category, title, content, is_active, source_type, status, created_at, updated_at)
+			SELECT $1, $2, $3, $4, $5, TRUE, 'text', 'ready', NOW(), NOW()
+			WHERE NOT EXISTS (
+				SELECT 1 FROM knowledge_documents
+				WHERE tenant_id = $2 AND title = $4
+			)
+		`, uuid.New(), tenantID, d.Category, d.Title, d.Content)
+		if err != nil {
+			return fmt.Errorf("seed.SeedDentalKnowledge: insert '%s': %w", d.Title, err)
 		}
 	}
 
