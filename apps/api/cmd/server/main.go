@@ -125,7 +125,7 @@ func main() {
 	profSvc    := service.NewProfessionalService(profRepo, scheduleRepo)
 	serviceSvc := service.NewServiceSvc(serviceRepo)
 	availSvc   := service.NewAvailabilityService(scheduleRepo, serviceRepo)
-	apptSvc    := service.NewAppointmentSvc(apptRepo, serviceRepo, customerRepo, authRepo, waClient, notifRepo)
+	apptSvc    := service.NewAppointmentSvc(apptRepo, serviceRepo, customerRepo, authRepo, waClient, notifRepo, publisher)
 	publicSvc  := service.NewPublicSvc(authRepo, profRepo, serviceRepo, availSvc, apptSvc, customerRepo)
 
 	var waSvc domain.WhatsAppSvc
@@ -137,7 +137,7 @@ func main() {
 	knowledgeSvc := service.NewKnowledgeSvc(knowledgeRepo, publisher)
 
 	pipelineSvc  := service.NewPipelineStageSvc(pipelineRepo)
-	treatmentSvc := service.NewTreatmentSvc(treatmentRepo)
+	treatmentSvc := service.NewTreatmentSvc(treatmentRepo, publisher)
 	taskSvc      := service.NewTaskSvc(taskRepo)
 	ruleSvc      := service.NewRuleSvc(ruleRepo, ruleExecRepo)
 

@@ -2,7 +2,10 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"log/slog"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -18,11 +21,12 @@ var validTreatmentTransitions = map[string][]string{
 }
 
 type treatmentSvc struct {
-	repo domain.TreatmentRepository
+	repo      domain.TreatmentRepository
+	publisher domain.MessagePublisher
 }
 
-func NewTreatmentSvc(repo domain.TreatmentRepository) domain.TreatmentSvc {
-	return &treatmentSvc{repo: repo}
+func NewTreatmentSvc(repo domain.TreatmentRepository, publisher domain.MessagePublisher) domain.TreatmentSvc {
+	return &treatmentSvc{repo: repo, publisher: publisher}
 }
 
 func (s *treatmentSvc) Create(ctx context.Context, tenantID uuid.UUID, input *domain.TreatmentInput) (*domain.Treatment, error) {
@@ -119,5 +123,53 @@ func (s *treatmentSvc) UpdateStatus(ctx context.Context, tenantID, id uuid.UUID,
 		return nil, fmt.Errorf("treatmentSvc.UpdateStatus: %w", err)
 	}
 
+	s.emitTreatmentEvent(ctx, tenantID, t, input.Status)
+
 	return s.repo.GetByID(ctx, tenantID, id)
+}
+
+// publishRuleEvent publica un evento de dominio en la cola rules.events.
+func (s *treatmentSvc) publishRuleEvent(ctx context.Context, event domain.RuleEvent) {
+	if s.publisher == nil {
+		return
+	}
+	body, err := json.Marshal(event)
+	if err != nil {
+		slog.Warn("treatmentSvc.publishRuleEvent: marshal error", "error", err)
+		return
+	}
+	if err := s.publisher.Publish(ctx, "rules.events", body); err != nil {
+		slog.Warn("treatmentSvc.publishRuleEvent: publish error", "event", event.EventType, "error", err)
+	}
+}
+
+// emitTreatmentEvent emite un evento de tratamiento para el motor de reglas.
+func (s *treatmentSvc) emitTreatmentEvent(ctx context.Context, tenantID uuid.UUID, t *domain.Treatment, newStatus string) {
+	eventType := ""
+	switch newStatus {
+	case "accepted":
+		eventType = "treatment.accepted"
+	case "completed":
+		eventType = "treatment.completed"
+	default:
+		return
+	}
+
+	s.publishRuleEvent(ctx, domain.RuleEvent{
+		TenantID:   tenantID,
+		EventType:  eventType,
+		CustomerID: t.CustomerID,
+		EntityID:   t.ID,
+		EntityType: "treatment",
+		Payload: map[string]any{
+			"treatment_id":    t.ID.String(),
+			"customer_id":     t.CustomerID.String(),
+			"professional_id": t.ProfessionalID.String(),
+			"treatment_type":  t.TreatmentType,
+			"name":            t.Name,
+			"status":          newStatus,
+			"previous_status": t.Status,
+		},
+		Timestamp: time.Now(),
+	})
 }

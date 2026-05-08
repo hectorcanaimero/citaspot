@@ -117,6 +117,23 @@ func (s *whatsAppSvc) ProcessInbound(ctx context.Context, instanceName string, p
 		// No fatal — continuamos sin customer vinculado
 	}
 
+	// Emitir evento customer.created si el cliente acaba de ser creado
+	if customer != nil && customer.TotalVisits == 0 && customer.CreatedAt.After(time.Now().Add(-5*time.Second)) {
+		s.publishRuleEvent(ctx, domain.RuleEvent{
+			TenantID:   tenant.ID,
+			EventType:  "customer.created",
+			CustomerID: customer.ID,
+			EntityID:   customer.ID,
+			EntityType: "customer",
+			Payload: map[string]any{
+				"customer_id":    customer.ID.String(),
+				"customer_name":  customer.Name,
+				"customer_phone": customer.Phone,
+			},
+			Timestamp: time.Now(),
+		})
+	}
+
 	// 6. Guardar mensaje en DB
 	msg := &domain.Message{
 		ID:             uuid.New(),
@@ -220,4 +237,19 @@ func sanitizeWAInput(content string) string {
 		}
 	}
 	return strings.TrimSpace(sb.String())
+}
+
+// publishRuleEvent publica un evento de dominio en la cola rules.events.
+func (s *whatsAppSvc) publishRuleEvent(ctx context.Context, event domain.RuleEvent) {
+	if s.publisher == nil {
+		return
+	}
+	body, err := json.Marshal(event)
+	if err != nil {
+		slog.Warn("whatsAppSvc.publishRuleEvent: marshal error", "error", err)
+		return
+	}
+	if err := s.publisher.Publish(ctx, "rules.events", body); err != nil {
+		slog.Warn("whatsAppSvc.publishRuleEvent: publish error", "event", event.EventType, "error", err)
+	}
 }

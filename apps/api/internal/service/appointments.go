@@ -2,8 +2,10 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -18,6 +20,7 @@ type appointmentSvc struct {
 	authRepo     domain.AuthRepository
 	waClient     domain.WAClient
 	notifRepo    domain.NotificationRepository
+	publisher    domain.MessagePublisher
 }
 
 // NewAppointmentSvc crea el servicio de citas.
@@ -28,6 +31,7 @@ func NewAppointmentSvc(
 	authRepo domain.AuthRepository,
 	waClient domain.WAClient,
 	notifRepo domain.NotificationRepository,
+	publisher domain.MessagePublisher,
 ) domain.AppointmentSvc {
 	return &appointmentSvc{
 		apptRepo:     apptRepo,
@@ -36,6 +40,7 @@ func NewAppointmentSvc(
 		authRepo:     authRepo,
 		waClient:     waClient,
 		notifRepo:    notifRepo,
+		publisher:    publisher,
 	}
 }
 
@@ -127,6 +132,7 @@ func (s *appointmentSvc) Update(ctx context.Context, tenantID, id uuid.UUID, req
 	}
 	if req.Status != "" {
 		s.notifyAppointmentStatus(ctx, tenantID, id, req.Status)
+		s.emitAppointmentEvent(ctx, tenantID, id, req.Status)
 	}
 	return nil
 }
@@ -140,6 +146,7 @@ func (s *appointmentSvc) Cancel(ctx context.Context, tenantID, id uuid.UUID, rea
 		return err
 	}
 	s.notifyAppointmentStatus(ctx, tenantID, id, "cancelled")
+	s.emitAppointmentEvent(ctx, tenantID, id, "cancelled")
 	return nil
 }
 
@@ -264,4 +271,59 @@ func (s *appointmentSvc) notifyAppointmentStatus(ctx context.Context, tenantID, 
 	if err := s.notifRepo.LogNotification(ctx, nl); err != nil {
 		log.Printf("appointmentSvc.notify: log error: %v", err)
 	}
+}
+
+// publishRuleEvent publica un evento de dominio en la cola rules.events.
+func (s *appointmentSvc) publishRuleEvent(ctx context.Context, event domain.RuleEvent) {
+	if s.publisher == nil {
+		return
+	}
+	body, err := json.Marshal(event)
+	if err != nil {
+		slog.Warn("appointmentSvc.publishRuleEvent: marshal error", "error", err)
+		return
+	}
+	if err := s.publisher.Publish(ctx, "rules.events", body); err != nil {
+		slog.Warn("appointmentSvc.publishRuleEvent: publish error", "event", event.EventType, "error", err)
+	}
+}
+
+// emitAppointmentEvent emite un evento de cita para el motor de reglas.
+func (s *appointmentSvc) emitAppointmentEvent(ctx context.Context, tenantID, apptID uuid.UUID, status string) {
+	eventType := ""
+	switch status {
+	case "completed":
+		eventType = "appointment.completed"
+	case "cancelled":
+		eventType = "appointment.cancelled"
+	case "no_show":
+		eventType = "appointment.no_show"
+	default:
+		return
+	}
+
+	appt, err := s.apptRepo.GetByID(ctx, tenantID, apptID)
+	if err != nil {
+		slog.Warn("appointmentSvc.emitAppointmentEvent: get error", "error", err)
+		return
+	}
+
+	s.publishRuleEvent(ctx, domain.RuleEvent{
+		TenantID:   tenantID,
+		EventType:  eventType,
+		CustomerID: appt.CustomerID,
+		EntityID:   apptID,
+		EntityType: "appointment",
+		Payload: map[string]any{
+			"appointment_id":  apptID.String(),
+			"customer_id":     appt.CustomerID.String(),
+			"professional_id": appt.ProfessionalID.String(),
+			"service_id":      appt.ServiceID.String(),
+			"status":          status,
+			"starts_at":       appt.StartsAt.Format(time.RFC3339),
+			"customer_phone":  appt.CustomerPhone,
+			"customer_name":   appt.CustomerName,
+		},
+		Timestamp: time.Now(),
+	})
 }
