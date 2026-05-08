@@ -241,6 +241,54 @@ func (r *ruleRepository) ListActive(ctx context.Context, tenantID uuid.UUID) ([]
 	return result, err
 }
 
+// ListActiveByTriggerEvent retorna reglas activas que se disparan por un evento específico.
+func (r *ruleRepository) ListActiveByTriggerEvent(ctx context.Context, tenantID uuid.UUID, triggerEvent string) ([]*domain.Rule, error) {
+	var result []*domain.Rule
+	err := withTenant(ctx, r.db, tenantID, func(tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `
+			SELECT `+ruleColumns+` FROM rules
+			WHERE tenant_id = $1 AND is_active = TRUE AND is_template = FALSE
+			  AND trigger_type = 'event' AND trigger_event = $2
+			ORDER BY priority DESC
+		`, tenantID, triggerEvent)
+		if err != nil {
+			return fmt.Errorf("ruleRepository.ListActiveByTriggerEvent: query: %w", err)
+		}
+		defer rows.Close()
+		for rows.Next() {
+			rule := &domain.Rule{}
+			if err := scanRule(rows, rule); err != nil {
+				return fmt.Errorf("ruleRepository.ListActiveByTriggerEvent: scan: %w", err)
+			}
+			result = append(result, rule)
+		}
+		return rows.Err()
+	})
+	return result, err
+}
+
+// ListActiveTemporal retorna todas las reglas temporales activas (cross-tenant, para cron).
+func (r *ruleRepository) ListActiveTemporal(ctx context.Context) ([]*domain.Rule, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT `+ruleColumns+` FROM rules
+		WHERE is_active = TRUE AND is_template = FALSE AND trigger_type = 'temporal'
+		ORDER BY tenant_id, priority DESC
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("ruleRepository.ListActiveTemporal: query: %w", err)
+	}
+	defer rows.Close()
+	var result []*domain.Rule
+	for rows.Next() {
+		rule := &domain.Rule{}
+		if err := scanRule(rows, rule); err != nil {
+			return nil, fmt.Errorf("ruleRepository.ListActiveTemporal: scan: %w", err)
+		}
+		result = append(result, rule)
+	}
+	return result, rows.Err()
+}
+
 func (r *ruleRepository) ListTemplates(ctx context.Context) ([]*domain.Rule, error) {
 	var result []*domain.Rule
 	// Templates usan tenant_id nil — configurar RLS context para acceder

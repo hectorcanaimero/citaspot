@@ -161,3 +161,36 @@ func (r *customerRepository) List(ctx context.Context, tenantID uuid.UUID, searc
 	})
 	return result, err
 }
+
+// UpdateStage actualiza la etapa del pipeline de un cliente.
+func (r *customerRepository) UpdateStage(ctx context.Context, tenantID, customerID, stageID uuid.UUID) error {
+	return withTenant(ctx, r.db, tenantID, func(tx pgx.Tx) error {
+		tag, err := tx.Exec(ctx, `UPDATE customers SET stage_id = $3 WHERE tenant_id = $1 AND id = $2`, tenantID, customerID, stageID)
+		if err != nil {
+			return fmt.Errorf("customerRepository.UpdateStage: %w", err)
+		}
+		if tag.RowsAffected() == 0 {
+			return domain.ErrNotFound
+		}
+		return nil
+	})
+}
+
+// UpdateField actualiza un campo específico permitido de un cliente.
+func (r *customerRepository) UpdateField(ctx context.Context, tenantID, customerID uuid.UUID, field string, value any) error {
+	allowed := map[string]bool{"next_recall_at": true, "last_visit_at": true, "total_visits": true, "lifetime_value": true}
+	if !allowed[field] {
+		return fmt.Errorf("customerRepository.UpdateField: campo '%s' no permitido: %w", field, domain.ErrValidation)
+	}
+	return withTenant(ctx, r.db, tenantID, func(tx pgx.Tx) error {
+		query := fmt.Sprintf(`UPDATE customers SET %s = $3 WHERE tenant_id = $1 AND id = $2`, field)
+		tag, err := tx.Exec(ctx, query, tenantID, customerID, value)
+		if err != nil {
+			return fmt.Errorf("customerRepository.UpdateField: %w", err)
+		}
+		if tag.RowsAffected() == 0 {
+			return domain.ErrNotFound
+		}
+		return nil
+	})
+}

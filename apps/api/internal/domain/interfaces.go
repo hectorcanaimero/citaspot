@@ -116,6 +116,8 @@ type CustomerRepository interface {
 	FindOrCreateByPhone(ctx context.Context, tenantID uuid.UUID, name, phone string) (*Customer, error)
 	GetByID(ctx context.Context, tenantID, id uuid.UUID) (*Customer, error)
 	List(ctx context.Context, tenantID uuid.UUID, search string, limit, offset int) ([]*Customer, error)
+	UpdateStage(ctx context.Context, tenantID, customerID, stageID uuid.UUID) error
+	UpdateField(ctx context.Context, tenantID, customerID uuid.UUID, field string, value any) error
 }
 
 // ── Appointments ──────────────────────────────────────────────────────────────
@@ -301,6 +303,8 @@ type RuleRepository interface {
 	Delete(ctx context.Context, tenantID, id uuid.UUID) error
 	ListActive(ctx context.Context, tenantID uuid.UUID) ([]*Rule, error)
 	ListTemplates(ctx context.Context) ([]*Rule, error)
+	ListActiveByTriggerEvent(ctx context.Context, tenantID uuid.UUID, triggerEvent string) ([]*Rule, error)
+	ListActiveTemporal(ctx context.Context) ([]*Rule, error)
 }
 
 // RuleSvc logica de negocio para reglas de automatizacion (CRUD only en Phase 6A).
@@ -318,4 +322,5 @@ type RuleExecutionRepository interface {
 	Create(ctx context.Context, e *RuleExecution) error
 	ListByRule(ctx context.Context, tenantID, ruleID uuid.UUID, limit int) ([]*RuleExecution, error)
 	ListByCustomer(ctx context.Context, tenantID, customerID uuid.UUID, limit int) ([]*RuleExecution, error)
+	HasRecentExecution(ctx context.Context, tenantID, ruleID, customerID uuid.UUID, cooldownHours int) (bool, error)
 }

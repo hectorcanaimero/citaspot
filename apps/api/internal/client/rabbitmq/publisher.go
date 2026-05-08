@@ -48,6 +48,7 @@ func (p *Publisher) connect() error {
 		"notifications.reminders",
 		"knowledge.vectorize",
 		"notifications.review",
+		"rules.events",
 	}
 	for _, q := range queues {
 		if _, err := ch.QueueDeclare(q, true, false, false, false, nil); err != nil {

@@ -133,3 +133,22 @@ func (r *ruleExecutionRepository) ListByCustomer(ctx context.Context, tenantID, 
 	})
 	return result, err
 }
+
+// HasRecentExecution verifica si existe una ejecución exitosa reciente dentro del cooldown.
+func (r *ruleExecutionRepository) HasRecentExecution(ctx context.Context, tenantID, ruleID, customerID uuid.UUID, cooldownHours int) (bool, error) {
+	var exists bool
+	err := withTenant(ctx, r.db, tenantID, func(tx pgx.Tx) error {
+		return tx.QueryRow(ctx, `
+			SELECT EXISTS(
+				SELECT 1 FROM rule_executions
+				WHERE tenant_id = $1 AND rule_id = $2 AND customer_id = $3
+				  AND status = 'success'
+				  AND triggered_at > NOW() - INTERVAL '1 hour' * $4
+			)
+		`, tenantID, ruleID, customerID, cooldownHours).Scan(&exists)
+	})
+	if err != nil {
+		return false, fmt.Errorf("ruleExecutionRepository.HasRecentExecution: %w", err)
+	}
+	return exists, nil
+}

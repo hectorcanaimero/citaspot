@@ -648,3 +648,16 @@ type RuleExecution struct {
 	Status             string          `json:"status"`
 	ErrorMessage       string          `json:"error_message,omitempty"`
 }
+
+// ── Rule Events ──────────────────────────────────────────────────────────────
+
+// RuleEvent representa un evento de dominio que puede disparar reglas de automatización.
+type RuleEvent struct {
+	TenantID   uuid.UUID      `json:"tenant_id"`
+	EventType  string         `json:"event_type"`
+	CustomerID uuid.UUID      `json:"customer_id"`
+	EntityID   uuid.UUID      `json:"entity_id"`
+	EntityType string         `json:"entity_type"`
+	Payload    map[string]any `json:"payload"`
+	Timestamp  time.Time      `json:"timestamp"`
+}
