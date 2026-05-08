@@ -243,23 +243,28 @@ func (r *ruleRepository) ListActive(ctx context.Context, tenantID uuid.UUID) ([]
 
 func (r *ruleRepository) ListTemplates(ctx context.Context) ([]*domain.Rule, error) {
 	var result []*domain.Rule
-	rows, err := r.db.Query(ctx, `
-		SELECT `+ruleColumns+`
-		FROM rules
-		WHERE is_template = TRUE
-		ORDER BY priority DESC, name ASC
-	`)
-	if err != nil {
-		return nil, fmt.Errorf("ruleRepository.ListTemplates: query: %w", err)
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		rule := &domain.Rule{}
-		if err := scanRule(rows, rule); err != nil {
-			return nil, fmt.Errorf("ruleRepository.ListTemplates: scan: %w", err)
+	// Templates usan tenant_id nil — configurar RLS context para acceder
+	templateTenantID := uuid.MustParse("00000000-0000-0000-0000-000000000000")
+	err := withTenant(ctx, r.db, templateTenantID, func(tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `
+			SELECT `+ruleColumns+`
+			FROM rules
+			WHERE is_template = TRUE
+			ORDER BY priority DESC, name ASC
+		`)
+		if err != nil {
+			return fmt.Errorf("ruleRepository.ListTemplates: query: %w", err)
 		}
-		result = append(result, rule)
-	}
-	return result, rows.Err()
+		defer rows.Close()
+
+		for rows.Next() {
+			rule := &domain.Rule{}
+			if err := scanRule(rows, rule); err != nil {
+				return fmt.Errorf("ruleRepository.ListTemplates: scan: %w", err)
+			}
+			result = append(result, rule)
+		}
+		return rows.Err()
+	})
+	return result, err
 }

@@ -82,9 +82,22 @@ var DefaultDentalRuleTemplates = []struct {
 }
 
 func SeedDentalRuleTemplates(ctx context.Context, pool *pgxpool.Pool) error {
+	templateTenantID := uuid.MustParse("00000000-0000-0000-0000-000000000000")
+
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("seed.SeedDentalRuleTemplates: begin: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	// Configurar RLS context para el tenant de templates
+	if _, err := tx.Exec(ctx, "SELECT set_config('app.tenant_id', $1, true)", templateTenantID.String()); err != nil {
+		return fmt.Errorf("seed.SeedDentalRuleTemplates: set_config: %w", err)
+	}
+
 	for _, r := range DefaultDentalRuleTemplates {
 		var exists bool
-		err := pool.QueryRow(ctx, `
+		err := tx.QueryRow(ctx, `
 			SELECT EXISTS(SELECT 1 FROM rules WHERE is_template = TRUE AND template_key = $1)
 		`, r.TemplateKey).Scan(&exists)
 		if err != nil {
@@ -94,9 +107,7 @@ func SeedDentalRuleTemplates(ctx context.Context, pool *pgxpool.Pool) error {
 			continue
 		}
 
-		templateTenantID := uuid.MustParse("00000000-0000-0000-0000-000000000000")
-
-		_, err = pool.Exec(ctx, `
+		_, err = tx.Exec(ctx, `
 			INSERT INTO rules
 				(id, tenant_id, name, description, trigger_type, trigger_event,
 				 conditions, actions, is_active, is_template, template_key,
@@ -108,5 +119,6 @@ func SeedDentalRuleTemplates(ctx context.Context, pool *pgxpool.Pool) error {
 			return fmt.Errorf("seed.SeedDentalRuleTemplates: insert '%s': %w", r.TemplateKey, err)
 		}
 	}
-	return nil
+
+	return tx.Commit(ctx)
 }
