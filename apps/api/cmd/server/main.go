@@ -27,6 +27,8 @@ import (
 	"github.com/citaspot/api/internal/client/rabbitmq"
 	"github.com/citaspot/api/internal/config"
 	"github.com/citaspot/api/internal/domain"
+	"github.com/citaspot/api/internal/engine"
+	"github.com/citaspot/api/internal/engine/actions"
 	"github.com/citaspot/api/internal/handler"
 	"github.com/citaspot/api/internal/logger"
 	"github.com/citaspot/api/internal/middleware"
@@ -141,6 +143,15 @@ func main() {
 	taskSvc      := service.NewTaskSvc(taskRepo)
 	ruleSvc      := service.NewRuleSvc(ruleRepo, ruleExecRepo)
 
+	// ── Motor de reglas ──────────────────────────────────────────────────────
+	actionRegistry := engine.NewActionRegistry()
+	actionRegistry.Register(actions.NewSendWhatsAppAction(waClient))
+	actionRegistry.Register(actions.NewCreateTaskAction(taskRepo))
+	actionRegistry.Register(actions.NewMoveStageAction(customerRepo))
+	actionRegistry.Register(actions.NewUpdateFieldAction(customerRepo))
+
+	ruleExecutor := engine.NewRuleExecutor(ruleRepo, ruleExecRepo, authRepo, actionRegistry)
+
 	// ── Handlers ──────────────────────────────────────────────────────────────
 	authHandler      := handler.NewAuthHandler(authSvc)
 	profHandler      := handler.NewProfessionalHandler(profSvc)
@@ -163,6 +174,14 @@ func main() {
 	outboundWorker := worker.NewOutboundWorker(cfg.RabbitMQURL, waClient, notifRepo)
 	go reminderWorker.Start(ctx)
 	go outboundWorker.Start(ctx)
+
+	// Workers del motor de reglas
+	if cfg.RabbitMQURL != "" {
+		rulesEventWorker := worker.NewRulesEventWorker(cfg.RabbitMQURL, ruleExecutor)
+		go rulesEventWorker.Start(ctx)
+	}
+	temporalRulesWorker := worker.NewTemporalRulesWorker(ruleRepo, customerRepo, ruleExecutor)
+	go temporalRulesWorker.Start(ctx)
 
 	// Re-registrar webhooks de WhatsApp al arrancar.
 	// Evolution API puede perder la configuración del webhook al reiniciarse.
