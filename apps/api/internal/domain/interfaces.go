@@ -19,6 +19,8 @@ type AuthRepository interface {
 	TenantSlugExists(ctx context.Context, slug string) (bool, error)
 	FindTenantByID(ctx context.Context, id uuid.UUID) (*Tenant, error)
 	FindTenantBySlug(ctx context.Context, slug string) (*Tenant, error)
+	// CompleteOnboarding marca el onboarding del tenant como completado.
+	CompleteOnboarding(ctx context.Context, tenantID uuid.UUID) error
 	// UpdateTenantWAStatus actualiza el wa_status del tenant por slug.
 	// Valores válidos: "connected", "disconnected", "banned".
 	UpdateTenantWAStatus(ctx context.Context, slug, status string) error
@@ -31,6 +33,8 @@ type AuthRepository interface {
 	// FindTenantStripeIDs retorna los IDs de Stripe (customer, subscription) del tenant.
 	// Los valores pueden estar vacíos si el tenant aún no tiene suscripción activa.
 	FindTenantStripeIDs(ctx context.Context, tenantID uuid.UUID) (customerID, subID string, err error)
+	GetTenantSettings(ctx context.Context, tenantID uuid.UUID) (*TenantSettings, error)
+	UpdateTenantSettings(ctx context.Context, tenantID uuid.UUID, s *TenantSettings) error
 }
 
 // AuthService lógica de negocio de autenticación.
@@ -88,6 +92,16 @@ type ScheduleRepository interface {
 	UpsertSchedules(ctx context.Context, tenantID, professionalID uuid.UUID, schedules []*Schedule) ([]*Schedule, error)
 	GetBlocks(ctx context.Context, tenantID, professionalID uuid.UUID, from, to time.Time) ([]*ScheduleBlock, error)
 	GetAppointmentsInRange(ctx context.Context, tenantID, professionalID uuid.UUID, from, to time.Time) ([]*Appointment, error)
+	CreateBlock(ctx context.Context, b *ScheduleBlock) error
+	ListBlocks(ctx context.Context, tenantID uuid.UUID, professionalID *uuid.UUID) ([]*ScheduleBlock, error)
+	DeleteBlock(ctx context.Context, tenantID, id uuid.UUID) error
+}
+
+// ScheduleBlockRepository operaciones CRUD para bloqueos de horario.
+type ScheduleBlockRepository interface {
+	Create(ctx context.Context, b *ScheduleBlock) error
+	ListByTenant(ctx context.Context, tenantID uuid.UUID, professionalID *uuid.UUID) ([]*ScheduleBlock, error)
+	Delete(ctx context.Context, tenantID, id uuid.UUID) error
 }
 
 // AvailabilityService calcula slots disponibles.
@@ -114,6 +128,7 @@ type AppointmentRepository interface {
 	ListFiltered(ctx context.Context, tenantID uuid.UUID, q *AppointmentListQuery) (*PaginatedAppointments, error)
 	UpdateStatus(ctx context.Context, tenantID, id uuid.UUID, req *UpdateAppointmentRequest) error
 	CheckConflict(ctx context.Context, tenantID, professionalID uuid.UUID, startsAt, endsAt time.Time, excludeID *uuid.UUID) (bool, error)
+	Reschedule(ctx context.Context, tenantID, id, professionalID uuid.UUID, startsAt, endsAt time.Time) error
 }
 
 // AppointmentSvc lógica de negocio para citas.
@@ -124,6 +139,7 @@ type AppointmentSvc interface {
 	Create(ctx context.Context, tenantID uuid.UUID, req *CreateAppointmentRequest) (*Appointment, error)
 	Update(ctx context.Context, tenantID, id uuid.UUID, req *UpdateAppointmentRequest) error
 	Cancel(ctx context.Context, tenantID, id uuid.UUID, reason string) error
+	Reschedule(ctx context.Context, tenantID, id uuid.UUID, req *RescheduleRequest) error
 }
 
 // ── Public (sin auth) ─────────────────────────────────────────────────────────
@@ -148,15 +164,14 @@ type ConversationRepository interface {
 // NotificationRepository operaciones DB para logs de notificaciones.
 type NotificationRepository interface {
 	LogNotification(ctx context.Context, log *NotificationLog) error
-	MarkReminder24hSent(ctx context.Context, appointmentID uuid.UUID) error
-	MarkReminder2hSent(ctx context.Context, appointmentID uuid.UUID) error
+	MarkReminderSent(ctx context.Context, appointmentID uuid.UUID, minutesBefore int) error
 }
 
 // ReminderRepository queries para encontrar citas que necesitan recordatorio.
 // Nota: opera sin RLS (acceso global, no por tenant).
 type ReminderRepository interface {
-	FindDue24hReminders(ctx context.Context) ([]*ReminderJob, error)
-	FindDue2hReminders(ctx context.Context) ([]*ReminderJob, error)
+	FindDueReminders(ctx context.Context, minutesBefore int) ([]*ReminderJob, error)
+	GetDistinctReminderMinutes(ctx context.Context) ([]int, error)
 }
 
 // MessagePublisher publica mensajes en RabbitMQ.

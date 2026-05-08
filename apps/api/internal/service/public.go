@@ -53,13 +53,18 @@ func (s *publicSvc) GetProfile(ctx context.Context, slug string) (*domain.Public
 	}
 
 	return &domain.PublicProfile{
-		Slug:          tenant.Slug,
-		Name:          tenant.Name,
-		BusinessType:  tenant.BusinessType,
-		City:          tenant.City,
-		Country:       tenant.Country,
-		Services:      services,
-		Professionals: professionals,
+		Slug:               tenant.Slug,
+		Name:               tenant.Name,
+		BusinessType:       tenant.BusinessType,
+		City:               tenant.City,
+		Country:            tenant.Country,
+		Timezone:           tenant.Timezone,
+		Services:           services,
+		Professionals:      professionals,
+		BookingIntroText:   tenant.Settings.BookingIntroText,
+		BookingSuccessText: tenant.Settings.BookingSuccessText,
+		BotName:            tenant.Settings.BotName,
+		BotGreeting:        tenant.Settings.BotGreeting,
 	}, nil
 }
 

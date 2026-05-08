@@ -54,91 +54,82 @@ func (w *ReminderWorker) Start(ctx context.Context) {
 	}
 }
 
-// run procesa los recordatorios de 24h y 2h pendientes.
 func (w *ReminderWorker) run(ctx context.Context) {
-	// Recordatorios 24h
-	jobs24h, err := w.reminderRepo.FindDue24hReminders(ctx)
+	minutes, err := w.reminderRepo.GetDistinctReminderMinutes(ctx)
 	if err != nil {
-		slog.Error("ReminderWorker: FindDue24h error", "error", err)
-	}
-	for _, job := range jobs24h {
-		if err := w.send(ctx, job); err != nil {
-			slog.Error("ReminderWorker: send 24h error", "appointment", job.AppointmentID, "error", err)
-			continue
-		}
-		if err := w.notifRepo.MarkReminder24hSent(ctx, job.AppointmentID); err != nil {
-			slog.Error("ReminderWorker: mark 24h error", "error", err)
-		}
+		slog.Error("ReminderWorker: GetDistinctReminderMinutes error", "error", err)
+		return
 	}
 
-	// Recordatorios 2h
-	jobs2h, err := w.reminderRepo.FindDue2hReminders(ctx)
-	if err != nil {
-		slog.Error("ReminderWorker: FindDue2h error", "error", err)
-	}
-	for _, job := range jobs2h {
-		if err := w.send(ctx, job); err != nil {
-			slog.Error("ReminderWorker: send 2h error", "appointment", job.AppointmentID, "error", err)
+	totalSent := 0
+	for _, m := range minutes {
+		jobs, err := w.reminderRepo.FindDueReminders(ctx, m)
+		if err != nil {
+			slog.Error("ReminderWorker: FindDueReminders error", "minutes", m, "error", err)
 			continue
 		}
-		if err := w.notifRepo.MarkReminder2hSent(ctx, job.AppointmentID); err != nil {
-			slog.Error("ReminderWorker: mark 2h error", "error", err)
+		for _, job := range jobs {
+			if err := w.send(ctx, job, m); err != nil {
+				slog.Error("ReminderWorker: send error", "appointment", job.AppointmentID, "minutes", m, "error", err)
+				continue
+			}
+			if err := w.notifRepo.MarkReminderSent(ctx, job.AppointmentID, m); err != nil {
+				slog.Error("ReminderWorker: mark sent error", "error", err)
+			}
+			totalSent++
 		}
 	}
-
-	if len(jobs24h)+len(jobs2h) > 0 {
-		slog.Info("ReminderWorker: recordatorios procesados",
-			"total", len(jobs24h)+len(jobs2h), "24h", len(jobs24h), "2h", len(jobs2h))
+	if totalSent > 0 {
+		slog.Info("ReminderWorker: recordatorios procesados", "total", totalSent)
 	}
 }
 
 // send envía el recordatorio vía WhatsApp y registra el log.
-func (w *ReminderWorker) send(ctx context.Context, job *domain.ReminderJob) error {
-	// Validar que la sesión WA está activa (backoff en IsConnected si falla)
+func (w *ReminderWorker) send(ctx context.Context, job *domain.ReminderJob, minutesBefore int) error {
 	connected, err := w.waClient.IsConnected(ctx, job.TenantSlug)
 	if err != nil || !connected {
 		return fmt.Errorf("send: instancia %s no conectada", job.TenantSlug)
 	}
 
-	// Rate limit: máximo 1 mensaje/segundo por tenant
 	time.Sleep(1 * time.Second)
 
-	// Formatear hora en el timezone del tenant
 	loc, _ := time.LoadLocation(job.TenantTimezone)
 	if loc == nil {
 		loc = time.UTC
 	}
 	horaLocal := job.StartsAt.In(loc).Format("3:04 PM")
 
-	// Construir mensaje según el tipo
 	var text string
-	switch job.Type {
-	case "reminder_24h":
+	switch {
+	case minutesBefore >= 1440:
 		text = fmt.Sprintf(
 			"¡Hola %s! 👋 Te recordamos que mañana tienes una cita con %s a las %s para %s. ¿Tienes alguna pregunta? Puedes respondernos aquí.",
 			job.CustomerName, job.ProfessionalName, horaLocal, job.ServiceName,
 		)
-	case "reminder_2h":
+	case minutesBefore >= 60:
+		hours := minutesBefore / 60
 		text = fmt.Sprintf(
-			"¡Hola %s! ⏰ Tu cita con %s es en 2 horas (%s). ¡Te esperamos! 😊",
-			job.CustomerName, job.ProfessionalName, horaLocal,
+			"¡Hola %s! ⏰ Tu cita con %s es en %d hora(s) (%s). ¡Te esperamos! 😊",
+			job.CustomerName, job.ProfessionalName, hours, horaLocal,
 		)
 	default:
-		return fmt.Errorf("send: tipo desconocido '%s'", job.Type)
+		text = fmt.Sprintf(
+			"¡Hola %s! ⏰ Tu cita con %s es en %d minutos (%s). ¡Te esperamos! 😊",
+			job.CustomerName, job.ProfessionalName, minutesBefore, horaLocal,
+		)
 	}
 
-	// Enviar por WhatsApp
 	waMessageID, sendErr := w.waClient.SendText(ctx, job.TenantSlug, job.CustomerPhone, text)
 
-	// Log del resultado (exitoso o fallido)
 	apptID := job.AppointmentID
 	nl := &domain.NotificationLog{
 		ID:            uuid.New(),
 		TenantID:      job.TenantID,
 		AppointmentID: &apptID,
-		Type:          job.Type,
+		Type:          fmt.Sprintf("reminder_%d", minutesBefore),
 		WAMessageID:   waMessageID,
 		Content:       text,
+		SentAt:        time.Now(),
 	}
 	if sendErr != nil {
 		nl.Status = "failed"

@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/gofiber/contrib/swagger"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -119,7 +120,7 @@ func main() {
 	profSvc    := service.NewProfessionalService(profRepo, scheduleRepo)
 	serviceSvc := service.NewServiceSvc(serviceRepo)
 	availSvc   := service.NewAvailabilityService(scheduleRepo, serviceRepo)
-	apptSvc    := service.NewAppointmentSvc(apptRepo, serviceRepo, customerRepo)
+	apptSvc    := service.NewAppointmentSvc(apptRepo, serviceRepo, customerRepo, authRepo, waClient, notifRepo)
 	publicSvc  := service.NewPublicSvc(authRepo, profRepo, serviceRepo, availSvc, apptSvc, customerRepo)
 
 	var waSvc domain.WhatsAppSvc
@@ -139,6 +140,8 @@ func main() {
 	waHandler        := handler.NewWhatsAppHandler(waSvc, waClient, cfg.WebhookSecret)
 	knowledgeHandler := handler.NewKnowledgeHandler(knowledgeSvc)
 	customerHandler  := handler.NewCustomerHandler(customerRepo)
+	settingsHandler  := handler.NewSettingsHandler(authRepo)
+	blockHandler     := handler.NewScheduleBlockHandler(scheduleRepo)
 	billingHandler   := handler.NewBillingHandler(authRepo, rdb, cfg.StripeSecretKey, cfg.StripeWebhookSecret, cfg.StripePriceStarter, cfg.StripePricePro)
 
 	// ── Workers background ────────────────────────────────────────────────────
@@ -350,6 +353,18 @@ func main() {
 		})
 	})
 
+	// Marca el onboarding del tenant como completado.
+	protected.Post("/onboarding/complete", func(c *fiber.Ctx) error {
+		tenantID := middleware.TenantIDFromContext(c)
+		if tenantID == uuid.Nil {
+			return fiber.NewError(403, "tenant no identificado")
+		}
+		if err := authRepo.CompleteOnboarding(c.Context(), tenantID); err != nil {
+			return fiber.NewError(500, "error interno")
+		}
+		return c.JSON(fiber.Map{"ok": true})
+	})
+
 	profs := protected.Group("/professionals")
 	profs.Get("/", profHandler.List)
 	profs.Post("/", profHandler.Create)
@@ -372,6 +387,7 @@ func main() {
 	appts.Get("/:id", apptHandler.GetByID)
 	appts.Patch("/:id", apptHandler.Update)
 	appts.Delete("/:id/cancel", apptHandler.Cancel)
+	appts.Patch("/:id/reschedule", apptHandler.Reschedule)
 
 	knowledge := protected.Group("/knowledge")
 	knowledge.Get("/", knowledgeHandler.List)
@@ -395,6 +411,16 @@ func main() {
 	billing.Get("/subscription", billingHandler.Subscription)
 	billing.Get("/invoices", billingHandler.Invoices)
 	billing.Post("/cancel", billingHandler.CancelSubscription)
+
+	// Settings
+	protected.Get("/settings", settingsHandler.Get)
+	protected.Patch("/settings", settingsHandler.Update)
+
+	// Schedule Blocks
+	blocks := protected.Group("/schedule-blocks")
+	blocks.Post("/", blockHandler.Create)
+	blocks.Get("/", blockHandler.List)
+	blocks.Delete("/:id", blockHandler.Delete)
 
 	// ── Arrancar servidor ─────────────────────────────────────────────────────
 	slog.Info("Core API iniciando", "port", cfg.Port, "env", cfg.AppEnv)

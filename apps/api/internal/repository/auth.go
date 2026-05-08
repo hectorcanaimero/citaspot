@@ -3,6 +3,7 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -74,7 +75,8 @@ func (r *authRepository) FindUserByEmail(ctx context.Context, email string) (*do
 		SELECT
 			u.id, u.tenant_id, u.email, u.name, u.role, u.auth_id, u.created_at,
 			t.id, t.slug, t.name, t.business_type, t.email,
-			t.city, t.country, t.timezone, t.plan, t.plan_status, t.trial_ends_at,
+			t.city, t.country, t.timezone, t.plan, t.plan_status, t.onboarding_done, t.trial_ends_at,
+			t.wa_status, COALESCE(t.settings, '{}')::TEXT,
 			t.created_at, t.updated_at
 		FROM users u
 		JOIN tenants t ON t.id = u.tenant_id
@@ -91,7 +93,8 @@ func (r *authRepository) FindUserByAuthID(ctx context.Context, authID string) (*
 		SELECT
 			u.id, u.tenant_id, u.email, u.name, u.role, u.auth_id, u.created_at,
 			t.id, t.slug, t.name, t.business_type, t.email,
-			t.city, t.country, t.timezone, t.plan, t.plan_status, t.trial_ends_at,
+			t.city, t.country, t.timezone, t.plan, t.plan_status, t.onboarding_done, t.trial_ends_at,
+			t.wa_status, COALESCE(t.settings, '{}')::TEXT,
 			t.created_at, t.updated_at
 		FROM users u
 		JOIN tenants t ON t.id = u.tenant_id
@@ -117,14 +120,18 @@ func (r *authRepository) TenantSlugExists(ctx context.Context, slug string) (boo
 func (r *authRepository) FindTenantByID(ctx context.Context, id uuid.UUID) (*domain.Tenant, error) {
 	query := `
 		SELECT id, slug, name, business_type, email,
-		       city, country, timezone, plan, plan_status, trial_ends_at,
+		       city, country, timezone, plan, plan_status, onboarding_done, trial_ends_at,
+		       wa_status, COALESCE(settings, '{}')::TEXT,
 		       created_at, updated_at
 		FROM tenants WHERE id = $1
 	`
 	t := &domain.Tenant{}
+	var waStatus *string
+	var settingsRaw []byte
 	err := r.db.QueryRow(ctx, query, id).Scan(
 		&t.ID, &t.Slug, &t.Name, &t.BusinessType, &t.Email,
-		&t.City, &t.Country, &t.Timezone, &t.Plan, &t.PlanStatus, &t.TrialEndsAt,
+		&t.City, &t.Country, &t.Timezone, &t.Plan, &t.PlanStatus, &t.OnboardingDone, &t.TrialEndsAt,
+		&waStatus, &settingsRaw,
 		&t.CreatedAt, &t.UpdatedAt,
 	)
 	if err != nil {
@@ -133,6 +140,10 @@ func (r *authRepository) FindTenantByID(ctx context.Context, id uuid.UUID) (*dom
 		}
 		return nil, fmt.Errorf("authRepository.FindTenantByID: %w", err)
 	}
+	if waStatus != nil {
+		t.WAStatus = *waStatus
+	}
+	_ = json.Unmarshal(settingsRaw, &t.Settings)
 	return t, nil
 }
 
@@ -140,14 +151,18 @@ func (r *authRepository) FindTenantByID(ctx context.Context, id uuid.UUID) (*dom
 func (r *authRepository) FindTenantBySlug(ctx context.Context, slug string) (*domain.Tenant, error) {
 	query := `
 		SELECT id, slug, name, business_type, email,
-		       city, country, timezone, plan, plan_status, trial_ends_at,
+		       city, country, timezone, plan, plan_status, onboarding_done, trial_ends_at,
+		       wa_status, COALESCE(settings, '{}')::TEXT,
 		       created_at, updated_at
 		FROM tenants WHERE slug = $1
 	`
 	t := &domain.Tenant{}
+	var waStatus *string
+	var settingsRaw []byte
 	err := r.db.QueryRow(ctx, query, slug).Scan(
 		&t.ID, &t.Slug, &t.Name, &t.BusinessType, &t.Email,
-		&t.City, &t.Country, &t.Timezone, &t.Plan, &t.PlanStatus, &t.TrialEndsAt,
+		&t.City, &t.Country, &t.Timezone, &t.Plan, &t.PlanStatus, &t.OnboardingDone, &t.TrialEndsAt,
+		&waStatus, &settingsRaw,
 		&t.CreatedAt, &t.UpdatedAt,
 	)
 	if err != nil {
@@ -156,6 +171,10 @@ func (r *authRepository) FindTenantBySlug(ctx context.Context, slug string) (*do
 		}
 		return nil, fmt.Errorf("authRepository.FindTenantBySlug: %w", err)
 	}
+	if waStatus != nil {
+		t.WAStatus = *waStatus
+	}
+	_ = json.Unmarshal(settingsRaw, &t.Settings)
 	return t, nil
 }
 
@@ -215,6 +234,18 @@ func (r *authRepository) FindConnectedTenantSlugs(ctx context.Context) ([]string
 	return slugs, rows.Err()
 }
 
+// CompleteOnboarding marca el onboarding del tenant como completado.
+func (r *authRepository) CompleteOnboarding(ctx context.Context, tenantID uuid.UUID) error {
+	_, err := r.db.Exec(ctx,
+		"UPDATE tenants SET onboarding_done = TRUE, updated_at = NOW() WHERE id = $1",
+		tenantID,
+	)
+	if err != nil {
+		return fmt.Errorf("authRepository.CompleteOnboarding: %w", err)
+	}
+	return nil
+}
+
 // UpdateTenantWAStatus actualiza el campo wa_status del tenant identificado por slug.
 // No requiere RLS — la tabla tenants es global y no tiene Row Level Security.
 func (r *authRepository) UpdateTenantWAStatus(ctx context.Context, slug, status string) error {
@@ -233,11 +264,14 @@ func (r *authRepository) scanUserWithTenant(ctx context.Context, query, arg stri
 	u := &domain.User{}
 	t := &domain.Tenant{}
 	var trialEndsAt *time.Time
+	var waStatus *string
+	var settingsRaw []byte
 
 	err := r.db.QueryRow(ctx, query, arg).Scan(
 		&u.ID, &u.TenantID, &u.Email, &u.Name, &u.Role, &u.AuthID, &u.CreatedAt,
 		&t.ID, &t.Slug, &t.Name, &t.BusinessType, &t.Email,
-		&t.City, &t.Country, &t.Timezone, &t.Plan, &t.PlanStatus, &trialEndsAt,
+		&t.City, &t.Country, &t.Timezone, &t.Plan, &t.PlanStatus, &t.OnboardingDone, &trialEndsAt,
+		&waStatus, &settingsRaw,
 		&t.CreatedAt, &t.UpdatedAt,
 	)
 	if err != nil {
@@ -247,5 +281,47 @@ func (r *authRepository) scanUserWithTenant(ctx context.Context, query, arg stri
 		return nil, nil, fmt.Errorf("authRepository.scanUserWithTenant: %w", err)
 	}
 	t.TrialEndsAt = trialEndsAt
+	if waStatus != nil {
+		t.WAStatus = *waStatus
+	}
+	_ = json.Unmarshal(settingsRaw, &t.Settings)
 	return u, t, nil
+}
+
+// GetTenantSettings retorna los settings JSONB del tenant.
+func (r *authRepository) GetTenantSettings(ctx context.Context, tenantID uuid.UUID) (*domain.TenantSettings, error) {
+	var raw []byte
+	err := r.db.QueryRow(ctx,
+		"SELECT COALESCE(settings, '{}')::TEXT FROM tenants WHERE id = $1", tenantID,
+	).Scan(&raw)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, domain.ErrNotFound
+		}
+		return nil, fmt.Errorf("authRepository.GetTenantSettings: %w", err)
+	}
+	var s domain.TenantSettings
+	if err := json.Unmarshal(raw, &s); err != nil {
+		return nil, fmt.Errorf("authRepository.GetTenantSettings: unmarshal: %w", err)
+	}
+	return &s, nil
+}
+
+// UpdateTenantSettings actualiza los settings JSONB del tenant.
+func (r *authRepository) UpdateTenantSettings(ctx context.Context, tenantID uuid.UUID, s *domain.TenantSettings) error {
+	raw, err := json.Marshal(s)
+	if err != nil {
+		return fmt.Errorf("authRepository.UpdateTenantSettings: marshal: %w", err)
+	}
+	tag, err := r.db.Exec(ctx,
+		"UPDATE tenants SET settings = $2, updated_at = NOW() WHERE id = $1",
+		tenantID, raw,
+	)
+	if err != nil {
+		return fmt.Errorf("authRepository.UpdateTenantSettings: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
 }

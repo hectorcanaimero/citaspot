@@ -21,11 +21,23 @@ type Tenant struct {
 	City         string     `json:"city,omitempty"`
 	Country      string     `json:"country"`
 	Timezone     string     `json:"timezone"`
-	Plan         string     `json:"plan"`
-	PlanStatus   string     `json:"plan_status"`
-	TrialEndsAt  *time.Time `json:"trial_ends_at,omitempty"`
-	CreatedAt    time.Time  `json:"created_at"`
-	UpdatedAt    time.Time  `json:"updated_at"`
+	Plan           string     `json:"plan"`
+	PlanStatus     string     `json:"plan_status"`
+	OnboardingDone bool       `json:"onboarding_done"`
+	TrialEndsAt    *time.Time `json:"trial_ends_at,omitempty"`
+	WAStatus       string         `json:"wa_status,omitempty"`
+	Settings       TenantSettings `json:"settings"`
+	CreatedAt      time.Time  `json:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at"`
+}
+
+// TenantSettings configuración personalizable del tenant (almacenada en JSONB).
+type TenantSettings struct {
+	ReminderMinutes    []int  `json:"reminder_minutes"`
+	BookingIntroText   string `json:"booking_intro_text"`
+	BookingSuccessText string `json:"booking_success_text"`
+	BotName            string `json:"bot_name"`
+	BotGreeting        string `json:"bot_greeting"`
 }
 
 // User representa un usuario con acceso al dashboard.
@@ -50,13 +62,14 @@ type UserDTO struct {
 
 // TenantDTO representación pública de un tenant.
 type TenantDTO struct {
-	ID           uuid.UUID  `json:"id"`
-	Slug         string     `json:"slug"`
-	Name         string     `json:"name"`
-	BusinessType string     `json:"business_type"`
-	Plan         string     `json:"plan"`
-	PlanStatus   string     `json:"plan_status"`
-	TrialEndsAt  *time.Time `json:"trial_ends_at,omitempty"`
+	ID             uuid.UUID  `json:"id"`
+	Slug           string     `json:"slug"`
+	Name           string     `json:"name"`
+	BusinessType   string     `json:"business_type"`
+	Plan           string     `json:"plan"`
+	PlanStatus     string     `json:"plan_status"`
+	OnboardingDone bool       `json:"onboarding_done"`
+	TrialEndsAt    *time.Time `json:"trial_ends_at,omitempty"`
 }
 
 // ── Auth requests / responses ─────────────────────────────────────────────────
@@ -177,6 +190,8 @@ type ScheduleBlock struct {
 	StartsAt       time.Time  `json:"starts_at"`
 	EndsAt         time.Time  `json:"ends_at"`
 	Reason         string     `json:"reason,omitempty"`
+	IsRecurring    bool  `json:"is_recurring"`
+	RecurrenceDays []int `json:"recurrence_days,omitempty"`
 	CreatedAt      time.Time  `json:"created_at"`
 }
 
@@ -250,6 +265,13 @@ type UpdateAppointmentRequest struct {
 	CancellationReason string `json:"cancellation_reason"`
 }
 
+// RescheduleRequest datos para reagendar una cita.
+type RescheduleRequest struct {
+	ProfessionalID *uuid.UUID `json:"professional_id"`
+	ServiceID      *uuid.UUID `json:"service_id"`
+	StartsAt       time.Time  `json:"starts_at" validate:"required"`
+}
+
 // ── Availability ──────────────────────────────────────────────────────────────
 
 // TimeSlot es un slot de tiempo disponible para reservar.
@@ -307,6 +329,10 @@ type PublicProfile struct {
 	Timezone      string          `json:"timezone"`
 	Services      []*Service      `json:"services"`
 	Professionals []*Professional `json:"professionals"`
+	BookingIntroText   string `json:"booking_intro_text,omitempty"`
+	BookingSuccessText string `json:"booking_success_text,omitempty"`
+	BotName            string `json:"bot_name,omitempty"`
+	BotGreeting        string `json:"bot_greeting,omitempty"`
 }
 
 // ── WhatsApp / Conversaciones ─────────────────────────────────────────────────

@@ -83,36 +83,48 @@ func (r *scheduleRepository) UpsertSchedules(ctx context.Context, tenantID, prof
 }
 
 // GetBlocks retorna los bloqueos de tiempo de un profesional en un rango.
+// Incluye bloqueos puntuales y recurrentes (expandidos al rango solicitado).
 func (r *scheduleRepository) GetBlocks(ctx context.Context, tenantID, professionalID uuid.UUID, from, to time.Time) ([]*domain.ScheduleBlock, error) {
-	var result []*domain.ScheduleBlock
-	err := withTenant(ctx, r.db, tenantID, func(tx pgx.Tx) error {
-		rows, err := tx.Query(ctx, `
-			SELECT id, tenant_id, professional_id, starts_at, ends_at, reason, created_at
-			FROM schedule_blocks
-			WHERE tenant_id = $1
-			  AND (professional_id = $2 OR professional_id IS NULL)
-			  AND starts_at < $4
-			  AND ends_at   > $3
-			ORDER BY starts_at ASC
-		`, tenantID, professionalID, from, to)
-		if err != nil {
-			return fmt.Errorf("scheduleRepository.GetBlocks: query: %w", err)
-		}
-		defer rows.Close()
+	rows, err := r.db.Query(ctx, `
+		SELECT id, tenant_id, professional_id, starts_at, ends_at, reason, is_recurring, recurrence_days, created_at
+		FROM schedule_blocks
+		WHERE tenant_id = $1
+		  AND (professional_id = $2 OR professional_id IS NULL)
+		  AND is_recurring = FALSE
+		  AND starts_at < $4
+		  AND ends_at   > $3
+		UNION ALL
+		SELECT id, tenant_id, professional_id,
+		       ($3::DATE + starts_at::TIME) AT TIME ZONE 'UTC',
+		       ($3::DATE + ends_at::TIME) AT TIME ZONE 'UTC',
+		       reason, is_recurring, recurrence_days, created_at
+		FROM schedule_blocks
+		WHERE tenant_id = $1
+		  AND (professional_id = $2 OR professional_id IS NULL)
+		  AND is_recurring = TRUE
+		  AND EXTRACT(DOW FROM $3 AT TIME ZONE 'UTC')::INT = ANY(recurrence_days)
+		ORDER BY starts_at ASC
+	`, tenantID, professionalID, from, to)
+	if err != nil {
+		return nil, fmt.Errorf("scheduleRepository.GetBlocks: %w", err)
+	}
+	defer rows.Close()
 
-		for rows.Next() {
-			b := &domain.ScheduleBlock{}
-			if err := rows.Scan(
-				&b.ID, &b.TenantID, &b.ProfessionalID,
-				&b.StartsAt, &b.EndsAt, &b.Reason, &b.CreatedAt,
-			); err != nil {
-				return fmt.Errorf("scheduleRepository.GetBlocks: scan: %w", err)
-			}
-			result = append(result, b)
+	var blocks []*domain.ScheduleBlock
+	for rows.Next() {
+		b := &domain.ScheduleBlock{}
+		var profID *uuid.UUID
+		if err := rows.Scan(
+			&b.ID, &b.TenantID, &profID,
+			&b.StartsAt, &b.EndsAt, &b.Reason,
+			&b.IsRecurring, &b.RecurrenceDays, &b.CreatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scheduleRepository.GetBlocks: scan: %w", err)
 		}
-		return rows.Err()
-	})
-	return result, err
+		b.ProfessionalID = profID
+		blocks = append(blocks, b)
+	}
+	return blocks, rows.Err()
 }
 
 // GetAppointmentsInRange retorna citas activas de un profesional en un rango.
@@ -149,4 +161,75 @@ func (r *scheduleRepository) GetAppointmentsInRange(ctx context.Context, tenantI
 		return rows.Err()
 	})
 	return result, err
+}
+
+// CreateBlock crea un bloqueo de horario (individual o recurrente).
+func (r *scheduleRepository) CreateBlock(ctx context.Context, b *domain.ScheduleBlock) error {
+	_, err := r.db.Exec(ctx, `
+		INSERT INTO schedule_blocks (id, tenant_id, professional_id, starts_at, ends_at, reason, is_recurring, recurrence_days)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+	`, b.ID, b.TenantID, b.ProfessionalID, b.StartsAt, b.EndsAt, b.Reason, b.IsRecurring, b.RecurrenceDays)
+	if err != nil {
+		return fmt.Errorf("scheduleRepository.CreateBlock: %w", err)
+	}
+	return nil
+}
+
+// ListBlocks retorna todos los bloqueos de un tenant, opcionalmente filtrados por profesional.
+func (r *scheduleRepository) ListBlocks(ctx context.Context, tenantID uuid.UUID, professionalID *uuid.UUID) ([]*domain.ScheduleBlock, error) {
+	var query string
+	var args []any
+
+	if professionalID != nil {
+		query = `
+			SELECT id, tenant_id, professional_id, starts_at, ends_at, reason, is_recurring, recurrence_days, created_at
+			FROM schedule_blocks
+			WHERE tenant_id = $1 AND (professional_id = $2 OR professional_id IS NULL)
+			ORDER BY is_recurring DESC, starts_at ASC
+		`
+		args = []any{tenantID, *professionalID}
+	} else {
+		query = `
+			SELECT id, tenant_id, professional_id, starts_at, ends_at, reason, is_recurring, recurrence_days, created_at
+			FROM schedule_blocks
+			WHERE tenant_id = $1
+			ORDER BY is_recurring DESC, starts_at ASC
+		`
+		args = []any{tenantID}
+	}
+
+	rows, err := r.db.Query(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("scheduleRepository.ListBlocks: %w", err)
+	}
+	defer rows.Close()
+
+	var blocks []*domain.ScheduleBlock
+	for rows.Next() {
+		b := &domain.ScheduleBlock{}
+		var profID *uuid.UUID
+		if err := rows.Scan(
+			&b.ID, &b.TenantID, &profID, &b.StartsAt, &b.EndsAt, &b.Reason,
+			&b.IsRecurring, &b.RecurrenceDays, &b.CreatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scheduleRepository.ListBlocks: scan: %w", err)
+		}
+		b.ProfessionalID = profID
+		blocks = append(blocks, b)
+	}
+	return blocks, rows.Err()
+}
+
+// DeleteBlock elimina un bloqueo de horario.
+func (r *scheduleRepository) DeleteBlock(ctx context.Context, tenantID, id uuid.UUID) error {
+	tag, err := r.db.Exec(ctx,
+		"DELETE FROM schedule_blocks WHERE tenant_id = $1 AND id = $2", tenantID, id,
+	)
+	if err != nil {
+		return fmt.Errorf("scheduleRepository.DeleteBlock: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
 }

@@ -3,7 +3,10 @@ from __future__ import annotations
 
 import asyncio
 import os
+import re
+from datetime import date, datetime
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import structlog
 
@@ -30,6 +33,88 @@ def _m(key: str, **kwargs: Any) -> str:
     return msg.format(**kwargs) if kwargs else msg
 
 
+def _parse_flexible_date(text: str) -> str | None:
+    """Parsea fechas en formatos naturales y retorna YYYY-MM-DD o None.
+
+    Formatos aceptados:
+      - YYYY-MM-DD  (2025-01-15)
+      - DD-MM-YYYY  (15-01-2025)
+      - DD/MM/YYYY  (15/01/2025)
+      - DD-MM       (15-01 → asume año actual)
+      - DD/MM       (15/01 → asume año actual)
+    """
+    text = text.strip()
+    current_year = date.today().year
+
+    # YYYY-MM-DD (formato ISO completo)
+    m = re.search(r"\b(\d{4})-(\d{1,2})-(\d{1,2})\b", text)
+    if m:
+        try:
+            d = date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+            return d.isoformat()
+        except ValueError:
+            return None
+
+    # DD-MM-YYYY o DD/MM/YYYY
+    m = re.search(r"\b(\d{1,2})[/-](\d{1,2})[/-](\d{4})\b", text)
+    if m:
+        try:
+            d = date(int(m.group(3)), int(m.group(2)), int(m.group(1)))
+            return d.isoformat()
+        except ValueError:
+            return None
+
+    # DD-MM o DD/MM (sin año → año actual)
+    m = re.search(r"\b(\d{1,2})[/-](\d{1,2})\b", text)
+    if m:
+        try:
+            d = date(current_year, int(m.group(2)), int(m.group(1)))
+            return d.isoformat()
+        except ValueError:
+            return None
+
+    return None
+
+
+# Nombres de días y meses por idioma para formato amigable
+_DAY_NAMES = {
+    "es": ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"],
+    "en": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+    "pt": ["segunda", "terça", "quarta", "quinta", "sexta", "sábado", "domingo"],
+}
+_MONTH_NAMES = {
+    "es": ["", "enero", "febrero", "marzo", "abril", "mayo", "junio",
+           "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"],
+    "en": ["", "January", "February", "March", "April", "May", "June",
+           "July", "August", "September", "October", "November", "December"],
+    "pt": ["", "janeiro", "fevereiro", "março", "abril", "maio", "junho",
+           "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"],
+}
+
+
+def _utc_to_local(iso_str: str, tz_name: str) -> datetime:
+    """Convierte un ISO timestamp (UTC) a datetime en la zona horaria del tenant."""
+    utc = datetime.fromisoformat(iso_str.replace("Z", "+00:00"))
+    try:
+        return utc.astimezone(ZoneInfo(tz_name))
+    except (KeyError, ValueError):
+        return utc
+
+
+def _format_friendly_date(date_str: str) -> str:
+    """Convierte 'YYYY-MM-DD' a formato amigable: 'jueves 15 de mayo'."""
+    try:
+        d = date.fromisoformat(date_str)
+        lang = _LANG if _LANG in _DAY_NAMES else "es"
+        day_name = _DAY_NAMES[lang][d.weekday()]
+        month_name = _MONTH_NAMES[lang][d.month]
+        if lang == "en":
+            return f"{day_name}, {month_name} {d.day}"
+        return f"{day_name} {d.day} de {month_name}"
+    except ValueError:
+        return date_str
+
+
 async def _publish_reply(tenant_id: str, tenant_slug: str, wa_phone: str, text: str) -> None:
     """Publica la respuesta en wa.messages.outbound."""
     await publish(
@@ -47,20 +132,21 @@ def _build_system_prompt(profile: dict[str, Any] | None, rag_context: str) -> st
     """Construye el system prompt del asistente con contexto del negocio."""
     msgs = get_messages(_LANG)
     business_name = profile.get("name", "el negocio") if profile else "el negocio"
+    bot_name = (profile.get("bot_name") or "el asistente virtual") if profile else "el asistente virtual"
 
     services_text = ""
     if profile and profile.get("services"):
-        lines = [
-            f"- {s['name']} (${s['price']} USD, {s['duration_min']} min)"
-            for s in profile["services"]
-        ]
+        lines = []
+        for s in profile["services"]:
+            price_str = f"${s['price']} USD" if s.get("price") else "consultar en cita"
+            lines.append(f"- {s['name']} ({price_str}, {s['duration_min']} min)")
         services_text = f"\n\n{msgs['system_services_header']}\n" + "\n".join(lines)
 
     rag_section = (
         f"\n\n{msgs['system_rag_header']}\n{rag_context}" if rag_context else ""
     )
 
-    intro = msgs["system_intro"].format(business_name=business_name)
+    intro = msgs["system_intro"].format(business_name=business_name, bot_name=bot_name)
     warning = msgs["system_warning"]
 
     return f"{intro}{services_text}{rag_section}\n\n{warning}"
@@ -144,6 +230,7 @@ async def _handle(
 
     # --- Detectar intención ---
     intent = await detect_intent(message_text, history)
+    log.info("orchestrator: intent detectado", intent=str(intent), state=str(current_state), text_len=len(message_text))
 
     # === AWAITING_CONFIRM: el usuario está confirmando o cancelando la reserva ===
     if current_state == ConvState.AWAITING_CONFIRM:
@@ -282,39 +369,38 @@ async def _handle_slot_selection(
 
     # Si hay fecha pero no slots mostrados aún
     if not state.get("pending_date"):
-        import re
-        date_match = re.search(r"\d{4}-\d{2}-\d{2}", message_text)
-        if not date_match:
+        date_str = _parse_flexible_date(message_text)
+        if not date_str:
             return _m("invalid_date_format")
-
-        date_str = date_match.group()
         slug = profile.get("slug", "")
+        tz = profile.get("timezone", "UTC")
         slots = await get_availability(
             slug,
             state["pending_professional_id"],
             state["pending_service_id"],
             date_str,
+            timezone=tz,
         )
         if not slots:
-            return _m("no_slots", date=date_str)
+            return _m("no_slots", date=_format_friendly_date(date_str))
 
-        # Mostrar máximo 5 slots
-        shown_slots = slots[:5]
+        # Mostrar todos los slots disponibles (ya filtrados por la API)
+        shown_slots = slots
         state["pending_date"] = date_str
         state["pending_slots"] = shown_slots
         await save_state(tenant_id, conversation_id, state)
 
-        from datetime import datetime
+        friendly_date = _format_friendly_date(date_str)
         lines = []
         for i, s in enumerate(shown_slots):
             try:
-                t = datetime.fromisoformat(s["starts_at"].replace("Z", "+00:00"))
+                t = _utc_to_local(s["starts_at"], tz)
                 lines.append(f"{i+1}. {t.strftime('%I:%M %p')}")
             except Exception:
                 lines.append(f"{i+1}. {s['starts_at']}")
 
         return (
-            _m("available_slots_header", date=date_str) + "\n\n"
+            _m("available_slots_header", date=friendly_date) + "\n\n"
             + "\n".join(lines)
             + "\n\n" + _m("available_slots_footer")
         )
@@ -338,11 +424,12 @@ def _confirm_prompt(state: dict[str, Any]) -> str:
     slot = state.get("pending_selected_slot", {})
     service_name = state.get("pending_service_name", "el servicio")
     prof_name = state.get("pending_professional_name", "el profesional")
+    tz = state.get("profile", {}).get("timezone", "UTC")
 
-    from datetime import datetime
     try:
-        t = datetime.fromisoformat(slot["starts_at"].replace("Z", "+00:00"))
-        hora = t.strftime("%d/%m/%Y a las %I:%M %p")
+        t = _utc_to_local(slot["starts_at"], tz)
+        friendly = _format_friendly_date(t.strftime("%Y-%m-%d"))
+        hora = f"{friendly} a las {t.strftime('%I:%M %p')}"
     except Exception:
         hora = slot.get("starts_at", "la hora seleccionada")
 
@@ -381,7 +468,13 @@ async def _confirm_booking(
 
     await reset_state(tenant_id, conversation_id)
     service_name = state.get("pending_service_name", "tu cita")
-    datetime_str = slot.get("starts_at", "")
+    tz = state.get("profile", {}).get("timezone", "UTC")
+    try:
+        t = _utc_to_local(slot["starts_at"], tz)
+        friendly = _format_friendly_date(t.strftime("%Y-%m-%d"))
+        datetime_str = f"{friendly} a las {t.strftime('%I:%M %p')}"
+    except Exception:
+        datetime_str = slot.get("starts_at", "")
     return _m("booking_confirmed", service=service_name, datetime=datetime_str)
 
 

@@ -405,3 +405,25 @@ func (r *appointmentRepository) CheckConflict(ctx context.Context, tenantID, pro
 	})
 	return conflict, err
 }
+
+// Reschedule actualiza el profesional y horario de una cita existente.
+func (r *appointmentRepository) Reschedule(ctx context.Context, tenantID, id, professionalID uuid.UUID, startsAt, endsAt time.Time) error {
+	return withTenant(ctx, r.db, tenantID, func(tx pgx.Tx) error {
+		tag, err := tx.Exec(ctx, `
+			UPDATE appointments
+			SET professional_id = $3,
+			    starts_at       = $4,
+			    ends_at         = $5,
+			    updated_at      = NOW()
+			WHERE tenant_id = $1 AND id = $2
+			  AND status NOT IN ('cancelled', 'completed')
+		`, tenantID, id, professionalID, startsAt, endsAt)
+		if err != nil {
+			return fmt.Errorf("appointmentRepository.Reschedule: %w", err)
+		}
+		if tag.RowsAffected() == 0 {
+			return domain.ErrNotFound
+		}
+		return nil
+	})
+}

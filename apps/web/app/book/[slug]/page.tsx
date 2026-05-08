@@ -109,6 +109,9 @@ export default function BookingPage() {
       {profile.city && (
         <p className="mt-0.5 text-sm text-neutral-500">{profile.city}</p>
       )}
+      {profile.booking_intro_text && (
+        <p className="text-neutral-600 mt-2 text-sm">{profile.booking_intro_text}</p>
+      )}
     </div>
   );
 
@@ -129,6 +132,9 @@ export default function BookingPage() {
                 .replace('{date}', dateStr)}
             </p>
             <p className="mt-3 text-sm text-neutral-500">{t.booking.reminderDesc}</p>
+            {profile?.booking_success_text && (
+              <p className="text-neutral-600 mt-4 text-center">{profile.booking_success_text}</p>
+            )}
           </Card>
         </div>
       </div>

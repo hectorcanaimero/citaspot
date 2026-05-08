@@ -16,11 +16,11 @@ MESSAGES: dict[str, dict[str, str]] = {
         "no_professionals": "Lo siento, no hay profesionales disponibles en este momento.",
         "choose_date_with_prof": (
             "¿Para qué fecha quieres tu {service} con {professional}? "
-            "Dime la fecha en formato AAAA-MM-DD (ej: 2025-01-15)."
+            "Dime el día y mes (ej: 15-01 o 15/01)."
         ),
         "choose_professional_prompt": "Por favor elige un profesional:",
-        "choose_date_short": "¿Para qué fecha quieres tu cita con {professional}? Dime la fecha (ej: 2025-01-15).",
-        "invalid_date_format": "Por favor dime la fecha en formato AAAA-MM-DD (ej: 2025-01-15).",
+        "choose_date_short": "¿Para qué fecha quieres tu cita con {professional}? Dime el día y mes (ej: 15-01 o 15/01).",
+        "invalid_date_format": "No entendí la fecha. Dime el día y mes, por ejemplo: 15-01 o 15/01.",
         "no_slots": "Lo siento, no hay horarios disponibles el {date}. ¿Quieres probar con otra fecha?",
         "available_slots_header": "Horarios disponibles para el {date}:",
         "available_slots_footer": "Elige el número de tu horario preferido.",
@@ -42,7 +42,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "invalid_name": "Por favor dime tu nombre completo.",
         # Partes del system prompt
         "system_intro": (
-            "Eres el asistente virtual de {business_name}, un negocio de salud y belleza.\n"
+            "Eres {bot_name} de {business_name}, un negocio de salud y belleza.\n"
             "Tu objetivo es ayudar a los clientes a agendar citas, responder preguntas sobre "
             "servicios y dar información útil.\n\n"
             "Pautas de comunicación:\n"
@@ -68,11 +68,11 @@ MESSAGES: dict[str, dict[str, str]] = {
         "no_professionals": "Sorry, there are no professionals available at the moment.",
         "choose_date_with_prof": (
             "What date would you like your {service} with {professional}? "
-            "Please use YYYY-MM-DD format (e.g., 2025-01-15)."
+            "Tell me the day and month (e.g., 15-01 or 15/01)."
         ),
         "choose_professional_prompt": "Please choose a professional:",
-        "choose_date_short": "What date would you like your appointment with {professional}? (e.g., 2025-01-15).",
-        "invalid_date_format": "Please provide the date in YYYY-MM-DD format (e.g., 2025-01-15).",
+        "choose_date_short": "What date would you like your appointment with {professional}? (e.g., 15-01 or 15/01).",
+        "invalid_date_format": "I didn't get that date. Tell me the day and month, for example: 15-01 or 15/01.",
         "no_slots": "Sorry, there are no available slots on {date}. Would you like to try another date?",
         "available_slots_header": "Available slots for {date}:",
         "available_slots_footer": "Choose the number of your preferred time slot.",
@@ -94,7 +94,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "invalid_name": "Please provide your full name.",
         # System prompt parts
         "system_intro": (
-            "You are the virtual assistant for {business_name}, a health and beauty business.\n"
+            "You are {bot_name} at {business_name}, a health and beauty business.\n"
             "Your goal is to help clients schedule appointments, answer questions about services, "
             "and provide useful information.\n\n"
             "Communication guidelines:\n"
@@ -120,11 +120,11 @@ MESSAGES: dict[str, dict[str, str]] = {
         "no_professionals": "Desculpe, não há profissionais disponíveis no momento.",
         "choose_date_with_prof": (
             "Para qual data você quer seu {service} com {professional}? "
-            "Use o formato AAAA-MM-DD (ex: 2025-01-15)."
+            "Me diga o dia e mês (ex: 15-01 ou 15/01)."
         ),
         "choose_professional_prompt": "Por favor escolha um profissional:",
-        "choose_date_short": "Para qual data você quer sua consulta com {professional}? (ex: 2025-01-15).",
-        "invalid_date_format": "Por favor informe a data no formato AAAA-MM-DD (ex: 2025-01-15).",
+        "choose_date_short": "Para qual data você quer sua consulta com {professional}? (ex: 15-01 ou 15/01).",
+        "invalid_date_format": "Não entendi a data. Me diga o dia e mês, por exemplo: 15-01 ou 15/01.",
         "no_slots": "Desculpe, não há horários disponíveis em {date}. Gostaria de tentar outra data?",
         "available_slots_header": "Horários disponíveis para {date}:",
         "available_slots_footer": "Escolha o número do horário preferido.",
@@ -146,7 +146,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "invalid_name": "Por favor informe seu nome completo.",
         # Partes do system prompt
         "system_intro": (
-            "Você é o assistente virtual de {business_name}, um negócio de saúde e beleza.\n"
+            "Você é {bot_name} de {business_name}, um negócio de saúde e beleza.\n"
             "Seu objetivo é ajudar os clientes a agendar consultas, responder perguntas sobre "
             "serviços e fornecer informações úteis.\n\n"
             "Diretrizes de comunicação:\n"

@@ -224,3 +224,29 @@ func (h *AppointmentHandler) Availability(c *fiber.Ctx) error {
 	}
 	return c.JSON(fiber.Map{"data": slots})
 }
+
+// Reschedule reagenda una cita a nuevo horario y/o profesional.
+func (h *AppointmentHandler) Reschedule(c *fiber.Ctx) error {
+	tenantID := middleware.TenantIDFromContext(c)
+	if tenantID == uuid.Nil {
+		return fiber.NewError(http.StatusForbidden, "tenant no identificado")
+	}
+
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return fiber.NewError(http.StatusBadRequest, "ID inválido")
+	}
+
+	var req domain.RescheduleRequest
+	if err := c.BodyParser(&req); err != nil {
+		return fiber.NewError(http.StatusBadRequest, "formato de datos inválido")
+	}
+	if req.StartsAt.IsZero() {
+		return fiber.NewError(http.StatusBadRequest, "starts_at es requerido")
+	}
+
+	if err := h.apptSvc.Reschedule(c.Context(), tenantID, id, &req); err != nil {
+		return handleServiceError(c, err)
+	}
+	return c.SendStatus(http.StatusNoContent)
+}

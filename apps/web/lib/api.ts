@@ -27,10 +27,16 @@ export class APIError extends Error {
 async function getToken(): Promise<string | null> {
   if (typeof window === 'undefined') return null;
   const supabase = createClient();
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  return session?.access_token ?? null;
+  // getSession() puede devolver null si el SDK aún no rehidrató desde cookies.
+  // En ese caso, getUser() fuerza la rehidratación completa.
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session?.access_token) return session.access_token;
+  // Fallback: forzar rehidratación con getUser() que valida contra Supabase
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+  // Después de getUser(), la sesión debería estar disponible
+  const { data: { session: refreshed } } = await supabase.auth.getSession();
+  return refreshed?.access_token ?? null;
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -45,12 +51,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
 
   if (res.status === 401) {
-    // Sesión inválida — cerrar sesión y redirigir al login
-    if (typeof window !== 'undefined') {
-      const supabase = createClient();
-      await supabase.auth.signOut();
-      window.location.href = '/login';
-    }
+    // No hacer signOut automático — el middleware protege las rutas.
+    // signOut aquí destruiría la sesión ante un 401 transitorio (race condition al cargar).
     throw new APIError(401, 'Sesión expirada. Por favor inicia sesión de nuevo.', 'session_expired');
   }
 
@@ -83,6 +85,7 @@ export interface TenantDTO {
   business_type: string;
   plan: string;
   plan_status: string;
+  onboarding_done: boolean;
   trial_ends_at?: string;
 }
 
@@ -131,6 +134,30 @@ export interface TimeSlot {
   ends_at: string;
 }
 
+export interface AppointmentListParams {
+  date_from: string;
+  date_to: string;
+  timezone?: string;
+  professional_id?: string;
+  service_id?: string;
+  status?: string;
+  search?: string;
+  sort_by?: string;
+  sort_dir?: string;
+  page?: number;
+  per_page?: number;
+}
+
+export interface PaginatedAppointments {
+  data: Appointment[];
+  pagination: {
+    page: number;
+    per_page: number;
+    total: number;
+    total_pages: number;
+  };
+}
+
 // ── Auth ───────────────────────────────────────────────────────────────────────
 
 export const auth = {
@@ -177,6 +204,10 @@ export const auth = {
   async me() {
     return request<{ user: UserDTO; tenant: TenantDTO }>('/api/v1/me');
   },
+
+  async completeOnboarding() {
+    return request<{ ok: boolean }>('/api/v1/onboarding/complete', { method: 'POST' });
+  },
 };
 
 // ── Appointments ───────────────────────────────────────────────────────────────
@@ -185,6 +216,23 @@ export const appointments = {
   async list(date: string, timezone?: string): Promise<{ data: Appointment[] }> {
     const tz = timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
     return request(`/api/v1/appointments?date=${date}&timezone=${encodeURIComponent(tz)}`);
+  },
+
+  async listFiltered(params: AppointmentListParams): Promise<PaginatedAppointments> {
+    const tz = params.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const searchParams = new URLSearchParams();
+    searchParams.set('date_from', params.date_from);
+    searchParams.set('date_to', params.date_to);
+    searchParams.set('timezone', tz);
+    if (params.professional_id) searchParams.set('professional_id', params.professional_id);
+    if (params.service_id) searchParams.set('service_id', params.service_id);
+    if (params.status) searchParams.set('status', params.status);
+    if (params.search) searchParams.set('search', params.search);
+    if (params.sort_by) searchParams.set('sort_by', params.sort_by);
+    if (params.sort_dir) searchParams.set('sort_dir', params.sort_dir);
+    if (params.page) searchParams.set('page', String(params.page));
+    if (params.per_page) searchParams.set('per_page', String(params.per_page));
+    return request(`/api/v1/appointments/search?${searchParams.toString()}`);
   },
 
   async updateStatus(id: string, update: { status?: string; internal_notes?: string; cancellation_reason?: string }) {
@@ -356,12 +404,7 @@ export const knowledge = {
     });
 
     if (res.status === 401) {
-      if (typeof window !== 'undefined') {
-        const supabase = createClient();
-        await supabase.auth.signOut();
-        window.location.href = '/login';
-      }
-      throw new APIError(401, 'Sesión expirada. Por favor inicia sesión de nuevo.');
+      throw new APIError(401, 'Sesión expirada. Por favor inicia sesión de nuevo.', 'session_expired');
     }
     if (!res.ok) {
       const body = await res.json().catch(() => ({ error: 'Error al subir el archivo' }));
@@ -384,6 +427,18 @@ export interface PublicProfile {
   country?: string;
   services: Service[];
   professionals: Professional[];
+  booking_intro_text?: string;
+  booking_success_text?: string;
+  bot_name?: string;
+  bot_greeting?: string;
+}
+
+export interface TenantSettings {
+  reminder_minutes: number[];
+  booking_intro_text: string;
+  booking_success_text: string;
+  bot_name: string;
+  bot_greeting: string;
 }
 
 export const publicApi = {
@@ -431,6 +486,21 @@ export const publicApi = {
         throw new APIError(r.status, body.error ?? 'Error al reservar');
       }
       return r.json();
+    });
+  },
+};
+
+// ── Settings ──────────────────────────────────────────────────────────────────
+
+export const settingsApi = {
+  async get(): Promise<TenantSettings> {
+    return request('/api/v1/settings');
+  },
+
+  async update(data: Partial<TenantSettings>): Promise<void> {
+    return request('/api/v1/settings', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
     });
   },
 };

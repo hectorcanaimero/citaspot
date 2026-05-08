@@ -34,26 +34,16 @@ func (r *notificationRepository) LogNotification(ctx context.Context, nl *domain
 	return nil
 }
 
-// MarkReminder24hSent marca la cita como que ya recibió el recordatorio de 24h.
-func (r *notificationRepository) MarkReminder24hSent(ctx context.Context, appointmentID uuid.UUID) error {
-	_, err := r.db.Exec(ctx,
-		`UPDATE appointments SET reminder_24h_sent = TRUE, updated_at = NOW() WHERE id = $1`,
-		appointmentID,
-	)
+// MarkReminderSent marca un recordatorio específico como enviado.
+func (r *notificationRepository) MarkReminderSent(ctx context.Context, appointmentID uuid.UUID, minutesBefore int) error {
+	_, err := r.db.Exec(ctx, `
+		UPDATE appointments
+		SET reminders_sent = COALESCE(reminders_sent, '{}') || jsonb_build_object($2::TEXT, true),
+		    updated_at = NOW()
+		WHERE id = $1
+	`, appointmentID, fmt.Sprintf("%d", minutesBefore))
 	if err != nil {
-		return fmt.Errorf("notificationRepository.MarkReminder24hSent: %w", err)
-	}
-	return nil
-}
-
-// MarkReminder2hSent marca la cita como que ya recibió el recordatorio de 2h.
-func (r *notificationRepository) MarkReminder2hSent(ctx context.Context, appointmentID uuid.UUID) error {
-	_, err := r.db.Exec(ctx,
-		`UPDATE appointments SET reminder_2h_sent = TRUE, updated_at = NOW() WHERE id = $1`,
-		appointmentID,
-	)
-	if err != nil {
-		return fmt.Errorf("notificationRepository.MarkReminder2hSent: %w", err)
+		return fmt.Errorf("notificationRepository.MarkReminderSent: %w", err)
 	}
 	return nil
 }
