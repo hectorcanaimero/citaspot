@@ -336,6 +336,99 @@ export interface ServiceInput {
   is_active?: boolean;
 }
 
+// ── CRM: Pipeline Stages ──────────────────────────────────────────────────────
+
+export interface PipelineStage {
+  id: string;
+  tenant_id: string;
+  name: string;
+  position: number;
+  color: string;
+  is_default: boolean;
+  auto_rules_enabled: boolean;
+  created_at: string;
+}
+
+// ── CRM: Treatments ──────────────────────────────────────────────────────────
+
+export interface Treatment {
+  id: string;
+  tenant_id: string;
+  customer_id: string;
+  professional_id: string;
+  name: string;
+  treatment_type: string;
+  status: string; // 'proposed' | 'accepted' | 'in_progress' | 'completed' | 'abandoned'
+  total_sessions: number | null;
+  completed_sessions: number;
+  estimated_cost: number | null;
+  paid_amount: number;
+  currency: string;
+  tooth_numbers: number[];
+  notes: string;
+  started_at: string | null;
+  completed_at: string | null;
+  next_session_at: string | null;
+  created_at: string;
+  updated_at: string;
+  // Campos expandidos del JOIN (opcionales, dependen del endpoint)
+  customer_name?: string;
+  professional_name?: string;
+}
+
+// ── CRM: Tasks ───────────────────────────────────────────────────────────────
+
+export interface Task {
+  id: string;
+  tenant_id: string;
+  assigned_to: string | null;
+  customer_id: string | null;
+  appointment_id: string | null;
+  treatment_id: string | null;
+  title: string;
+  description: string;
+  status: string; // 'pending' | 'in_progress' | 'completed' | 'dismissed'
+  due_at: string | null;
+  completed_at: string | null;
+  source: string; // 'manual' | 'rule' | 'system'
+  rule_id: string | null;
+  created_at: string;
+  // Campos expandidos (opcionales)
+  assigned_to_name?: string;
+  customer_name?: string;
+}
+
+// ── CRM: Automation Rules ────────────────────────────────────────────────────
+
+export interface Rule {
+  id: string;
+  tenant_id: string;
+  name: string;
+  description: string;
+  trigger_type: string; // 'event' | 'temporal'
+  trigger_event: string;
+  trigger_schedule: { interval_days: number; reference_field: string } | null;
+  conditions: Array<{ field: string; op: string; value: unknown }>;
+  actions: Array<{ type: string; template: string; params: Record<string, unknown> }>;
+  is_active: boolean;
+  is_template: boolean;
+  template_key: string;
+  cooldown_hours: number;
+  priority: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RuleExecution {
+  id: string;
+  rule_id: string;
+  customer_id: string | null;
+  triggered_at: string;
+  trigger_event: string;
+  status: string; // 'success' | 'failed' | 'skipped'
+  error_message: string;
+}
+
 // ── Customers ──────────────────────────────────────────────────────────────────
 
 export interface Customer {
@@ -355,6 +448,213 @@ export const customers = {
   async list(search = '', limit = 50, offset = 0): Promise<{ data: Customer[] }> {
     const q = new URLSearchParams({ search, limit: String(limit), offset: String(offset) });
     return request(`/api/v1/customers?${q}`);
+  },
+};
+
+// ── Pipeline Stages ──────────────────────────────────────────────────────────
+
+export const pipelineStages = {
+  async list(): Promise<{ data: PipelineStage[] }> {
+    return request('/api/v1/pipeline-stages');
+  },
+
+  async create(data: { name: string; color: string; position?: number }): Promise<PipelineStage> {
+    return request('/api/v1/pipeline-stages', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async update(id: string, data: Partial<{ name: string; color: string; position: number; auto_rules_enabled: boolean }>): Promise<PipelineStage> {
+    return request(`/api/v1/pipeline-stages/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async remove(id: string): Promise<void> {
+    return request(`/api/v1/pipeline-stages/${id}`, { method: 'DELETE' });
+  },
+
+  async reorder(orderedIds: string[]): Promise<void> {
+    return request('/api/v1/pipeline-stages/reorder', {
+      method: 'PUT',
+      body: JSON.stringify({ ids: orderedIds }),
+    });
+  },
+};
+
+// ── Treatments ───────────────────────────────────────────────────────────────
+
+export const treatments = {
+  async list(params?: {
+    customer_id?: string;
+    professional_id?: string;
+    status?: string;
+    search?: string;
+  }): Promise<{ data: Treatment[] }> {
+    const qs = new URLSearchParams();
+    if (params?.customer_id) qs.set('customer_id', params.customer_id);
+    if (params?.professional_id) qs.set('professional_id', params.professional_id);
+    if (params?.status) qs.set('status', params.status);
+    if (params?.search) qs.set('search', params.search);
+    const query = qs.toString();
+    return request(`/api/v1/treatments${query ? `?${query}` : ''}`);
+  },
+
+  async getById(id: string): Promise<Treatment> {
+    return request(`/api/v1/treatments/${id}`);
+  },
+
+  async create(data: {
+    customer_id: string;
+    professional_id: string;
+    name: string;
+    treatment_type: string;
+    total_sessions?: number;
+    estimated_cost?: number;
+    currency?: string;
+    tooth_numbers?: number[];
+    notes?: string;
+  }): Promise<Treatment> {
+    return request('/api/v1/treatments', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async update(id: string, data: Partial<{
+    name: string;
+    treatment_type: string;
+    total_sessions: number;
+    estimated_cost: number;
+    notes: string;
+    tooth_numbers: number[];
+  }>): Promise<Treatment> {
+    return request(`/api/v1/treatments/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async updateStatus(id: string, status: string): Promise<Treatment> {
+    return request(`/api/v1/treatments/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    });
+  },
+};
+
+// ── Tasks ────────────────────────────────────────────────────────────────────
+
+export const tasks = {
+  async list(params?: {
+    status?: string;
+    assigned_to?: string;
+    customer_id?: string;
+    source?: string;
+  }): Promise<{ data: Task[] }> {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set('status', params.status);
+    if (params?.assigned_to) qs.set('assigned_to', params.assigned_to);
+    if (params?.customer_id) qs.set('customer_id', params.customer_id);
+    if (params?.source) qs.set('source', params.source);
+    const query = qs.toString();
+    return request(`/api/v1/tasks${query ? `?${query}` : ''}`);
+  },
+
+  async getById(id: string): Promise<Task> {
+    return request(`/api/v1/tasks/${id}`);
+  },
+
+  async create(data: {
+    title: string;
+    description?: string;
+    assigned_to?: string;
+    customer_id?: string;
+    treatment_id?: string;
+    due_at?: string;
+  }): Promise<Task> {
+    return request('/api/v1/tasks', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async update(id: string, data: Partial<{
+    title: string;
+    description: string;
+    assigned_to: string;
+    due_at: string;
+    status: string;
+  }>): Promise<Task> {
+    return request(`/api/v1/tasks/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async complete(id: string): Promise<Task> {
+    return request(`/api/v1/tasks/${id}/complete`, { method: 'POST' });
+  },
+
+  async dismiss(id: string): Promise<Task> {
+    return request(`/api/v1/tasks/${id}/dismiss`, { method: 'POST' });
+  },
+};
+
+// ── Automation Rules ─────────────────────────────────────────────────────────
+
+export const rules = {
+  async list(): Promise<{ data: Rule[] }> {
+    return request('/api/v1/rules');
+  },
+
+  async getById(id: string): Promise<Rule> {
+    return request(`/api/v1/rules/${id}`);
+  },
+
+  async create(data: {
+    name: string;
+    description?: string;
+    trigger_type: string;
+    trigger_event: string;
+    trigger_schedule?: { interval_days: number; reference_field: string };
+    conditions?: Array<{ field: string; op: string; value: unknown }>;
+    actions: Array<{ type: string; template: string; params: Record<string, unknown> }>;
+    cooldown_hours?: number;
+    priority?: number;
+  }): Promise<Rule> {
+    return request('/api/v1/rules', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async update(id: string, data: Partial<{
+    name: string;
+    description: string;
+    trigger_type: string;
+    trigger_event: string;
+    trigger_schedule: { interval_days: number; reference_field: string };
+    conditions: Array<{ field: string; op: string; value: unknown }>;
+    actions: Array<{ type: string; template: string; params: Record<string, unknown> }>;
+    is_active: boolean;
+    cooldown_hours: number;
+    priority: number;
+  }>): Promise<Rule> {
+    return request(`/api/v1/rules/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async remove(id: string): Promise<void> {
+    return request(`/api/v1/rules/${id}`, { method: 'DELETE' });
+  },
+
+  async listExecutions(ruleId: string): Promise<{ data: RuleExecution[] }> {
+    return request(`/api/v1/rules/${ruleId}/executions`);
   },
 };
 

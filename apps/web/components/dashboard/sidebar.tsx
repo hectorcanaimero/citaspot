@@ -20,6 +20,10 @@ import {
   ChevronsRight,
   Menu,
   X,
+  Kanban,
+  Stethoscope,
+  CheckSquare,
+  Zap,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/browser';
 import { useTranslations } from '@/lib/i18n';
@@ -53,6 +57,10 @@ export function Sidebar() {
     { href: '/dashboard',            icon: LayoutDashboard, label: t.nav.dashboard   },
     { href: '/dashboard/agenda',     icon: CalendarDays,    label: t.nav.agenda      },
     { href: '/dashboard/clients',    icon: Users,           label: t.nav.clients     },
+    { href: '/dashboard/pipeline',     icon: Kanban,       label: t.nav.pipeline     },
+    { href: '/dashboard/treatments',   icon: Stethoscope,  label: t.nav.treatments   },
+    { href: '/dashboard/tasks',        icon: CheckSquare,  label: t.nav.tasks        },
+    { href: '/dashboard/automations',  icon: Zap,          label: t.nav.automations  },
     { href: '/dashboard/services',   icon: Scissors,        label: t.nav.services    },
     { href: '/dashboard/team',       icon: UserCog,         label: t.nav.team        },
     { href: '/dashboard/knowledge',  icon: BookOpen,        label: t.nav.knowledge   },
