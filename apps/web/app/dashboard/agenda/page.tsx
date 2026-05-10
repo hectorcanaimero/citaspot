@@ -24,6 +24,7 @@ import {
   toDateStr, topPx, heightPx, assignColumns,
 } from '@/lib/calendar-utils';
 import { useTranslations, useDateLocale } from '@/lib/i18n';
+import NewAppointmentModal from '@/components/dashboard/NewAppointmentModal';
 
 // ── Tipos ──────────────────────────────────────────────────────────────────────
 
@@ -53,7 +54,7 @@ const STATUS_CFG: Record<
 
 // ── Bloque de cita (en el grid de tiempo) ─────────────────────────────────────
 
-function ApptBlock({ appt }: { appt: ApptWithCol }) {
+function ApptBlock({ appt, profColor }: { appt: ApptWithCol; profColor?: string }) {
   const top    = topPx(appt.starts_at);
   const height = heightPx(appt.service_duration_min);
   const pct    = 100 / appt.span;
@@ -69,6 +70,8 @@ function ApptBlock({ appt }: { appt: ApptWithCol }) {
         width:  `calc(${pct}% - 4px)`,
         left:   `calc(${(appt.col / appt.span) * 100}% + ${appt.col > 0 ? 2 : 0}px)`,
         minWidth: 0,
+        borderLeftWidth: '3px',
+        borderLeftColor: profColor ?? '#6b7280',
       }}
       title={`${appt.customer_name} · ${appt.service_name} · ${appt.professional_name}`}
     >
@@ -126,11 +129,13 @@ function DayColumn({
   appts,
   slots,
   isLoadingDay,
+  profColorMap = {},
 }: {
   date: Date;
   appts: Appointment[];
   slots: TimeSlot[];
   isLoadingDay: boolean;
+  profColorMap?: Record<string, string>;
 }) {
   const positioned = assignColumns(appts);
   const today      = isTodayFn(date);
@@ -166,7 +171,7 @@ function DayColumn({
       )}
 
       {slots.map((slot, i) => <SlotBlock key={i} slot={slot} />)}
-      {positioned.map(appt => <ApptBlock key={appt.id} appt={appt} />)}
+      {positioned.map(appt => <ApptBlock key={appt.id} appt={appt} profColor={profColorMap[appt.professional_id]} />)}
 
       {today && nowTop >= 0 && nowTop <= GRID_PX && (
         <div
@@ -187,10 +192,12 @@ function DayView({
   date,
   dayMap,
   slots,
+  profColorMap = {},
 }: {
   date: Date;
   dayMap: Record<string, DayState>;
   slots: TimeSlot[];
+  profColorMap?: Record<string, string>;
 }) {
   const str     = toDateStr(date);
   const state   = dayMap[str];
@@ -200,7 +207,7 @@ function DayView({
   return (
     <div className="flex h-full overflow-y-auto">
       <TimeLabels />
-      <DayColumn date={date} appts={appts} slots={slots} isLoadingDay={loading} />
+      <DayColumn date={date} appts={appts} slots={slots} isLoadingDay={loading} profColorMap={profColorMap} />
     </div>
   );
 }
@@ -210,9 +217,11 @@ function DayView({
 function WeekView({
   weekStart,
   dayMap,
+  profColorMap = {},
 }: {
   weekStart: Date;
   dayMap: Record<string, DayState>;
+  profColorMap?: Record<string, string>;
 }) {
   const dateLocale = useDateLocale();
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -259,6 +268,7 @@ function WeekView({
               appts={appts}
               slots={[]}
               isLoadingDay={loading}
+              profColorMap={profColorMap}
             />
           );
         })}
@@ -404,6 +414,29 @@ export default function AgendaPage() {
   const [selSvc, setSelSvc]           = useState('');
   const [slots, setSlots]             = useState<TimeSlot[]>([]);
   const [loadingAvail, setLoadingAvail] = useState(false);
+  const [showNewAppt, setShowNewAppt] = useState(false);
+  const [filterProfId, setFilterProfId] = useState<string>('');
+
+  // Mapa de color por profesional para el borde izquierdo de los bloques
+  const profColorMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    profList.forEach(p => { map[p.id] = p.color; });
+    return map;
+  }, [profList]);
+
+  // dayMap filtrado por profesional seleccionado
+  const filteredDayMap = useMemo(() => {
+    if (!filterProfId) return dayMap;
+    const filtered: Record<string, DayState> = {};
+    for (const [key, val] of Object.entries(dayMap)) {
+      if (Array.isArray(val)) {
+        filtered[key] = val.filter(a => a.professional_id === filterProfId);
+      } else {
+        filtered[key] = val;
+      }
+    }
+    return filtered;
+  }, [dayMap, filterProfId]);
 
   useEffect(() => {
     professionals.list().then(r => setProfList(r.data ?? [])).catch(() => {});
@@ -553,11 +586,47 @@ export default function AgendaPage() {
         </div>
 
         {/* Nueva cita */}
-        <button className="flex items-center gap-1.5 rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-primary-500">
+        <button
+          onClick={() => setShowNewAppt(true)}
+          className="flex items-center gap-1.5 rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-primary-500"
+        >
           <Plus className="h-3.5 w-3.5" />
           {t.agenda.newAppointment}
         </button>
       </div>
+
+      {/* ── Filtro por profesional ────────────────────────────────────────── */}
+      {profList.length > 1 && (
+        <div className="flex flex-shrink-0 items-center gap-2 border-b border-neutral-100 bg-white px-5 py-2 overflow-x-auto">
+          <button
+            onClick={() => setFilterProfId('')}
+            className={`flex-shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-all ${
+              filterProfId === ''
+                ? 'bg-neutral-900 text-white'
+                : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+            }`}
+          >
+            {t.agenda.allProfessionals}
+          </button>
+          {profList.filter(p => p.is_active && !p.is_archived).map(p => (
+            <button
+              key={p.id}
+              onClick={() => setFilterProfId(filterProfId === p.id ? '' : p.id)}
+              className={`flex-shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-all ${
+                filterProfId === p.id
+                  ? 'text-white shadow-sm'
+                  : 'text-neutral-600 hover:opacity-80'
+              }`}
+              style={{
+                backgroundColor: filterProfId === p.id ? p.color : `${p.color}20`,
+                color: filterProfId === p.id ? 'white' : p.color,
+              }}
+            >
+              {p.name}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* ── Barra de disponibilidad (solo vista Día) ──────────────────────── */}
       {view === 'day' && (
@@ -623,25 +692,44 @@ export default function AgendaPage() {
         {view === 'day' && (
           <DayView
             date={currentDate}
-            dayMap={dayMap}
+            dayMap={filteredDayMap}
             slots={slots}
+            profColorMap={profColorMap}
           />
         )}
         {view === 'week' && (
           <WeekView
             weekStart={weekStart}
-            dayMap={dayMap}
+            dayMap={filteredDayMap}
+            profColorMap={profColorMap}
           />
         )}
         {view === 'month' && (
           <MonthView
             month={currentDate}
-            dayMap={dayMap}
+            dayMap={filteredDayMap}
             onDayClick={d => { setCurrentDate(d); setView('day'); }}
           />
         )}
         {view === 'lista' && <AppointmentsList />}
       </div>
+
+      <NewAppointmentModal
+        open={showNewAppt}
+        onClose={() => setShowNewAppt(false)}
+        onCreated={() => {
+          // Invalidar cache para recargar citas
+          const str = toDateStr(currentDate);
+          dayMapRef.current[str] = undefined as unknown as DayState;
+          setDayMap(prev => {
+            const next = { ...prev };
+            delete next[str];
+            return next;
+          });
+          ensureLoaded([currentDate]);
+        }}
+        defaultDate={toDateStr(currentDate)}
+      />
     </div>
   );
 }

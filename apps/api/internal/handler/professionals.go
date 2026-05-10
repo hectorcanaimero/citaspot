@@ -25,7 +25,8 @@ func NewProfessionalHandler(svc domain.ProfessionalSvc) *ProfessionalHandler {
 // List GET /professionals
 func (h *ProfessionalHandler) List(c *fiber.Ctx) error {
 	tenantID := middleware.TenantIDFromContext(c)
-	list, err := h.svc.List(c.Context(), tenantID)
+	includeArchived := c.Query("include_archived") == "true"
+	list, err := h.svc.List(c.Context(), tenantID, includeArchived)
 	if err != nil {
 		return handleServiceError(c, err)
 	}

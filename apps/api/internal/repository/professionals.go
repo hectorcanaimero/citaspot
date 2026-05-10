@@ -23,7 +23,7 @@ func scanProfessional(row interface {
 	var specialty, bio, avatarURL *string
 	if err := row.Scan(
 		&p.ID, &p.TenantID, &p.UserID, &p.Name, &specialty,
-		&bio, &avatarURL, &p.Color, &p.IsActive, &p.CreatedAt,
+		&bio, &avatarURL, &p.Color, &p.IsActive, &p.IsArchived, &p.CreatedAt,
 	); err != nil {
 		return err
 	}
@@ -63,15 +63,15 @@ func withTenant(ctx context.Context, pool *pgxpool.Pool, tenantID uuid.UUID, fn 
 }
 
 // List retorna todos los profesionales activos del tenant.
-func (r *professionalRepository) List(ctx context.Context, tenantID uuid.UUID) ([]*domain.Professional, error) {
+func (r *professionalRepository) List(ctx context.Context, tenantID uuid.UUID, includeArchived bool) ([]*domain.Professional, error) {
 	var result []*domain.Professional
 	err := withTenant(ctx, r.db, tenantID, func(tx pgx.Tx) error {
 		rows, err := tx.Query(ctx, `
-			SELECT id, tenant_id, user_id, name, specialty, bio, avatar_url, color, is_active, created_at
+			SELECT id, tenant_id, user_id, name, specialty, bio, avatar_url, color, is_active, is_archived, created_at
 			FROM professionals
-			WHERE tenant_id = $1
+			WHERE tenant_id = $1 AND (is_archived = FALSE OR $2 = TRUE)
 			ORDER BY name ASC
-		`, tenantID)
+		`, tenantID, includeArchived)
 		if err != nil {
 			return fmt.Errorf("professionalRepository.List: query: %w", err)
 		}
@@ -93,8 +93,8 @@ func (r *professionalRepository) List(ctx context.Context, tenantID uuid.UUID) (
 func (r *professionalRepository) Create(ctx context.Context, p *domain.Professional) error {
 	return withTenant(ctx, r.db, p.TenantID, func(tx pgx.Tx) error {
 		_, err := tx.Exec(ctx, `
-			INSERT INTO professionals (id, tenant_id, name, specialty, bio, avatar_url, color, is_active, created_at)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+			INSERT INTO professionals (id, tenant_id, name, specialty, bio, avatar_url, color, is_active, is_archived, created_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, FALSE, NOW())
 		`, p.ID, p.TenantID, p.Name, p.Specialty, p.Bio, p.AvatarURL, p.Color, p.IsActive)
 		if err != nil {
 			return fmt.Errorf("professionalRepository.Create: %w", err)
@@ -109,7 +109,7 @@ func (r *professionalRepository) GetByID(ctx context.Context, tenantID, id uuid.
 	err := withTenant(ctx, r.db, tenantID, func(tx pgx.Tx) error {
 		p = &domain.Professional{}
 		row := tx.QueryRow(ctx, `
-			SELECT id, tenant_id, user_id, name, specialty, bio, avatar_url, color, is_active, created_at
+			SELECT id, tenant_id, user_id, name, specialty, bio, avatar_url, color, is_active, is_archived, created_at
 			FROM professionals
 			WHERE tenant_id = $1 AND id = $2
 		`, tenantID, id)
@@ -132,9 +132,9 @@ func (r *professionalRepository) Update(ctx context.Context, p *domain.Professio
 	return withTenant(ctx, r.db, p.TenantID, func(tx pgx.Tx) error {
 		tag, err := tx.Exec(ctx, `
 			UPDATE professionals
-			SET name = $3, specialty = $4, bio = $5, avatar_url = $6, color = $7, is_active = $8
+			SET name = $3, specialty = $4, bio = $5, avatar_url = $6, color = $7, is_active = $8, is_archived = $9
 			WHERE tenant_id = $1 AND id = $2
-		`, p.TenantID, p.ID, p.Name, p.Specialty, p.Bio, p.AvatarURL, p.Color, p.IsActive)
+		`, p.TenantID, p.ID, p.Name, p.Specialty, p.Bio, p.AvatarURL, p.Color, p.IsActive, p.IsArchived)
 		if err != nil {
 			return fmt.Errorf("professionalRepository.Update: %w", err)
 		}
@@ -151,9 +151,9 @@ func (r *professionalRepository) ListByTenantPublic(ctx context.Context, tenantI
 	var result []*domain.Professional
 	err := withTenant(ctx, r.db, tenantID, func(tx pgx.Tx) error {
 		rows, err := tx.Query(ctx, `
-			SELECT id, tenant_id, user_id, name, specialty, bio, avatar_url, color, is_active, created_at
+			SELECT id, tenant_id, user_id, name, specialty, bio, avatar_url, color, is_active, is_archived, created_at
 			FROM professionals
-			WHERE tenant_id = $1 AND is_active = TRUE
+			WHERE tenant_id = $1 AND is_active = TRUE AND is_archived = FALSE
 			ORDER BY name ASC
 		`, tenantID)
 		if err != nil {

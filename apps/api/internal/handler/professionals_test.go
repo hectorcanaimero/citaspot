@@ -27,7 +27,7 @@ func TestProfessionalHandler_List(t *testing.T) {
 
 	t.Run("success with professionals", func(t *testing.T) {
 		h := newProfHandler(&mockProfessionalSvc{
-			listFn: func(_ context.Context, _ uuid.UUID) ([]*domain.Professional, error) {
+			listFn: func(_ context.Context, _ uuid.UUID, _ bool) ([]*domain.Professional, error) {
 				return []*domain.Professional{
 					{ID: testID, Name: "Dr. García"},
 				}, nil
@@ -43,7 +43,7 @@ func TestProfessionalHandler_List(t *testing.T) {
 
 	t.Run("service error returns 500", func(t *testing.T) {
 		h := newProfHandler(&mockProfessionalSvc{
-			listFn: func(_ context.Context, _ uuid.UUID) ([]*domain.Professional, error) {
+			listFn: func(_ context.Context, _ uuid.UUID, _ bool) ([]*domain.Professional, error) {
 				return nil, domain.ErrInternal
 			},
 		})

@@ -41,7 +41,7 @@ func (m *mockAuthSvc) RefreshToken(ctx context.Context, token string) (*domain.R
 // ── ProfessionalSvc ───────────────────────────────────────────────────────────
 
 type mockProfessionalSvc struct {
-	listFn        func(context.Context, uuid.UUID) ([]*domain.Professional, error)
+	listFn        func(context.Context, uuid.UUID, bool) ([]*domain.Professional, error)
 	createFn      func(context.Context, uuid.UUID, *domain.ProfessionalInput) (*domain.Professional, error)
 	getByIDFn     func(context.Context, uuid.UUID, uuid.UUID) (*domain.Professional, error)
 	updateFn      func(context.Context, uuid.UUID, uuid.UUID, *domain.ProfessionalInput) (*domain.Professional, error)
@@ -49,9 +49,9 @@ type mockProfessionalSvc struct {
 	setScheduleFn func(context.Context, uuid.UUID, uuid.UUID, []*domain.Schedule) ([]*domain.Schedule, error)
 }
 
-func (m *mockProfessionalSvc) List(ctx context.Context, tenantID uuid.UUID) ([]*domain.Professional, error) {
+func (m *mockProfessionalSvc) List(ctx context.Context, tenantID uuid.UUID, includeArchived bool) ([]*domain.Professional, error) {
 	if m.listFn != nil {
-		return m.listFn(ctx, tenantID)
+		return m.listFn(ctx, tenantID, includeArchived)
 	}
 	return []*domain.Professional{}, nil
 }

@@ -49,7 +49,7 @@ type AuthService interface {
 
 // ProfessionalRepository operaciones DB para profesionales.
 type ProfessionalRepository interface {
-	List(ctx context.Context, tenantID uuid.UUID) ([]*Professional, error)
+	List(ctx context.Context, tenantID uuid.UUID, includeArchived bool) ([]*Professional, error)
 	Create(ctx context.Context, p *Professional) error
 	GetByID(ctx context.Context, tenantID, id uuid.UUID) (*Professional, error)
 	Update(ctx context.Context, p *Professional) error
@@ -58,7 +58,7 @@ type ProfessionalRepository interface {
 
 // ProfessionalSvc lógica de negocio para profesionales.
 type ProfessionalSvc interface {
-	List(ctx context.Context, tenantID uuid.UUID) ([]*Professional, error)
+	List(ctx context.Context, tenantID uuid.UUID, includeArchived bool) ([]*Professional, error)
 	Create(ctx context.Context, tenantID uuid.UUID, input *ProfessionalInput) (*Professional, error)
 	GetByID(ctx context.Context, tenantID, id uuid.UUID) (*Professional, error)
 	Update(ctx context.Context, tenantID, id uuid.UUID, input *ProfessionalInput) (*Professional, error)

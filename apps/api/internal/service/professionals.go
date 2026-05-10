@@ -23,8 +23,8 @@ func NewProfessionalService(profRepo domain.ProfessionalRepository, scheduleRepo
 }
 
 // List retorna todos los profesionales del tenant.
-func (s *professionalService) List(ctx context.Context, tenantID uuid.UUID) ([]*domain.Professional, error) {
-	return s.profRepo.List(ctx, tenantID)
+func (s *professionalService) List(ctx context.Context, tenantID uuid.UUID, includeArchived bool) ([]*domain.Professional, error) {
+	return s.profRepo.List(ctx, tenantID, includeArchived)
 }
 
 // Create crea un nuevo profesional.
@@ -84,6 +84,9 @@ func (s *professionalService) Update(ctx context.Context, tenantID, id uuid.UUID
 	}
 	if input.IsActive != nil {
 		p.IsActive = *input.IsActive
+	}
+	if input.IsArchived != nil {
+		p.IsArchived = *input.IsArchived
 	}
 
 	if err := s.profRepo.Update(ctx, p); err != nil {

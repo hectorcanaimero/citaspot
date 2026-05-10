@@ -103,7 +103,7 @@ export default function AutomationsPage() {
           </span>
           <button
             type="button"
-            onClick={() => router.push('/automations/new')}
+            onClick={() => router.push('/dashboard/automations/new')}
             className="inline-flex items-center gap-1.5 rounded-lg bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-700 transition-colors"
           >
             <Plus className="h-3.5 w-3.5" />
@@ -183,7 +183,7 @@ export default function AutomationsPage() {
                       {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                     </button>
                     <button
-                      onClick={() => router.push(`/automations/${rule.id}`)}
+                      onClick={() => router.push(`/dashboard/automations/${rule.id}`)}
                       className="rounded p-1 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600"
                       title={t.crm.automations.editRule}
                     >

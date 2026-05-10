@@ -17,6 +17,7 @@ import {
   auth, TenantDTO, APIError, crm, CRMMetrics,
 } from '@/lib/api';
 import { useTranslations, useDateLocale } from '@/lib/i18n';
+import NewAppointmentModal from '@/components/dashboard/NewAppointmentModal';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -84,6 +85,8 @@ export default function DashboardPage() {
 
   const [crmMetrics, setCrmMetrics] = useState<CRMMetrics | null>(null);
   const [crmLoading, setCrmLoading] = useState(true);
+
+  const [showNewAppt, setShowNewAppt] = useState(false);
 
   const dateStr = toDateStr(date);
   const isToday = dateStr === toDateStr(new Date());
@@ -227,7 +230,10 @@ export default function DashboardPage() {
               <MessageCircle className="h-3.5 w-3.5" />
               WhatsApp
             </Link>
-            <button className="flex items-center gap-1.5 rounded-lg bg-white px-3 py-2 text-xs font-semibold text-primary-700 transition-colors hover:bg-primary-50">
+            <button
+              onClick={() => setShowNewAppt(true)}
+              className="flex items-center gap-1.5 rounded-lg bg-white px-3 py-2 text-xs font-semibold text-primary-700 transition-colors hover:bg-primary-50"
+            >
               <Plus className="h-3.5 w-3.5" />
               {t.dashboard.newAppointment}
             </button>
@@ -693,6 +699,18 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      <NewAppointmentModal
+        open={showNewAppt}
+        onClose={() => setShowNewAppt(false)}
+        onCreated={() => {
+          // Recargar citas del dia actual
+          appointments.list(dateStr)
+            .then((res) => setAppts(res.data ?? []))
+            .catch(() => {});
+        }}
+        defaultDate={dateStr}
+      />
     </div>
   );
 }

@@ -2,7 +2,7 @@
 
 // Página de gestión de equipo: profesionales y sus horarios semanales.
 import { useState, useEffect } from 'react';
-import { Plus, ChevronDown, ChevronUp, Pencil, Check } from 'lucide-react';
+import { Plus, ChevronDown, ChevronUp, Pencil, Check, Archive, ArchiveRestore } from 'lucide-react';
 import { Button }  from '@/components/ui/button';
 import { Input }   from '@/components/ui/input';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
@@ -126,13 +126,14 @@ function ScheduleEditor({ profId, initial }: { profId: string; initial: DayMap }
 
 // ── Componente de profesional ─────────────────────────────────────────────────
 
-function ProfCard({ prof, onUpdated }: { prof: Professional; onUpdated: (p: Professional) => void }) {
+function ProfCard({ prof, onUpdated }: { prof: Professional; onUpdated: (p: Professional) => void; }) {
   const t = useTranslations();
   const [expanded,   setExpanded]  = useState(false);
   const [editing,    setEditing]   = useState(false);
   const [editName,   setEditName]  = useState(prof.name);
   const [editSpec,   setEditSpec]  = useState(prof.specialty ?? '');
   const [saving,     setSaving]    = useState(false);
+  const [archiving,  setArchiving] = useState(false);
   const [schedules,  setSchedules] = useState<DayMap | null>(null);
   const [loadingSch, setLoadingSch] = useState(false);
 
@@ -164,12 +165,22 @@ function ProfCard({ prof, onUpdated }: { prof: Professional; onUpdated: (p: Prof
     finally { setSaving(false); }
   }
 
+  async function toggleArchive() {
+    if (!prof.is_archived && !window.confirm(t.team.confirmArchive)) return;
+    setArchiving(true);
+    try {
+      const updated = await profsApi.update(prof.id, { is_archived: !prof.is_archived });
+      onUpdated(updated);
+    } catch { /* ignorar */ }
+    finally { setArchiving(false); }
+  }
+
   return (
-    <Card>
+    <Card className={prof.is_archived ? 'opacity-60' : ''}>
       <div className="flex items-center gap-3">
         {/* Avatar */}
         <div
-          className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full text-white text-sm font-semibold"
+          className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full text-white text-sm font-semibold ${prof.is_archived ? 'grayscale' : ''}`}
           style={{ backgroundColor: prof.color || COLORS[0] }}
         >
           {prof.name[0]}
@@ -202,9 +213,13 @@ function ProfCard({ prof, onUpdated }: { prof: Professional; onUpdated: (p: Prof
 
         {/* Acciones */}
         <div className="flex items-center gap-1.5">
-          <Badge variant={prof.is_active ? 'success' : 'default'} className="text-xs">
-            {prof.is_active ? t.common.active : t.common.inactive}
-          </Badge>
+          {prof.is_archived ? (
+            <Badge variant="default" className="text-xs">{t.team.archived}</Badge>
+          ) : (
+            <Badge variant={prof.is_active ? 'success' : 'default'} className="text-xs">
+              {prof.is_active ? t.common.active : t.common.inactive}
+            </Badge>
+          )}
 
           {editing ? (
             <>
@@ -221,6 +236,16 @@ function ProfCard({ prof, onUpdated }: { prof: Professional; onUpdated: (p: Prof
               <Pencil className="h-4 w-4" />
             </button>
           )}
+
+          <button
+            type="button"
+            onClick={toggleArchive}
+            disabled={archiving}
+            className="rounded-md p-1.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700 transition-colors"
+            title={prof.is_archived ? t.team.restore : t.team.archive}
+          >
+            {prof.is_archived ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
+          </button>
 
           <button
             type="button"
@@ -306,16 +331,18 @@ function NewProfForm({ onCreated }: { onCreated: (p: Professional) => void }) {
 
 export default function TeamPage() {
   const t = useTranslations();
-  const [profs,    setProfs]    = useState<Professional[]>([]);
-  const [loading,  setLoading]  = useState(true);
-  const [showForm, setShowForm] = useState(false);
+  const [profs,        setProfs]        = useState<Professional[]>([]);
+  const [loading,      setLoading]      = useState(true);
+  const [showForm,     setShowForm]     = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
 
   useEffect(() => {
-    profsApi.list()
+    setLoading(true);
+    profsApi.list(showArchived)
       .then((res) => setProfs(res.data))
       .catch(() => { /* ignorar */ })
       .finally(() => setLoading(false));
-  }, []);
+  }, [showArchived]);
 
   function handleCreated(p: Professional) {
     setProfs((prev) => [p, ...prev]);
@@ -333,10 +360,21 @@ export default function TeamPage() {
           <h1 className="text-xl font-semibold text-neutral-900">{t.team.title}</h1>
           <p className="mt-0.5 text-sm text-neutral-500">{t.team.description}</p>
         </div>
-        <Button size="sm" onClick={() => setShowForm((v) => !v)}>
-          <Plus className="mr-1.5 h-4 w-4" />
-          {t.team.addProfessional}
-        </Button>
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-2 text-sm text-neutral-600 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={showArchived}
+              onChange={(e) => setShowArchived(e.target.checked)}
+              className="h-4 w-4 rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
+            />
+            {t.team.showArchived}
+          </label>
+          <Button size="sm" onClick={() => setShowForm((v) => !v)}>
+            <Plus className="mr-1.5 h-4 w-4" />
+            {t.team.addProfessional}
+          </Button>
+        </div>
       </div>
 
       <div className="flex max-w-2xl flex-col gap-4">

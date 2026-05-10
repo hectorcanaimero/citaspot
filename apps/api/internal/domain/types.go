@@ -130,8 +130,9 @@ type Professional struct {
 	Bio       string     `json:"bio,omitempty"`
 	AvatarURL string     `json:"avatar_url,omitempty"`
 	Color     string     `json:"color"`
-	IsActive  bool       `json:"is_active"`
-	CreatedAt time.Time  `json:"created_at"`
+	IsActive   bool       `json:"is_active"`
+	IsArchived bool       `json:"is_archived"`
+	CreatedAt  time.Time  `json:"created_at"`
 }
 
 // ProfessionalInput datos para crear/actualizar un profesional.
@@ -141,7 +142,8 @@ type ProfessionalInput struct {
 	Bio       string `json:"bio"`
 	AvatarURL string `json:"avatar_url"`
 	Color     string `json:"color"     validate:"omitempty,len=7"`
-	IsActive  *bool  `json:"is_active"`
+	IsActive   *bool `json:"is_active"`
+	IsArchived *bool `json:"is_archived"`
 }
 
 // ── Service ───────────────────────────────────────────────────────────────────

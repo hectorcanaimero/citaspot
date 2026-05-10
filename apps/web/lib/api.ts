@@ -117,6 +117,7 @@ export interface Professional {
   specialty?: string;
   color: string;
   is_active: boolean;
+  is_archived: boolean;
 }
 
 export interface Service {
@@ -255,6 +256,21 @@ export const appointments = {
       `/api/v1/appointments/availability?professional_id=${professionalId}&service_id=${serviceId}&date=${date}&timezone=${encodeURIComponent(tz)}`,
     );
   },
+
+  async create(data: {
+    professional_id: string;
+    service_id: string;
+    starts_at: string;
+    customer_name?: string;
+    customer_phone?: string;
+    notes?: string;
+    source?: string;
+  }): Promise<{ data: Appointment }> {
+    return request('/api/v1/appointments', {
+      method: 'POST',
+      body: JSON.stringify({ ...data, source: data.source ?? 'dashboard' }),
+    });
+  },
 };
 
 // ── Professionals ──────────────────────────────────────────────────────────────
@@ -272,11 +288,13 @@ export interface ProfessionalInput {
   bio?: string;
   color?: string;
   is_active?: boolean;
+  is_archived?: boolean;
 }
 
 export const professionals = {
-  async list(): Promise<{ data: Professional[] }> {
-    return request('/api/v1/professionals');
+  async list(includeArchived?: boolean): Promise<{ data: Professional[] }> {
+    const params = includeArchived ? '?include_archived=true' : '';
+    return request(`/api/v1/professionals${params}`);
   },
 
   async create(data: ProfessionalInput): Promise<Professional> {
