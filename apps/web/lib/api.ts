@@ -437,6 +437,46 @@ export interface Treatment {
   professional_name?: string;
 }
 
+export interface TreatmentSession {
+  id: string;
+  treatment_id: string;
+  professional_id: string;
+  professional_name?: string;
+  status: 'pending' | 'completed' | 'cancelled';
+  scheduled_at: string;
+  duration_minutes: number | null;
+  completed_at: string | null;
+  procedures_done: string;
+  notes: string;
+  paid_in_session: number | null;
+  currency: string;
+  next_session_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TreatmentSessionInput {
+  professional_id: string;
+  status: 'pending' | 'completed';
+  scheduled_at: string;
+  duration_minutes?: number;
+  procedures_done?: string;
+  notes?: string;
+  paid_in_session?: number;
+  currency?: string;
+  next_session_at?: string;
+}
+
+export interface UpdateTreatmentSessionInput {
+  status: 'pending' | 'completed' | 'cancelled';
+  duration_minutes?: number;
+  procedures_done?: string;
+  notes?: string;
+  paid_in_session?: number;
+  currency?: string;
+  next_session_at?: string;
+}
+
 // ── CRM: Tasks ───────────────────────────────────────────────────────────────
 
 export interface Task {
@@ -622,6 +662,34 @@ export const treatments = {
     return request(`/api/v1/treatments/${id}/status`, {
       method: 'PATCH',
       body: JSON.stringify({ status }),
+    });
+  },
+};
+
+// ── Treatment Sessions ───────────────────────────────────────────────────────
+
+export const treatmentSessions = {
+  async list(treatmentId: string): Promise<{ data: TreatmentSession[] }> {
+    return request(`/api/v1/treatments/${treatmentId}/sessions`);
+  },
+
+  async create(treatmentId: string, data: TreatmentSessionInput): Promise<TreatmentSession> {
+    return request(`/api/v1/treatments/${treatmentId}/sessions`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async update(treatmentId: string, sessionId: string, data: UpdateTreatmentSessionInput): Promise<TreatmentSession> {
+    return request(`/api/v1/treatments/${treatmentId}/sessions/${sessionId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async remove(treatmentId: string, sessionId: string): Promise<void> {
+    return request(`/api/v1/treatments/${treatmentId}/sessions/${sessionId}`, {
+      method: 'DELETE',
     });
   },
 };
