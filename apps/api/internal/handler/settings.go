@@ -61,3 +61,39 @@ func (h *SettingsHandler) Update(c *fiber.Ctx) error {
 	}
 	return c.SendStatus(http.StatusNoContent)
 }
+
+// UpdateTenantProfile actualiza el perfil del negocio (nombre, teléfono, ciudad, país, timezone).
+func (h *SettingsHandler) UpdateTenantProfile(c *fiber.Ctx) error {
+	tenantID := middleware.TenantIDFromContext(c)
+	if tenantID == uuid.Nil {
+		return fiber.NewError(http.StatusForbidden, "tenant no identificado")
+	}
+
+	var req domain.UpdateTenantProfileRequest
+	if err := c.BodyParser(&req); err != nil {
+		return fiber.NewError(http.StatusBadRequest, "formato de datos inválido")
+	}
+
+	if err := h.authRepo.UpdateTenantProfile(c.Context(), tenantID, &req); err != nil {
+		return handleServiceError(c, err)
+	}
+	return c.SendStatus(http.StatusNoContent)
+}
+
+// UpdateMyProfile actualiza el nombre del propietario autenticado.
+func (h *SettingsHandler) UpdateMyProfile(c *fiber.Ctx) error {
+	user := middleware.UserFromContext(c)
+	if user == nil {
+		return fiber.NewError(http.StatusForbidden, "usuario no identificado")
+	}
+
+	var req domain.UpdateUserProfileRequest
+	if err := c.BodyParser(&req); err != nil {
+		return fiber.NewError(http.StatusBadRequest, "formato de datos inválido")
+	}
+
+	if err := h.authRepo.UpdateUserProfile(c.Context(), user.ID, user.TenantID, &req); err != nil {
+		return handleServiceError(c, err)
+	}
+	return c.SendStatus(http.StatusNoContent)
+}

@@ -511,6 +511,8 @@ func main() {
 	// Settings
 	protected.Get("/settings", settingsHandler.Get)
 	protected.Patch("/settings", settingsHandler.Update)
+	protected.Patch("/tenant/profile", settingsHandler.UpdateTenantProfile)
+	protected.Patch("/me/profile", settingsHandler.UpdateMyProfile)
 
 	// Tenant branding (logo + portada). Solo registrado si MinIO está disponible.
 	if brandingHandler != nil {
