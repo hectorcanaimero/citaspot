@@ -285,10 +285,12 @@ function MonthView({
   month,
   dayMap,
   onDayClick,
+  profColorMap = {},
 }: {
   month: Date;
   dayMap: Record<string, DayState>;
   onDayClick: (d: Date) => void;
+  profColorMap?: Record<string, string>;
 }) {
   const t     = useTranslations();
   const start = startOfWeek(startOfMonth(month), { weekStartsOn: 1 });
@@ -372,14 +374,21 @@ function MonthView({
 
               {inMonth && appts.length > 0 && (
                 <div className="mt-1 space-y-0.5">
-                  {appts.slice(0, 2).map(a => (
-                    <p
-                      key={a.id}
-                      className="truncate rounded bg-neutral-100 px-1 py-0.5 text-[10px] text-neutral-600"
-                    >
-                      {format(new Date(a.starts_at), 'HH:mm')} {a.customer_name}
-                    </p>
-                  ))}
+                  {appts.slice(0, 2).map(a => {
+                    const color = profColorMap[a.professional_id];
+                    return (
+                      <p
+                        key={a.id}
+                        className="truncate rounded px-1 py-0.5 text-[10px] text-neutral-700"
+                        style={{
+                          backgroundColor: color ? `${color}14` : '#f3f4f6',
+                          borderLeft:      color ? `2px solid ${color}` : '2px solid #d1d5db',
+                        }}
+                      >
+                        {format(new Date(a.starts_at), 'HH:mm')} {a.customer_name}
+                      </p>
+                    );
+                  })}
                   {appts.length > 2 && (
                     <p className="text-[10px] text-neutral-400">
                       {t.common.more.replace('{n}', String(appts.length - 2))}
@@ -718,6 +727,7 @@ export default function AgendaPage() {
             month={currentDate}
             dayMap={filteredDayMap}
             onDayClick={d => { setCurrentDate(d); setView('day'); }}
+            profColorMap={profColorMap}
           />
         )}
         {view === 'lista' && <AppointmentsList />}
