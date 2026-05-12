@@ -112,7 +112,7 @@ describe('Sidebar', () => {
     vi.mocked(usePathname).mockReturnValue('/dashboard/agenda');
     render(<Sidebar />);
     const link = screen.getByText('Dashboard').closest('a');
-    expect(link?.className).not.toContain('bg-sidebar-active');
+    expect(link?.className).not.toMatch(/\bbg-sidebar-active\b(?!\/)/)
   });
 
   it('Agenda está activa en /dashboard/agenda', () => {

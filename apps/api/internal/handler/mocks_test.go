@@ -91,6 +91,18 @@ func (m *mockProfessionalSvc) SetSchedule(ctx context.Context, tenantID, profess
 	return schedules, nil
 }
 
+func (m *mockProfessionalSvc) ListServices(ctx context.Context, tenantID, professionalID uuid.UUID) ([]*domain.Service, error) {
+	return []*domain.Service{}, nil
+}
+
+func (m *mockProfessionalSvc) AssignService(ctx context.Context, tenantID, professionalID, serviceID uuid.UUID) error {
+	return nil
+}
+
+func (m *mockProfessionalSvc) RemoveService(ctx context.Context, tenantID, professionalID, serviceID uuid.UUID) error {
+	return nil
+}
+
 // ── ServiceSvc ────────────────────────────────────────────────────────────────
 
 type mockServiceSvc struct {
@@ -126,6 +138,10 @@ func (m *mockServiceSvc) Update(ctx context.Context, tenantID, id uuid.UUID, inp
 		return m.updateFn(ctx, tenantID, id, input)
 	}
 	return &domain.Service{ID: id, Name: input.Name}, nil
+}
+
+func (m *mockServiceSvc) Delete(ctx context.Context, tenantID, id uuid.UUID) error {
+	return nil
 }
 
 // ── AppointmentSvc ────────────────────────────────────────────────────────────
@@ -223,7 +239,7 @@ func (m *mockCustomerRepo) List(ctx context.Context, tenantID uuid.UUID, search 
 	return []*domain.Customer{}, nil
 }
 
-func (m *mockCustomerRepo) UpdateStage(ctx context.Context, tenantID, customerID, stageID uuid.UUID) error {
+func (m *mockCustomerRepo) UpdateStage(ctx context.Context, tenantID, customerID uuid.UUID, stageID *uuid.UUID) error {
 	return nil
 }
 
@@ -448,6 +464,14 @@ func (m *mockAuthRepo) GetTenantSettings(ctx context.Context, tenantID uuid.UUID
 }
 
 func (m *mockAuthRepo) UpdateTenantSettings(ctx context.Context, tenantID uuid.UUID, s *domain.TenantSettings) error {
+	return nil
+}
+
+func (m *mockAuthRepo) UpdateTenantProfile(ctx context.Context, tenantID uuid.UUID, req *domain.UpdateTenantProfileRequest) error {
+	return nil
+}
+
+func (m *mockAuthRepo) UpdateUserProfile(ctx context.Context, userID, tenantID uuid.UUID, req *domain.UpdateUserProfileRequest) error {
 	return nil
 }
 
