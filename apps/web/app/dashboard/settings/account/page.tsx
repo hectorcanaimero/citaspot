@@ -96,7 +96,7 @@ export default function AccountPage() {
                 className="p-0 h-7 w-7"
                 onClick={handleSave}
                 disabled={saving || nameValue.trim().length < 2}
-                aria-label="Guardar"
+                aria-label={t.common.save}
               >
                 {saving ? <Spinner size="sm" /> : <Check className="h-3.5 w-3.5 text-green-600" />}
               </Button>
@@ -106,7 +106,7 @@ export default function AccountPage() {
                 className="p-0 h-7 w-7"
                 onClick={cancelEdit}
                 disabled={saving}
-                aria-label="Cancelar"
+                aria-label={t.common.cancel}
               >
                 <X className="h-3.5 w-3.5 text-neutral-400" />
               </Button>
