@@ -58,6 +58,10 @@ type ProfessionalRepository interface {
 	GetByID(ctx context.Context, tenantID, id uuid.UUID) (*Professional, error)
 	Update(ctx context.Context, p *Professional) error
 	ListByTenantPublic(ctx context.Context, tenantID uuid.UUID) ([]*Professional, error)
+	// Gestión de servicios asignados al profesional.
+	ListServices(ctx context.Context, tenantID, professionalID uuid.UUID) ([]*Service, error)
+	AssignService(ctx context.Context, tenantID, professionalID, serviceID uuid.UUID) error
+	RemoveService(ctx context.Context, tenantID, professionalID, serviceID uuid.UUID) error
 }
 
 // ProfessionalSvc lógica de negocio para profesionales.
@@ -68,6 +72,10 @@ type ProfessionalSvc interface {
 	Update(ctx context.Context, tenantID, id uuid.UUID, input *ProfessionalInput) (*Professional, error)
 	GetSchedule(ctx context.Context, tenantID, professionalID uuid.UUID) ([]*Schedule, error)
 	SetSchedule(ctx context.Context, tenantID, professionalID uuid.UUID, schedules []*Schedule) ([]*Schedule, error)
+	// Gestión de servicios asignados al profesional.
+	ListServices(ctx context.Context, tenantID, professionalID uuid.UUID) ([]*Service, error)
+	AssignService(ctx context.Context, tenantID, professionalID, serviceID uuid.UUID) error
+	RemoveService(ctx context.Context, tenantID, professionalID, serviceID uuid.UUID) error
 }
 
 // ── Services ──────────────────────────────────────────────────────────────────
@@ -79,6 +87,7 @@ type ServiceRepository interface {
 	Create(ctx context.Context, s *Service) error
 	GetByID(ctx context.Context, tenantID, id uuid.UUID) (*Service, error)
 	Update(ctx context.Context, s *Service) error
+	Delete(ctx context.Context, tenantID, id uuid.UUID) error
 }
 
 // ServiceSvc lógica de negocio para servicios.
@@ -87,6 +96,7 @@ type ServiceSvc interface {
 	Create(ctx context.Context, tenantID uuid.UUID, input *ServiceInput) (*Service, error)
 	GetByID(ctx context.Context, tenantID, id uuid.UUID) (*Service, error)
 	Update(ctx context.Context, tenantID, id uuid.UUID, input *ServiceInput) (*Service, error)
+	Delete(ctx context.Context, tenantID, id uuid.UUID) error
 }
 
 // ── Schedules / Availability ──────────────────────────────────────────────────

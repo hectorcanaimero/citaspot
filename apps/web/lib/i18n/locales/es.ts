@@ -163,6 +163,8 @@ export const es = {
     descPlaceholder: 'Breve descripción del servicio',
     createService: 'Crear servicio',
     saveError: 'Error al guardar',
+    deleteError: 'Error al eliminar el servicio',
+    confirmDelete: '¿Eliminar este servicio? Esta acción no se puede deshacer.',
   },
   team: {
     title: 'Equipo',
@@ -392,8 +394,8 @@ export const es = {
       colInvoice: 'Nº factura',
       colAmount: 'Importe',
       colStatus: 'Estado',
-      starterPrice: 'Starter — $10/mes',
-      professionalPrice: 'Professional — $25/mes',
+      starterPrice: 'Starter — $50/mes',
+      professionalPrice: 'Professional — $100/mes',
     },
     businessTypes: {
       beauty: 'Salón de belleza',

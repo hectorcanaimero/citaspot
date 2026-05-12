@@ -58,6 +58,14 @@ func (s *serviceSvc) GetByID(ctx context.Context, tenantID, id uuid.UUID) (*doma
 	return s.repo.GetByID(ctx, tenantID, id)
 }
 
+// Delete elimina permanentemente un servicio.
+func (s *serviceSvc) Delete(ctx context.Context, tenantID, id uuid.UUID) error {
+	if err := s.repo.Delete(ctx, tenantID, id); err != nil {
+		return fmt.Errorf("serviceSvc.Delete: %w", err)
+	}
+	return nil
+}
+
 // Update actualiza un servicio existente.
 func (s *serviceSvc) Update(ctx context.Context, tenantID, id uuid.UUID, input *domain.ServiceInput) (*domain.Service, error) {
 	svc, err := s.repo.GetByID(ctx, tenantID, id)

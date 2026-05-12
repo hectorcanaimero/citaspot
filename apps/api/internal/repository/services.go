@@ -129,6 +129,23 @@ func (r *serviceRepository) GetByID(ctx context.Context, tenantID, id uuid.UUID)
 	return svc, nil
 }
 
+// Delete elimina permanentemente un servicio del tenant.
+func (r *serviceRepository) Delete(ctx context.Context, tenantID, id uuid.UUID) error {
+	return withTenant(ctx, r.db, tenantID, func(tx pgx.Tx) error {
+		tag, err := tx.Exec(ctx, `
+			DELETE FROM services
+			WHERE tenant_id = $1 AND id = $2
+		`, tenantID, id)
+		if err != nil {
+			return fmt.Errorf("serviceRepository.Delete: %w", err)
+		}
+		if tag.RowsAffected() == 0 {
+			return domain.ErrNotFound
+		}
+		return nil
+	})
+}
+
 // Update actualiza un servicio.
 func (r *serviceRepository) Update(ctx context.Context, s *domain.Service) error {
 	return withTenant(ctx, r.db, s.TenantID, func(tx pgx.Tx) error {

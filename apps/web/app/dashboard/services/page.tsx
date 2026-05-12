@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Pencil, Clock, DollarSign } from 'lucide-react';
+import { Plus, Pencil, Clock, DollarSign, Trash2 } from 'lucide-react';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -29,6 +29,7 @@ export default function ServicesPage() {
   const [form, setForm]           = useState<ServiceInput>(EMPTY);
   const [saving, setSaving]       = useState(false);
   const [error, setError]         = useState('');
+  const [deleting, setDeleting]   = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
@@ -96,6 +97,19 @@ export default function ServicesPage() {
     } catch { /* ignorar */ }
   }
 
+  async function handleDelete(svc: Service) {
+    if (!confirm(t.services.confirmDelete)) return;
+    setDeleting(svc.id);
+    try {
+      await services.delete(svc.id);
+      load();
+    } catch {
+      alert(t.services.deleteError);
+    } finally {
+      setDeleting(null);
+    }
+  }
+
   return (
     <div className="p-6">
       <div className="mb-6 flex items-center justify-between">
@@ -151,6 +165,16 @@ export default function ServicesPage() {
               <div className="flex items-center gap-2 border-t border-neutral-100 pt-3">
                 <Button variant="ghost" size="sm" onClick={() => openEdit(svc)}>
                   <Pencil className="mr-1 h-3.5 w-3.5" />{t.common.edit}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleDelete(svc)}
+                  disabled={deleting === svc.id}
+                  className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                >
+                  <Trash2 className="mr-1 h-3.5 w-3.5" />
+                  {t.common.delete}
                 </Button>
                 <button
                   onClick={() => toggleActive(svc)}

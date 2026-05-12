@@ -168,6 +168,8 @@ export const en = {
     descPlaceholder: 'Brief description of the service',
     createService: 'Create service',
     saveError: 'Error saving',
+    deleteError: 'Error deleting service',
+    confirmDelete: 'Delete this service? This action cannot be undone.',
   },
   team: {
     title: 'Team',
@@ -397,8 +399,8 @@ export const en = {
       colInvoice: 'Invoice #',
       colAmount: 'Amount',
       colStatus: 'Status',
-      starterPrice: 'Starter — $10/mo',
-      professionalPrice: 'Professional — $25/mo',
+      starterPrice: 'Starter — $50/mo',
+      professionalPrice: 'Professional — $100/mo',
     },
     businessTypes: {
       beauty: 'Beauty salon',

@@ -473,6 +473,7 @@ func main() {
 	srvs.Post("/", svcHandler.Create)
 	srvs.Get("/:id", svcHandler.GetByID)
 	srvs.Patch("/:id", svcHandler.Update)
+	srvs.Delete("/:id", svcHandler.Delete)
 
 	appts := protected.Group("/appointments")
 	appts.Get("/availability", apptHandler.Availability)

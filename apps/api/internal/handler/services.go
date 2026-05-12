@@ -65,6 +65,20 @@ func (h *ServiceHandler) GetByID(c *fiber.Ctx) error {
 	return c.JSON(svc)
 }
 
+// Delete DELETE /services/:id
+func (h *ServiceHandler) Delete(c *fiber.Ctx) error {
+	tenantID := middleware.TenantIDFromContext(c)
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(http.StatusBadRequest).JSON(errorResponse{Error: "ID inválido"})
+	}
+
+	if err := h.svc.Delete(c.Context(), tenantID, id); err != nil {
+		return handleServiceError(c, err)
+	}
+	return c.SendStatus(http.StatusNoContent)
+}
+
 // Update PATCH /services/:id
 func (h *ServiceHandler) Update(c *fiber.Ctx) error {
 	tenantID := middleware.TenantIDFromContext(c)

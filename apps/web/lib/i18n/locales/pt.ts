@@ -168,6 +168,8 @@ export const pt = {
     descPlaceholder: 'Breve descrição do serviço',
     createService: 'Criar serviço',
     saveError: 'Erro ao salvar',
+    deleteError: 'Erro ao excluir serviço',
+    confirmDelete: 'Excluir este serviço? Esta ação não pode ser desfeita.',
   },
   team: {
     title: 'Equipe',
@@ -397,8 +399,8 @@ export const pt = {
       colInvoice: 'Nº fatura',
       colAmount: 'Valor',
       colStatus: 'Status',
-      starterPrice: 'Starter — $10/mês',
-      professionalPrice: 'Professional — $25/mês',
+      starterPrice: 'Starter — $50/mês',
+      professionalPrice: 'Professional — $100/mês',
     },
     businessTypes: {
       beauty: 'Salão de beleza',

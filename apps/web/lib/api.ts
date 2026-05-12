@@ -341,6 +341,9 @@ export const services = {
       body: JSON.stringify(data),
     });
   },
+  async delete(id: string): Promise<void> {
+    return request(`/api/v1/services/${id}`, { method: 'DELETE' });
+  },
 };
 
 export interface ServiceInput {
