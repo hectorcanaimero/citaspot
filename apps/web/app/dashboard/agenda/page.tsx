@@ -58,31 +58,33 @@ function ApptBlock({ appt, profColor }: { appt: ApptWithCol; profColor?: string 
   const top    = topPx(appt.starts_at);
   const height = heightPx(appt.service_duration_min);
   const pct    = 100 / appt.span;
-  const cfg    = STATUS_CFG[appt.status];
+  const color  = profColor ?? '#6b7280';
 
   return (
     <div
-      className={`absolute z-10 overflow-hidden rounded border px-1.5 py-0.5 text-xs cursor-pointer
-        transition-all hover:z-20 hover:shadow-md ${cfg.bg} ${cfg.text} ${cfg.border}`}
+      className="absolute z-10 overflow-hidden rounded border border-neutral-200 px-1.5 py-0.5 text-xs cursor-pointer transition-all hover:z-20 hover:shadow-md"
       style={{
         top,
         height,
-        width:  `calc(${pct}% - 4px)`,
-        left:   `calc(${(appt.col / appt.span) * 100}% + ${appt.col > 0 ? 2 : 0}px)`,
-        minWidth: 0,
-        borderLeftWidth: '3px',
-        borderLeftColor: profColor ?? '#6b7280',
+        width:           `calc(${pct}% - 4px)`,
+        left:            `calc(${(appt.col / appt.span) * 100}% + ${appt.col > 0 ? 2 : 0}px)`,
+        minWidth:        0,
+        borderLeftWidth: '4px',
+        borderLeftColor: color,
+        backgroundColor: `${color}14`,
       }}
       title={`${appt.customer_name} · ${appt.service_name} · ${appt.professional_name}`}
     >
-      <p className="font-semibold leading-tight truncate">
+      <p className="font-semibold leading-tight truncate text-neutral-800">
         {format(new Date(appt.starts_at), 'HH:mm')} {appt.customer_name}
       </p>
       {height >= 38 && (
-        <p className="truncate leading-tight opacity-75">{appt.service_name}</p>
+        <p className="truncate leading-tight text-neutral-500">{appt.service_name}</p>
       )}
       {height >= 54 && (
-        <p className="truncate leading-tight opacity-60">{appt.professional_name}</p>
+        <p className="truncate leading-tight font-medium" style={{ color }}>
+          {appt.professional_name}
+        </p>
       )}
     </div>
   );
@@ -415,7 +417,7 @@ export default function AgendaPage() {
   const [slots, setSlots]             = useState<TimeSlot[]>([]);
   const [loadingAvail, setLoadingAvail] = useState(false);
   const [showNewAppt, setShowNewAppt] = useState(false);
-  const [filterProfId, setFilterProfId] = useState<string>('');
+  const [filterProfIds, setFilterProfIds] = useState<Set<string>>(new Set());
 
   // Mapa de color por profesional para el borde izquierdo de los bloques
   const profColorMap = useMemo(() => {
@@ -424,19 +426,19 @@ export default function AgendaPage() {
     return map;
   }, [profList]);
 
-  // dayMap filtrado por profesional seleccionado
+  // dayMap filtrado por profesionales seleccionados (vacío = todos)
   const filteredDayMap = useMemo(() => {
-    if (!filterProfId) return dayMap;
+    if (filterProfIds.size === 0) return dayMap;
     const filtered: Record<string, DayState> = {};
     for (const [key, val] of Object.entries(dayMap)) {
       if (Array.isArray(val)) {
-        filtered[key] = val.filter(a => a.professional_id === filterProfId);
+        filtered[key] = val.filter(a => filterProfIds.has(a.professional_id));
       } else {
         filtered[key] = val;
       }
     }
     return filtered;
-  }, [dayMap, filterProfId]);
+  }, [dayMap, filterProfIds]);
 
   useEffect(() => {
     professionals.list().then(r => setProfList(r.data ?? [])).catch(() => {});
@@ -595,36 +597,43 @@ export default function AgendaPage() {
         </button>
       </div>
 
-      {/* ── Filtro por profesional ────────────────────────────────────────── */}
+      {/* ── Filtro por profesional (multi-selección) ─────────────────────── */}
       {profList.length > 1 && (
         <div className="flex flex-shrink-0 items-center gap-2 border-b border-neutral-100 bg-white px-5 py-2 overflow-x-auto">
           <button
-            onClick={() => setFilterProfId('')}
+            onClick={() => setFilterProfIds(new Set())}
             className={`flex-shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-all ${
-              filterProfId === ''
+              filterProfIds.size === 0
                 ? 'bg-neutral-900 text-white'
                 : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
             }`}
           >
             {t.agenda.allProfessionals}
           </button>
-          {profList.filter(p => p.is_active && !p.is_archived).map(p => (
-            <button
-              key={p.id}
-              onClick={() => setFilterProfId(filterProfId === p.id ? '' : p.id)}
-              className={`flex-shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-all ${
-                filterProfId === p.id
-                  ? 'text-white shadow-sm'
-                  : 'text-neutral-600 hover:opacity-80'
-              }`}
-              style={{
-                backgroundColor: filterProfId === p.id ? p.color : `${p.color}20`,
-                color: filterProfId === p.id ? 'white' : p.color,
-              }}
-            >
-              {p.name}
-            </button>
-          ))}
+          {profList.filter(p => p.is_active && !p.is_archived).map(p => {
+            const isSelected = filterProfIds.has(p.id);
+            return (
+              <button
+                key={p.id}
+                onClick={() => {
+                  setFilterProfIds(prev => {
+                    const next = new Set(prev);
+                    if (next.has(p.id)) next.delete(p.id);
+                    else next.add(p.id);
+                    return next;
+                  });
+                }}
+                className="flex-shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-all hover:opacity-80"
+                style={{
+                  backgroundColor: isSelected ? p.color : `${p.color}20`,
+                  color:           isSelected ? 'white'  : p.color,
+                  border:          isSelected ? 'none'   : `1.5px solid ${p.color}`,
+                }}
+              >
+                {p.name}
+              </button>
+            );
+          })}
         </div>
       )}
 
