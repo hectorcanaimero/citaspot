@@ -101,10 +101,10 @@ type RegisterResponse struct {
 // UpdateTenantProfileRequest actualiza el perfil público del negocio.
 type UpdateTenantProfileRequest struct {
 	Name     string `json:"name"    validate:"required,min=2,max=120"`
-	Phone    string `json:"phone"   validate:"omitempty,max=30"`
+	Phone    string `json:"phone"   validate:"omitempty,max=20"`
 	City     string `json:"city"    validate:"omitempty,max=100"`
 	Country  string `json:"country" validate:"omitempty,len=2"`
-	Timezone string `json:"timezone" validate:"omitempty,max=60"`
+	Timezone string `json:"timezone" validate:"omitempty,max=50"`
 }
 
 // UpdateUserProfileRequest actualiza el nombre del propietario.
