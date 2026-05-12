@@ -182,92 +182,76 @@ export default function TreatmentsPage() {
           </div>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-neutral-100 bg-neutral-50 text-left text-xs font-medium uppercase tracking-wide text-neutral-500">
-                <th className="px-4 py-3">{t.crm.treatments.nameLabel}</th>
-                <th className="px-4 py-3 hidden md:table-cell">{t.crm.treatments.customer}</th>
-                <th className="px-4 py-3 hidden md:table-cell">{t.crm.treatments.professional}</th>
-                <th className="px-4 py-3 text-center">{t.crm.treatments.status}</th>
-                <th className="px-4 py-3 text-center hidden sm:table-cell">{t.crm.treatments.sessions}</th>
-                <th className="px-4 py-3 text-right hidden lg:table-cell">{t.crm.treatments.cost}</th>
-                <th className="px-4 py-3 text-right hidden lg:table-cell">{t.crm.treatments.paid}</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-neutral-100">
-              {list.map(tr => {
-                const sc = STATUS_CFG[tr.status] ?? STATUS_CFG.proposed;
-                const progressPct = tr.total_sessions
-                  ? Math.min(100, Math.round((tr.completed_sessions / tr.total_sessions) * 100))
-                  : 0;
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {list.map(tr => {
+            const sc = STATUS_CFG[tr.status] ?? STATUS_CFG.proposed;
+            const progressPct = tr.total_sessions
+              ? Math.min(100, Math.round((tr.completed_sessions / tr.total_sessions) * 100))
+              : 0;
 
-                return (
-                  <tr key={tr.id} className="hover:bg-neutral-50 transition-colors">
-                    {/* Nombre + tipo */}
-                    <td className="px-4 py-3">
-                      <p className="font-medium text-neutral-900">{tr.name}</p>
-                      <p className="text-xs text-neutral-400">{tr.treatment_type}</p>
-                    </td>
+            return (
+              <div key={tr.id} className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
+                {/* Nombre + status */}
+                <div className="mb-3 flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-neutral-900">{tr.name}</p>
+                    <p className="text-xs text-neutral-400">{tr.treatment_type}</p>
+                  </div>
+                  <span className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${sc.bg} ${sc.text}`}>
+                    {statusLabel[tr.status] ?? tr.status}
+                  </span>
+                </div>
 
-                    {/* Cliente */}
-                    <td className="px-4 py-3 text-neutral-600 hidden md:table-cell">
-                      {tr.customer_name ?? '\u2014'}
-                    </td>
+                {/* Cliente + profesional */}
+                <div className="mb-3 grid grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <p className="text-neutral-400">{t.crm.treatments.customer}</p>
+                    <p className="font-medium text-neutral-700">{tr.customer_name ?? '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-neutral-400">{t.crm.treatments.professional}</p>
+                    <p className="font-medium text-neutral-700">{tr.professional_name ?? '—'}</p>
+                  </div>
+                </div>
 
-                    {/* Profesional */}
-                    <td className="px-4 py-3 text-neutral-600 hidden md:table-cell">
-                      {tr.professional_name ?? '\u2014'}
-                    </td>
-
-                    {/* Status */}
-                    <td className="px-4 py-3 text-center">
-                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${sc.bg} ${sc.text}`}>
-                        {statusLabel[tr.status] ?? tr.status}
+                {/* Progreso de sesiones */}
+                {tr.total_sessions ? (
+                  <div className="mb-3">
+                    <div className="mb-1 flex items-center justify-between text-xs">
+                      <span className="text-neutral-500">{t.crm.treatments.sessions}</span>
+                      <span className="text-neutral-600">
+                        {t.crm.treatments.sessionsProgress
+                          .replace('{completed}', String(tr.completed_sessions))
+                          .replace('{total}', String(tr.total_sessions))}
                       </span>
-                    </td>
+                    </div>
+                    <div className="h-1.5 w-full rounded-full bg-neutral-100">
+                      <div
+                        className="h-full rounded-full bg-primary-500 transition-all"
+                        style={{ width: `${progressPct}%` }}
+                      />
+                    </div>
+                  </div>
+                ) : null}
 
-                    {/* Sesiones con barra de progreso */}
-                    <td className="px-4 py-3 hidden sm:table-cell">
-                      {tr.total_sessions ? (
-                        <div className="flex flex-col items-center gap-1">
-                          <span className="text-xs text-neutral-600">
-                            {t.crm.treatments.sessionsProgress
-                              .replace('{completed}', String(tr.completed_sessions))
-                              .replace('{total}', String(tr.total_sessions))}
-                          </span>
-                          <div className="h-1.5 w-full max-w-[80px] rounded-full bg-neutral-100">
-                            <div
-                              className="h-full rounded-full bg-primary-500 transition-all"
-                              style={{ width: `${progressPct}%` }}
-                            />
-                          </div>
-                        </div>
-                      ) : (
-                        <span className="text-xs text-neutral-300 block text-center">{'\u2014'}</span>
-                      )}
-                    </td>
-
-                    {/* Costo estimado */}
-                    <td className="px-4 py-3 text-right text-neutral-600 hidden lg:table-cell">
-                      {tr.estimated_cost != null
-                        ? `$${tr.estimated_cost.toFixed(2)} ${tr.currency}`
-                        : '\u2014'}
-                    </td>
-
-                    {/* Pagado */}
-                    <td className="px-4 py-3 text-right hidden lg:table-cell">
-                      <span className={tr.paid_amount > 0 ? 'text-emerald-600 font-medium' : 'text-neutral-300'}>
-                        {tr.paid_amount > 0
-                          ? `$${tr.paid_amount.toFixed(2)} ${tr.currency}`
-                          : '\u2014'}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                {/* Costo + pagado */}
+                <div className="grid grid-cols-2 gap-3 border-t border-neutral-100 pt-3 text-xs">
+                  <div>
+                    <p className="text-neutral-400">{t.crm.treatments.cost}</p>
+                    <p className="font-medium text-neutral-700">
+                      {tr.estimated_cost != null ? `$${tr.estimated_cost.toFixed(2)} ${tr.currency}` : '—'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-neutral-400">{t.crm.treatments.paid}</p>
+                    <p className={tr.paid_amount > 0 ? 'font-medium text-emerald-600' : 'font-medium text-neutral-300'}>
+                      {tr.paid_amount > 0 ? `$${tr.paid_amount.toFixed(2)} ${tr.currency}` : '—'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

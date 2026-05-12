@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -31,6 +32,9 @@ func (r *reminderRepository) FindDueReminders(ctx context.Context, minutesBefore
 	windowMin := minutesBefore - 15
 	windowMax := minutesBefore + 15
 
+	// $3 se pasa como string para que pgx use OID text y evitar el error
+	// "unable to encode int into text format". El cast $3::int en la query
+	// lo convierte a entero donde to_jsonb lo necesita.
 	query := `
 		SELECT ` + reminderColumns + `
 		FROM appointments a
@@ -41,14 +45,14 @@ func (r *reminderRepository) FindDueReminders(ctx context.Context, minutesBefore
 		WHERE a.status IN ('pending', 'confirmed')
 		  AND c.wa_opt_in = TRUE
 		  AND c.phone IS NOT NULL
-		  AND NOT COALESCE((a.reminders_sent->>(($3)::TEXT))::BOOLEAN, FALSE)
+		  AND NOT COALESCE((a.reminders_sent->>$3)::BOOLEAN, FALSE)
 		  AND a.starts_at BETWEEN NOW() + ($1 * interval '1 minute')
 		                       AND NOW() + ($2 * interval '1 minute')
-		  AND (t.settings->'reminder_minutes') @> to_jsonb($3)
+		  AND (t.settings->'reminder_minutes') @> to_jsonb($3::int)
 		LIMIT 100
 	`
 
-	rows, err := r.db.Query(ctx, query, windowMin, windowMax, minutesBefore)
+	rows, err := r.db.Query(ctx, query, windowMin, windowMax, strconv.Itoa(minutesBefore))
 	if err != nil {
 		return nil, fmt.Errorf("reminderRepository.FindDueReminders(%d): %w", minutesBefore, err)
 	}

@@ -104,6 +104,30 @@ func (s *professionalService) GetSchedule(ctx context.Context, tenantID, profess
 	return s.scheduleRepo.GetSchedules(ctx, tenantID, professionalID)
 }
 
+// ListServices retorna los servicios asignados a un profesional.
+func (s *professionalService) ListServices(ctx context.Context, tenantID, professionalID uuid.UUID) ([]*domain.Service, error) {
+	if _, err := s.profRepo.GetByID(ctx, tenantID, professionalID); err != nil {
+		return nil, err
+	}
+	return s.profRepo.ListServices(ctx, tenantID, professionalID)
+}
+
+// AssignService asigna un servicio a un profesional.
+func (s *professionalService) AssignService(ctx context.Context, tenantID, professionalID, serviceID uuid.UUID) error {
+	if err := s.profRepo.AssignService(ctx, tenantID, professionalID, serviceID); err != nil {
+		return fmt.Errorf("professionalService.AssignService: %w", err)
+	}
+	return nil
+}
+
+// RemoveService elimina la asignación de un servicio a un profesional.
+func (s *professionalService) RemoveService(ctx context.Context, tenantID, professionalID, serviceID uuid.UUID) error {
+	if err := s.profRepo.RemoveService(ctx, tenantID, professionalID, serviceID); err != nil {
+		return fmt.Errorf("professionalService.RemoveService: %w", err)
+	}
+	return nil
+}
+
 // SetSchedule reemplaza los horarios semanales de un profesional.
 func (s *professionalService) SetSchedule(ctx context.Context, tenantID, professionalID uuid.UUID, schedules []*domain.Schedule) ([]*domain.Schedule, error) {
 	// Validar que el profesional pertenece al tenant

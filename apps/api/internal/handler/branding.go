@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"bytes"
+	"io"
 	"net/http"
 
 	"github.com/gofiber/fiber/v2"
@@ -32,6 +34,10 @@ func (h *BrandingHandler) UploadCover(c *fiber.Ctx) error {
 
 // Remove DELETE /api/v1/tenant/branding/:kind  (kind = logo | cover)
 func (h *BrandingHandler) Remove(c *fiber.Ctx) error {
+	if h.svc == nil {
+		return fiber.NewError(http.StatusServiceUnavailable, "Almacenamiento de imágenes no disponible — configurá las variables MINIO_*")
+	}
+
 	tenantID := middleware.TenantIDFromContext(c)
 	if tenantID == uuid.Nil {
 		return fiber.NewError(http.StatusForbidden, "tenant no identificado")
@@ -49,6 +55,10 @@ func (h *BrandingHandler) Remove(c *fiber.Ctx) error {
 }
 
 func (h *BrandingHandler) upload(c *fiber.Ctx, kind domain.BrandingAssetKind) error {
+	if h.svc == nil {
+		return fiber.NewError(http.StatusServiceUnavailable, "Almacenamiento de imágenes no disponible — configurá las variables MINIO_*")
+	}
+
 	tenantID := middleware.TenantIDFromContext(c)
 	if tenantID == uuid.Nil {
 		return fiber.NewError(http.StatusForbidden, "tenant no identificado")
@@ -65,12 +75,22 @@ func (h *BrandingHandler) upload(c *fiber.Ctx, kind domain.BrandingAssetKind) er
 	}
 	defer f.Close()
 
+	// Algunos browsers omiten el Content-Type del part multipart.
+	// Si no está, se detecta leyendo los primeros 512 bytes (sniffing RFC 9110).
 	contentType := fileHeader.Header.Get("Content-Type")
+	var reader io.Reader = f
+	if contentType == "" {
+		sniff := make([]byte, 512)
+		n, _ := io.ReadFull(f, sniff)
+		contentType = http.DetectContentType(sniff[:n])
+		reader = io.MultiReader(bytes.NewReader(sniff[:n]), f)
+	}
+
 	url, err := h.svc.UploadAsset(c.Context(), tenantID, &domain.BrandingUploadInput{
 		Kind:        kind,
 		Filename:    fileHeader.Filename,
 		ContentType: contentType,
-		Reader:      f,
+		Reader:      reader,
 		Size:        fileHeader.Size,
 	})
 	if err != nil {

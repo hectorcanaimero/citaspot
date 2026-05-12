@@ -35,7 +35,7 @@ func (a *MoveStageAction) Execute(ctx context.Context, params engine.ActionParam
 		return fmt.Errorf("MoveStageAction.Execute: stage_id inválido '%s': %w", stageIDStr, err)
 	}
 
-	if err := a.customerRepo.UpdateStage(ctx, params.TenantID, params.CustomerID, stageID); err != nil {
+	if err := a.customerRepo.UpdateStage(ctx, params.TenantID, params.CustomerID, &stageID); err != nil {
 		return fmt.Errorf("MoveStageAction.Execute: %w", err)
 	}
 

@@ -546,7 +546,7 @@ export default function LandingPage() {
               <div className="card" style={{ padding: 40 }}>
                 <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)', letterSpacing: '.09em', textTransform: 'uppercase', marginBottom: 14 }}>{l.starterName}</div>
                 <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, marginBottom: 8 }}>
-                  <span className="serif" style={{ fontSize: 60, fontWeight: 700, color: 'var(--cream)', lineHeight: 1 }}>$10</span>
+                  <span className="serif" style={{ fontSize: 60, fontWeight: 700, color: 'var(--cream)', lineHeight: 1 }}>$50</span>
                   <span style={{ color: 'var(--muted)', marginBottom: 10, fontSize: 15 }}>{l.perMonth}</span>
                 </div>
                 <p style={{ color: 'var(--muted)', fontSize: 14, marginBottom: 28 }}>{l.starterDesc}</p>
@@ -571,7 +571,7 @@ export default function LandingPage() {
                 </div>
                 <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--gold)', letterSpacing: '.09em', textTransform: 'uppercase', marginBottom: 14 }}>{l.proName}</div>
                 <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, marginBottom: 8 }}>
-                  <span className="serif" style={{ fontSize: 60, fontWeight: 700, color: 'var(--cream)', lineHeight: 1 }}>$25</span>
+                  <span className="serif" style={{ fontSize: 60, fontWeight: 700, color: 'var(--cream)', lineHeight: 1 }}>$100</span>
                   <span style={{ color: 'var(--muted)', marginBottom: 10, fontSize: 15 }}>{l.perMonth}</span>
                 </div>
                 <p style={{ color: 'var(--muted)', fontSize: 14, marginBottom: 28 }}>{l.proDesc}</p>

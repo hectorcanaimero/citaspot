@@ -21,61 +21,86 @@ export default function OnboardingWhatsAppPage() {
   const [error, setError] = useState('');
   const [connectError, setConnectError] = useState(false);
 
+  const [qrCountdown, setQrCountdown] = useState(30);
   const statusIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const qrIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const countdownRef      = useRef<ReturnType<typeof setInterval> | null>(null);
+  const waitForQRRef      = useRef<ReturnType<typeof setInterval> | null>(null);
+  // qrRef permite a fetchStatus ignorar DISCONNECTED transitorio de Evolution
+  const qrRef             = useRef<string | null>(null);
 
   async function fetchStatus() {
     try {
       const res = await whatsapp.getStatus();
-      setStatus(res.status);
       setError('');
-
-      // Cuando se conecta, dejar de pedir QR
       if (res.status === 'CONNECTED') {
-        setQrCode(null);
-        if (qrIntervalRef.current) {
-          clearInterval(qrIntervalRef.current);
-          qrIntervalRef.current = null;
-        }
+        setStatus('CONNECTED');
+        setQrCode(null); qrRef.current = null;
+        if (countdownRef.current)  { clearInterval(countdownRef.current);  countdownRef.current = null; }
+        if (waitForQRRef.current)  { clearInterval(waitForQRRef.current);  waitForQRRef.current = null; }
+      } else if (res.status === 'DISCONNECTED' && qrRef.current) {
+        // Ignorar: Evolution puede reportar DISCONNECTED transitoriamente mientras genera QR
+      } else {
+        setStatus(res.status);
       }
     } catch (err) {
       setError(err instanceof APIError ? err.message : t.onboarding.waQueryError);
-      setStatus('DISCONNECTED');
     } finally {
       setLoading(false);
     }
   }
 
-  async function fetchQR() {
-    try {
-      const res = await whatsapp.getQR();
-      if (res && res.qr) {
-        setQrCode(res.qr);
+  function startCountdown() {
+    if (countdownRef.current) clearInterval(countdownRef.current);
+    setQrCountdown(30);
+    let remaining = 30;
+    countdownRef.current = setInterval(async () => {
+      remaining -= 1;
+      setQrCountdown(remaining);
+      if (remaining <= 0) {
+        clearInterval(countdownRef.current!);
+        countdownRef.current = null;
+        // Pedir QR fresco sin reconectar
+        try {
+          const fresh = await whatsapp.getQR();
+          if (fresh?.qr) {
+            setQrCode(fresh.qr); qrRef.current = fresh.qr;
+            startCountdown();
+            return;
+          }
+        } catch { /* ignorar */ }
+        // Si getQR falla, reconectar completo
+        void initConnection();
       }
-    } catch {
-      // QR no disponible todavía, se reintenta en el próximo ciclo
-    }
+    }, 1000);
   }
 
   async function initConnection() {
     setConnectError(false);
     setLoading(true);
+    setQrCode(null); qrRef.current = null;
+    if (countdownRef.current) { clearInterval(countdownRef.current); countdownRef.current = null; }
+    if (waitForQRRef.current) { clearInterval(waitForQRRef.current); waitForQRRef.current = null; }
     try {
       await whatsapp.connect();
-      // Iniciar polling de QR
-      startQRPolling();
+      // Polling de 1s hasta recibir QR, luego arranca countdown
+      let attempts = 0;
+      waitForQRRef.current = setInterval(async () => {
+        attempts++;
+        try {
+          const res = await whatsapp.getQR();
+          if (res?.qr) {
+            clearInterval(waitForQRRef.current!); waitForQRRef.current = null;
+            setQrCode(res.qr); qrRef.current = res.qr;
+            startCountdown();
+          }
+        } catch { /* ignorar */ }
+        if (attempts > 20) { clearInterval(waitForQRRef.current!); waitForQRRef.current = null; }
+      }, 1000);
     } catch {
       setConnectError(true);
     } finally {
       setLoading(false);
     }
-  }
-
-  function startQRPolling() {
-    // Fetch inmediato + intervalo
-    fetchQR();
-    if (qrIntervalRef.current) clearInterval(qrIntervalRef.current);
-    qrIntervalRef.current = setInterval(fetchQR, 3000);
   }
 
   useEffect(() => {
@@ -87,7 +112,8 @@ export default function OnboardingWhatsAppPage() {
 
     return () => {
       if (statusIntervalRef.current) clearInterval(statusIntervalRef.current);
-      if (qrIntervalRef.current) clearInterval(qrIntervalRef.current);
+      if (countdownRef.current)      clearInterval(countdownRef.current);
+      if (waitForQRRef.current)      clearInterval(waitForQRRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -171,14 +197,25 @@ export default function OnboardingWhatsAppPage() {
               <div className="flex flex-col items-center gap-4 rounded-lg border border-dashed border-neutral-200 bg-neutral-50 p-6">
                 {qrCode ? (
                   <>
-                    <div className="rounded-xl bg-white p-4 shadow-sm">
-                      <img
-                        src={qrCode}
-                        alt="QR code para vincular WhatsApp"
-                        className="h-64 w-64"
-                      />
+                    <div className="relative">
+                      <div className="rounded-xl bg-white p-4 shadow-sm">
+                        <img
+                          src={qrCode}
+                          alt="QR code para vincular WhatsApp"
+                          className="h-64 w-64"
+                        />
+                      </div>
+                      {/* Countdown badge */}
+                      <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 rounded-full bg-white border border-neutral-200 px-2.5 py-1 shadow-sm">
+                        <div
+                          className={`h-2 w-2 rounded-full ${qrCountdown <= 5 ? 'bg-red-400 animate-pulse' : 'bg-emerald-400'}`}
+                        />
+                        <span className={`text-xs font-semibold tabular-nums ${qrCountdown <= 5 ? 'text-red-500' : 'text-neutral-600'}`}>
+                          {qrCountdown}s
+                        </span>
+                      </div>
                     </div>
-                    <p className="text-center text-sm text-neutral-600">
+                    <p className="text-center text-sm text-neutral-600 mt-2">
                       {t.onboarding.waScanQR}
                     </p>
                   </>

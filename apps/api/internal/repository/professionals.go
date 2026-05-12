@@ -145,6 +145,101 @@ func (r *professionalRepository) Update(ctx context.Context, p *domain.Professio
 	})
 }
 
+// ListServices retorna los servicios asignados a un profesional del tenant.
+func (r *professionalRepository) ListServices(ctx context.Context, tenantID, professionalID uuid.UUID) ([]*domain.Service, error) {
+	var result []*domain.Service
+	err := withTenant(ctx, r.db, tenantID, func(tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `
+			SELECT s.id, s.tenant_id, s.name, s.description, s.duration_min, s.price,
+			       s.currency, s.buffer_min, s.is_active, s.sort_order, s.created_at
+			FROM services s
+			JOIN professional_services ps ON ps.service_id = s.id
+			WHERE ps.professional_id = $1 AND s.tenant_id = $2
+			ORDER BY s.sort_order ASC, s.name ASC
+		`, professionalID, tenantID)
+		if err != nil {
+			return fmt.Errorf("professionalRepository.ListServices: query: %w", err)
+		}
+		defer rows.Close()
+		for rows.Next() {
+			s := &domain.Service{}
+			var description *string
+			if err := rows.Scan(
+				&s.ID, &s.TenantID, &s.Name, &description, &s.DurationMin, &s.Price,
+				&s.Currency, &s.BufferMin, &s.IsActive, &s.SortOrder, &s.CreatedAt,
+			); err != nil {
+				return fmt.Errorf("professionalRepository.ListServices: scan: %w", err)
+			}
+			if description != nil {
+				s.Description = *description
+			}
+			result = append(result, s)
+		}
+		return rows.Err()
+	})
+	return result, err
+}
+
+// AssignService asigna un servicio a un profesional validando que ambos pertenecen al tenant.
+func (r *professionalRepository) AssignService(ctx context.Context, tenantID, professionalID, serviceID uuid.UUID) error {
+	return withTenant(ctx, r.db, tenantID, func(tx pgx.Tx) error {
+		var profExists bool
+		if err := tx.QueryRow(ctx,
+			`SELECT EXISTS(SELECT 1 FROM professionals WHERE id=$1 AND tenant_id=$2)`,
+			professionalID, tenantID,
+		).Scan(&profExists); err != nil {
+			return fmt.Errorf("professionalRepository.AssignService: check prof: %w", err)
+		}
+		if !profExists {
+			return domain.ErrNotFound
+		}
+
+		var svcExists bool
+		if err := tx.QueryRow(ctx,
+			`SELECT EXISTS(SELECT 1 FROM services WHERE id=$1 AND tenant_id=$2)`,
+			serviceID, tenantID,
+		).Scan(&svcExists); err != nil {
+			return fmt.Errorf("professionalRepository.AssignService: check svc: %w", err)
+		}
+		if !svcExists {
+			return domain.ErrNotFound
+		}
+
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO professional_services (professional_id, service_id)
+			VALUES ($1, $2)
+			ON CONFLICT DO NOTHING
+		`, professionalID, serviceID); err != nil {
+			return fmt.Errorf("professionalRepository.AssignService: insert: %w", err)
+		}
+		return nil
+	})
+}
+
+// RemoveService elimina la asignación de un servicio a un profesional.
+func (r *professionalRepository) RemoveService(ctx context.Context, tenantID, professionalID, serviceID uuid.UUID) error {
+	return withTenant(ctx, r.db, tenantID, func(tx pgx.Tx) error {
+		var profExists bool
+		if err := tx.QueryRow(ctx,
+			`SELECT EXISTS(SELECT 1 FROM professionals WHERE id=$1 AND tenant_id=$2)`,
+			professionalID, tenantID,
+		).Scan(&profExists); err != nil {
+			return fmt.Errorf("professionalRepository.RemoveService: check prof: %w", err)
+		}
+		if !profExists {
+			return domain.ErrNotFound
+		}
+
+		if _, err := tx.Exec(ctx, `
+			DELETE FROM professional_services
+			WHERE professional_id = $1 AND service_id = $2
+		`, professionalID, serviceID); err != nil {
+			return fmt.Errorf("professionalRepository.RemoveService: delete: %w", err)
+		}
+		return nil
+	})
+}
+
 // ListByTenantPublic retorna profesionales activos para la página pública de reservas.
 // Usa withTenant para satisfacer la política RLS aunque sea un endpoint sin auth.
 func (r *professionalRepository) ListByTenantPublic(ctx context.Context, tenantID uuid.UUID) ([]*domain.Professional, error) {

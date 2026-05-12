@@ -90,7 +90,7 @@ export default function ClientsPage() {
                 <tr
                   key={c.id}
                   className="hover:bg-neutral-50 transition-colors cursor-pointer"
-                  onClick={() => router.push(`/clients/${c.id}`)}
+                  onClick={() => router.push(`/dashboard/clients/${c.id}`)}
                 >
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">

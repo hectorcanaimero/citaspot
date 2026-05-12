@@ -5,9 +5,10 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"strings"
 
-	"github.com/minio/minio-go/v7"
+	minio "github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
@@ -52,7 +53,9 @@ func New(ctx context.Context, cfg Config) (*Client, error) {
 	return c, nil
 }
 
-// ensureBucket crea el bucket si no existe y aplica policy de lectura pública.
+// ensureBucket crea el bucket si no existe.
+// SetBucketPolicy es best-effort: muchos proveedores externos (R2, S3, etc.)
+// no permiten modificar policies vía API — el acceso público se configura en el panel.
 func (c *Client) ensureBucket(ctx context.Context) error {
 	exists, err := c.mc.BucketExists(ctx, c.bucket)
 	if err != nil {
@@ -63,7 +66,8 @@ func (c *Client) ensureBucket(ctx context.Context) error {
 			return fmt.Errorf("storage.MakeBucket: %w", err)
 		}
 	}
-	// Policy: GetObject público (lectura anónima). Otros verbos requieren credenciales.
+	// Intenta aplicar policy de lectura pública. Si el proveedor no lo soporta,
+	// se ignora — el acceso público debe configurarse manualmente en el panel del proveedor.
 	policy := fmt.Sprintf(`{
 		"Version": "2012-10-17",
 		"Statement": [{
@@ -74,7 +78,7 @@ func (c *Client) ensureBucket(ctx context.Context) error {
 		}]
 	}`, c.bucket)
 	if err := c.mc.SetBucketPolicy(ctx, c.bucket, policy); err != nil {
-		return fmt.Errorf("storage.SetBucketPolicy: %w", err)
+		slog.Warn("storage.SetBucketPolicy: ignorado (configurá acceso público manualmente en tu proveedor)", "bucket", c.bucket, "err", err)
 	}
 	return nil
 }

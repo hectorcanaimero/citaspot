@@ -101,6 +101,60 @@ func (h *ProfessionalHandler) GetSchedule(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"data": schedules})
 }
 
+// ListServices GET /professionals/:id/services
+func (h *ProfessionalHandler) ListServices(c *fiber.Ctx) error {
+	tenantID := middleware.TenantIDFromContext(c)
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(http.StatusBadRequest).JSON(errorResponse{Error: "ID inválido"})
+	}
+
+	svcs, err := h.svc.ListServices(c.Context(), tenantID, id)
+	if err != nil {
+		return handleServiceError(c, err)
+	}
+	if svcs == nil {
+		svcs = []*domain.Service{}
+	}
+	return c.JSON(fiber.Map{"data": svcs})
+}
+
+// AssignService POST /professionals/:id/services/:serviceID
+func (h *ProfessionalHandler) AssignService(c *fiber.Ctx) error {
+	tenantID := middleware.TenantIDFromContext(c)
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(http.StatusBadRequest).JSON(errorResponse{Error: "ID de profesional inválido"})
+	}
+	serviceID, err := uuid.Parse(c.Params("serviceID"))
+	if err != nil {
+		return c.Status(http.StatusBadRequest).JSON(errorResponse{Error: "ID de servicio inválido"})
+	}
+
+	if err := h.svc.AssignService(c.Context(), tenantID, id, serviceID); err != nil {
+		return handleServiceError(c, err)
+	}
+	return c.Status(http.StatusNoContent).Send(nil)
+}
+
+// RemoveService DELETE /professionals/:id/services/:serviceID
+func (h *ProfessionalHandler) RemoveService(c *fiber.Ctx) error {
+	tenantID := middleware.TenantIDFromContext(c)
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(http.StatusBadRequest).JSON(errorResponse{Error: "ID de profesional inválido"})
+	}
+	serviceID, err := uuid.Parse(c.Params("serviceID"))
+	if err != nil {
+		return c.Status(http.StatusBadRequest).JSON(errorResponse{Error: "ID de servicio inválido"})
+	}
+
+	if err := h.svc.RemoveService(c.Context(), tenantID, id, serviceID); err != nil {
+		return handleServiceError(c, err)
+	}
+	return c.Status(http.StatusNoContent).Send(nil)
+}
+
 // SetSchedule PUT /professionals/:id/schedule
 func (h *ProfessionalHandler) SetSchedule(c *fiber.Ctx) error {
 	tenantID := middleware.TenantIDFromContext(c)

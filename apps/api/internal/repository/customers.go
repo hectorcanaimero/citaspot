@@ -162,8 +162,8 @@ func (r *customerRepository) List(ctx context.Context, tenantID uuid.UUID, searc
 	return result, err
 }
 
-// UpdateStage actualiza la etapa del pipeline de un cliente.
-func (r *customerRepository) UpdateStage(ctx context.Context, tenantID, customerID, stageID uuid.UUID) error {
+// UpdateStage actualiza la etapa del pipeline de un cliente. stageID nil limpia el campo.
+func (r *customerRepository) UpdateStage(ctx context.Context, tenantID, customerID uuid.UUID, stageID *uuid.UUID) error {
 	return withTenant(ctx, r.db, tenantID, func(tx pgx.Tx) error {
 		tag, err := tx.Exec(ctx, `UPDATE customers SET stage_id = $3 WHERE tenant_id = $1 AND id = $2`, tenantID, customerID, stageID)
 		if err != nil {

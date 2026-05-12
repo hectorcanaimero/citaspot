@@ -78,10 +78,10 @@ func (s *publicSvc) GetAvailability(ctx context.Context, slug string, query *dom
 		return nil, err
 	}
 
-	// Usar el timezone del tenant si no se especifica
-	if query.Timezone == "" {
-		query.Timezone = tenant.Timezone
-	}
+	// Usar siempre el timezone del tenant para los cálculos de disponibilidad.
+	// El timezone del cliente puede diferir del negocio y causar que todos los slots
+	// queden "en el pasado" si el cliente está en un timezone adelantado al tenant.
+	query.Timezone = tenant.Timezone
 
 	return s.availSvc.GetAvailableSlots(ctx, tenant.ID, query)
 }

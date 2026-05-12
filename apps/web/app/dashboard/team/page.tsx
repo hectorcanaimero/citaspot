@@ -2,13 +2,13 @@
 
 // Página de gestión de equipo: profesionales y sus horarios semanales.
 import { useState, useEffect } from 'react';
-import { Plus, ChevronDown, ChevronUp, Pencil, Check, Archive, ArchiveRestore } from 'lucide-react';
+import { Plus, ChevronDown, ChevronUp, Pencil, Check, Archive, ArchiveRestore, X } from 'lucide-react';
 import { Button }  from '@/components/ui/button';
 import { Input }   from '@/components/ui/input';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge }   from '@/components/ui/badge';
 import { Spinner } from '@/components/ui/spinner';
-import { professionals as profsApi, Professional, Schedule, ProfessionalInput, APIError } from '@/lib/api';
+import { professionals as profsApi, services as servicesApi, Professional, Service, Schedule, ProfessionalInput, APIError } from '@/lib/api';
 import { useTranslations } from '@/lib/i18n';
 
 // Días de la semana — solo el dow, las etiquetas vienen de t.team.days
@@ -59,11 +59,13 @@ function ScheduleEditor({ profId, initial }: { profId: string; initial: DayMap }
     setSaving(true);
     setError('');
     try {
-      const schedules = DAYS_DOW.filter((dow) => days[dow].is_active).map((dow) => ({
+      // Enviar los 7 días con su estado real (activo/inactivo).
+      // Filtrar solo activos causaba que los días desactivados no se persistieran en DB.
+      const schedules = DAYS_DOW.map((dow) => ({
         day_of_week: dow,
         start_time:  days[dow].start_time,
         end_time:    days[dow].end_time,
-        is_active:   true,
+        is_active:   days[dow].is_active,
       }));
       await profsApi.setSchedule(profId, schedules);
       setSaved(true);
@@ -120,6 +122,87 @@ function ScheduleEditor({ profId, initial }: { profId: string; initial: DayMap }
       <Button size="sm" variant={saved ? 'secondary' : 'primary'} onClick={save} loading={saving} className="self-end">
         {saved ? <><Check className="mr-1.5 h-3.5 w-3.5" />{t.team.saved}</> : t.team.saveSchedule}
       </Button>
+    </div>
+  );
+}
+
+// ── Componente de asignación de servicios ─────────────────────────────────────
+
+function ServicesEditor({ profId }: { profId: string }) {
+  const t = useTranslations();
+
+  const [assigned,      setAssigned]      = useState<Service[]>([]);
+  const [allServices,   setAllServices]   = useState<Service[]>([]);
+  const [loadingInit,   setLoadingInit]   = useState(true);
+  const [togglingId,    setTogglingId]    = useState<string | null>(null);
+  const [error,         setError]         = useState('');
+
+  useEffect(() => {
+    Promise.all([
+      profsApi.listServices(profId),
+      servicesApi.list(),
+    ])
+      .then(([assignedRes, allRes]) => {
+        setAssigned(assignedRes.data ?? []);
+        setAllServices((allRes.data ?? []).filter((s) => s.is_active));
+      })
+      .catch(() => setError(t.team.servicesLoadError ?? 'Error cargando servicios'))
+      .finally(() => setLoadingInit(false));
+  }, [profId]);
+
+  const assignedIds = new Set(assigned.map((s) => s.id));
+
+  async function toggle(service: Service) {
+    setTogglingId(service.id);
+    setError('');
+    try {
+      if (assignedIds.has(service.id)) {
+        await profsApi.removeService(profId, service.id);
+        setAssigned((prev) => prev.filter((s) => s.id !== service.id));
+      } else {
+        await profsApi.assignService(profId, service.id);
+        setAssigned((prev) => [...prev, service]);
+      }
+    } catch {
+      setError(t.team.servicesToggleError ?? 'Error al actualizar servicios');
+    } finally {
+      setTogglingId(null);
+    }
+  }
+
+  if (loadingInit) return <div className="flex justify-center py-4"><Spinner /></div>;
+
+  return (
+    <div className="flex flex-col gap-2">
+      {allServices.length === 0 ? (
+        <p className="text-xs text-neutral-400">{t.team.noServicesYet ?? 'No hay servicios creados aún'}</p>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {allServices.map((svc) => {
+            const active = assignedIds.has(svc.id);
+            const loading = togglingId === svc.id;
+            return (
+              <button
+                key={svc.id}
+                type="button"
+                disabled={loading}
+                onClick={() => toggle(svc)}
+                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                  active
+                    ? 'bg-primary-100 text-primary-700 ring-1 ring-primary-300 hover:bg-primary-200'
+                    : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+                } disabled:opacity-50`}
+              >
+                {active && <Check className="h-3 w-3" />}
+                {svc.name}
+                {active && !loading && <X className="h-3 w-3 opacity-50" />}
+                {loading && <Spinner size="sm" />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+      {error && <p className="rounded-md bg-red-50 px-3 py-1.5 text-xs text-red-700">{error}</p>}
     </div>
   );
 }
@@ -258,15 +341,26 @@ function ProfCard({ prof, onUpdated }: { prof: Professional; onUpdated: (p: Prof
         </div>
       </div>
 
-      {/* Horarios */}
+      {/* Servicios + Horarios */}
       {expanded && (
-        <div className="mt-4 border-t border-neutral-100 pt-4">
-          <p className="mb-3 text-xs font-medium text-neutral-500 uppercase tracking-wide">{t.team.weeklySchedule}</p>
-          {loadingSch ? (
-            <div className="flex justify-center py-4"><Spinner /></div>
-          ) : schedules ? (
-            <ScheduleEditor profId={prof.id} initial={schedules} />
-          ) : null}
+        <div className="mt-4 border-t border-neutral-100 pt-4 flex flex-col gap-5">
+          {/* Servicios asignados */}
+          <div>
+            <p className="mb-2 text-xs font-medium text-neutral-500 uppercase tracking-wide">
+              {t.team.assignedServices ?? 'Servicios que ofrece'}
+            </p>
+            <ServicesEditor profId={prof.id} />
+          </div>
+
+          {/* Horario semanal */}
+          <div>
+            <p className="mb-3 text-xs font-medium text-neutral-500 uppercase tracking-wide">{t.team.weeklySchedule}</p>
+            {loadingSch ? (
+              <div className="flex justify-center py-4"><Spinner /></div>
+            ) : schedules ? (
+              <ScheduleEditor profId={prof.id} initial={schedules} />
+            ) : null}
+          </div>
         </div>
       )}
     </Card>

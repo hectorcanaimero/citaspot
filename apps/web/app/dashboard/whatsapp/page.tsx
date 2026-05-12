@@ -11,44 +11,63 @@ import { useTranslations } from '@/lib/i18n';
 
 type WAStatus = 'CONNECTED' | 'DISCONNECTED' | 'CONNECTING';
 
-const QR_POLL_MS     = 2_000;
+const QR_TTL_S       = 30;
 const STATUS_POLL_MS = 5_000;
 
 export default function WhatsAppPage() {
   const t = useTranslations();
-  const [status,     setStatus]     = useState<WAStatus | null>(null);
-  const [instance,   setInstance]   = useState('');
-  const [qr,         setQr]         = useState('');
-  const [loading,    setLoading]    = useState(true);
-  const [connecting, setConnecting] = useState(false);
-  const [error,      setError]      = useState('');
+  const [status,      setStatus]      = useState<WAStatus | null>(null);
+  const [instance,    setInstance]    = useState('');
+  const [qr,          setQr]          = useState('');
+  const [loading,     setLoading]     = useState(true);
+  const [connecting,  setConnecting]  = useState(false);
+  const [error,       setError]       = useState('');
+  const [qrCountdown, setQrCountdown] = useState(QR_TTL_S);
 
-  const qrIntervalRef     = useRef<ReturnType<typeof setInterval> | null>(null);
-  const statusIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const statusIntervalRef   = useRef<ReturnType<typeof setInterval> | null>(null);
+  const countdownRef        = useRef<ReturnType<typeof setInterval> | null>(null);
+  const waitForQRRef        = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Ref para la función de expiración del QR — evita closures stale
+  const onQRExpireRef       = useRef<() => Promise<void>>(async () => {});
+  // qrRef permite a pollStatus saber si hay QR visible sin closure
+  const qrRef               = useRef('');
   // Auto-connect on mount: dispara handleConnect una sola vez si entras disconnected.
-  // No se resetea ante una desconexion manual ni ante errores → evita loops.
   const hasAutoConnectedRef = useRef(false);
 
   function stopPolling() {
-    if (qrIntervalRef.current)     { clearInterval(qrIntervalRef.current);     qrIntervalRef.current = null; }
     if (statusIntervalRef.current) { clearInterval(statusIntervalRef.current); statusIntervalRef.current = null; }
+    if (countdownRef.current)      { clearInterval(countdownRef.current);      countdownRef.current = null; }
+    if (waitForQRRef.current)      { clearInterval(waitForQRRef.current);      waitForQRRef.current = null; }
   }
 
-  const pollQR = useCallback(async () => {
-    try {
-      const res = await whatsapp.getQR();
-      if (res?.qr) setQr(res.qr);
-    } catch { /* ignorar */ }
-  }, []);
+  function startCountdown() {
+    if (countdownRef.current) clearInterval(countdownRef.current);
+    setQrCountdown(QR_TTL_S);
+    let remaining = QR_TTL_S;
+    countdownRef.current = setInterval(() => {
+      remaining -= 1;
+      setQrCountdown(remaining);
+      if (remaining <= 0) {
+        clearInterval(countdownRef.current!);
+        countdownRef.current = null;
+        void onQRExpireRef.current();
+      }
+    }, 1000);
+  }
 
+  // pollStatus ignora DISCONNECTED mientras hay QR visible (puede ser transitorio en Evolution)
   const pollStatus = useCallback(async () => {
     try {
       const res = await whatsapp.getStatus();
-      setStatus(res.status);
       setInstance(res.instance);
       if (res.status === 'CONNECTED') {
-        setQr('');
+        setStatus('CONNECTED');
+        setQr(''); qrRef.current = '';
         stopPolling();
+      } else if (res.status === 'DISCONNECTED' && qrRef.current) {
+        // Ignorar: Evolution puede reportar DISCONNECTED transitoriamente mientras genera el QR
+      } else {
+        setStatus(res.status);
       }
     } catch { /* ignorar */ }
   }, []);
@@ -61,7 +80,7 @@ export default function WhatsAppPage() {
       setStatus(res.status);
       setInstance(res.instance);
       if (res.status === 'CONNECTED') {
-        setQr('');
+        setQr(''); qrRef.current = '';
         stopPolling();
       }
     } catch (e) {
@@ -73,9 +92,26 @@ export default function WhatsAppPage() {
   }, [t]);
 
   function startPolling() {
-    stopPolling();
-    qrIntervalRef.current     = setInterval(pollQR, QR_POLL_MS);
+    if (statusIntervalRef.current) clearInterval(statusIntervalRef.current);
     statusIntervalRef.current = setInterval(pollStatus, STATUS_POLL_MS);
+  }
+
+  // Arranca el polling de QR hasta recibirlo, luego inicia countdown
+  function waitAndShowQR() {
+    if (waitForQRRef.current) clearInterval(waitForQRRef.current);
+    let attempts = 0;
+    waitForQRRef.current = setInterval(async () => {
+      attempts++;
+      try {
+        const res = await whatsapp.getQR();
+        if (res?.qr) {
+          clearInterval(waitForQRRef.current!); waitForQRRef.current = null;
+          setQr(res.qr); qrRef.current = res.qr;
+          startCountdown();
+        }
+      } catch { /* ignorar */ }
+      if (attempts > 20) { clearInterval(waitForQRRef.current!); waitForQRRef.current = null; }
+    }, 1000);
   }
 
   useEffect(() => {
@@ -87,17 +123,33 @@ export default function WhatsAppPage() {
     hasAutoConnectedRef.current = true;
     setConnecting(true);
     setError('');
-    setQr('');
+    setQr(''); qrRef.current = '';
+    stopPolling();
     try {
       const res = await whatsapp.connect();
       setStatus('CONNECTING');
       setInstance(res.instance ?? '');
       startPolling();
+      waitAndShowQR();
+      // Al expirar: pedir QR fresco sin reconectar (menos disruptivo)
+      onQRExpireRef.current = async () => {
+        try {
+          const fresh = await whatsapp.getQR();
+          if (fresh?.qr) {
+            setQr(fresh.qr); qrRef.current = fresh.qr;
+            startCountdown();
+            return;
+          }
+        } catch { /* ignorar */ }
+        // Si getQR falla, hacer reconnect completo
+        void handleConnect();
+      };
     } catch (e) {
       setError(e instanceof APIError ? e.message : t.whatsapp.connectError);
     } finally {
       setConnecting(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [t]);
 
   // Si despues del primer fetch el estado es DISCONNECTED, disparar connect automaticamente.
@@ -206,12 +258,23 @@ export default function WhatsAppPage() {
                 <div className="flex flex-col items-center gap-3 rounded-lg border border-primary-100 bg-primary-50 p-5">
                   <p className="text-sm font-medium text-primary-800">{t.whatsapp.scanQR}</p>
                   {qr ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={qr}
-                      alt="QR WhatsApp"
-                      className="h-52 w-52 rounded-lg border border-primary-200 bg-white p-1"
-                    />
+                    <div className="relative">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={qr}
+                        alt="QR WhatsApp"
+                        className="h-52 w-52 rounded-lg border border-primary-200 bg-white p-1"
+                      />
+                      {/* Countdown ring */}
+                      <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 rounded-full bg-white border border-primary-200 px-2.5 py-1 shadow-sm">
+                        <div
+                          className={`h-2 w-2 rounded-full ${qrCountdown <= 5 ? 'bg-red-400 animate-pulse' : 'bg-primary-400'}`}
+                        />
+                        <span className={`text-xs font-semibold tabular-nums ${qrCountdown <= 5 ? 'text-red-500' : 'text-primary-600'}`}>
+                          {qrCountdown}s
+                        </span>
+                      </div>
+                    </div>
                   ) : (
                     <div className="flex h-52 w-52 flex-col items-center justify-center gap-2 rounded-lg border border-primary-200 bg-white">
                       <Spinner />
