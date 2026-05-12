@@ -194,6 +194,10 @@ export const en = {
     archived: 'Archived',
     confirmArchive: 'Archive this professional? They won\'t appear in the list but their data will be preserved.',
     showArchived: 'Show archived',
+    assignedServices: 'Services offered',
+    noServicesYet: 'No services created yet',
+    servicesLoadError: 'Error loading services',
+    servicesToggleError: 'Error updating services',
     days: {
       '0': 'Sun',
       '1': 'Mon',
@@ -365,6 +369,10 @@ export const en = {
       typeLabel: 'Business type',
       bookingUrlLabel: 'Booking URL',
       viewBookingPage: 'View booking page',
+      editName: 'Edit business name',
+      namePlaceholder: 'e.g. Bella Vista Salon',
+      saveSuccess: 'Changes saved',
+      saveError: 'Could not save changes',
     },
     account: {
       title: 'My account',
@@ -373,6 +381,11 @@ export const en = {
       roleLabel: 'Role',
       ownerRole: 'Owner',
       languageLabel: 'Language',
+      editName: 'Edit name',
+      namePlaceholder: 'Your full name',
+      emailReadonlyNote: 'To change your email, contact support.',
+      saveSuccess: 'Name updated',
+      saveError: 'Could not update name',
     },
     language: {
       es: 'Español',

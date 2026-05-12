@@ -70,6 +70,18 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 // ── Tipos ──────────────────────────────────────────────────────────────────────
 
+export interface UpdateBusinessProfileInput {
+  name: string;
+  phone?: string;
+  city?: string;
+  country?: string;
+  timezone?: string;
+}
+
+export interface UpdateMyProfileInput {
+  name: string;
+}
+
 export interface UserDTO {
   id: string;
   tenant_id: string;
@@ -209,6 +221,18 @@ export const auth = {
   async completeOnboarding() {
     return request<{ ok: boolean }>('/api/v1/onboarding/complete', { method: 'POST' });
   },
+
+  updateBusinessProfile: (data: UpdateBusinessProfileInput) =>
+    request<void>('/api/v1/tenant/profile', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+
+  updateMyProfile: (data: UpdateMyProfileInput) =>
+    request<void>('/api/v1/me/profile', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
 };
 
 // ── Appointments ───────────────────────────────────────────────────────────────
@@ -319,6 +343,22 @@ export const professionals = {
     return request(`/api/v1/professionals/${id}/schedule`, {
       method: 'PUT',
       body: JSON.stringify(schedules),
+    });
+  },
+
+  async listServices(id: string): Promise<{ data: Service[] }> {
+    return request(`/api/v1/professionals/${id}/services`);
+  },
+
+  async assignService(id: string, serviceId: string): Promise<void> {
+    return request(`/api/v1/professionals/${id}/services/${serviceId}`, {
+      method: 'POST',
+    });
+  },
+
+  async removeService(id: string, serviceId: string): Promise<void> {
+    return request(`/api/v1/professionals/${id}/services/${serviceId}`, {
+      method: 'DELETE',
     });
   },
 };

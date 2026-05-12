@@ -194,6 +194,10 @@ export const pt = {
     archived: 'Arquivado',
     confirmArchive: 'Arquivar este profissional? Não aparecerá na lista, mas seus dados serão preservados.',
     showArchived: 'Mostrar arquivados',
+    assignedServices: 'Serviços oferecidos',
+    noServicesYet: 'Nenhum serviço criado ainda',
+    servicesLoadError: 'Erro ao carregar serviços',
+    servicesToggleError: 'Erro ao atualizar serviços',
     days: {
       '0': 'Dom',
       '1': 'Seg',
@@ -365,6 +369,10 @@ export const pt = {
       typeLabel: 'Tipo de negócio',
       bookingUrlLabel: 'URL de agendamento',
       viewBookingPage: 'Ver página de agendamento',
+      editName: 'Editar nome do negócio',
+      namePlaceholder: 'Ex: Salão Bella Vista',
+      saveSuccess: 'Alterações salvas',
+      saveError: 'Não foi possível salvar as alterações',
     },
     account: {
       title: 'Minha conta',
@@ -373,6 +381,11 @@ export const pt = {
       roleLabel: 'Função',
       ownerRole: 'Proprietário',
       languageLabel: 'Idioma',
+      editName: 'Editar nome',
+      namePlaceholder: 'Seu nome completo',
+      emailReadonlyNote: 'Para alterar o e-mail, entre em contato com o suporte.',
+      saveSuccess: 'Nome atualizado',
+      saveError: 'Não foi possível atualizar o nome',
     },
     language: {
       es: 'Español',
