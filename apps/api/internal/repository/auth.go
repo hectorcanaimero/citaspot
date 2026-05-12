@@ -325,3 +325,40 @@ func (r *authRepository) UpdateTenantSettings(ctx context.Context, tenantID uuid
 	}
 	return nil
 }
+
+// UpdateTenantProfile actualiza nombre, teléfono, ciudad, país y timezone del negocio.
+func (r *authRepository) UpdateTenantProfile(ctx context.Context, tenantID uuid.UUID, req *domain.UpdateTenantProfileRequest) error {
+	tag, err := r.db.Exec(ctx,
+		`UPDATE tenants
+		    SET name     = $2,
+		        phone    = $3,
+		        city     = $4,
+		        country  = CASE WHEN $5 = '' THEN country ELSE $5 END,
+		        timezone = CASE WHEN $6 = '' THEN timezone ELSE $6 END,
+		        updated_at = NOW()
+		  WHERE id = $1`,
+		tenantID, req.Name, req.Phone, req.City, req.Country, req.Timezone,
+	)
+	if err != nil {
+		return fmt.Errorf("authRepository.UpdateTenantProfile: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
+}
+
+// UpdateUserProfile actualiza el nombre del propietario.
+func (r *authRepository) UpdateUserProfile(ctx context.Context, userID, tenantID uuid.UUID, req *domain.UpdateUserProfileRequest) error {
+	tag, err := r.db.Exec(ctx,
+		`UPDATE users SET name = $3, updated_at = NOW() WHERE id = $1 AND tenant_id = $2`,
+		userID, tenantID, req.Name,
+	)
+	if err != nil {
+		return fmt.Errorf("authRepository.UpdateUserProfile: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
+}

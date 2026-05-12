@@ -36,6 +36,10 @@ type AuthRepository interface {
 	FindTenantStripeIDs(ctx context.Context, tenantID uuid.UUID) (customerID, subID string, err error)
 	GetTenantSettings(ctx context.Context, tenantID uuid.UUID) (*TenantSettings, error)
 	UpdateTenantSettings(ctx context.Context, tenantID uuid.UUID, s *TenantSettings) error
+	// UpdateTenantProfile actualiza nombre, teléfono, ciudad, país y timezone del negocio.
+	UpdateTenantProfile(ctx context.Context, tenantID uuid.UUID, req *UpdateTenantProfileRequest) error
+	// UpdateUserProfile actualiza el nombre del usuario propietario.
+	UpdateUserProfile(ctx context.Context, userID, tenantID uuid.UUID, req *UpdateUserProfileRequest) error
 }
 
 // AuthService lógica de negocio de autenticación.
