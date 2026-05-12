@@ -131,7 +131,7 @@ type CustomerRepository interface {
 	FindOrCreateByPhone(ctx context.Context, tenantID uuid.UUID, name, phone string) (*Customer, error)
 	GetByID(ctx context.Context, tenantID, id uuid.UUID) (*Customer, error)
 	List(ctx context.Context, tenantID uuid.UUID, search string, limit, offset int) ([]*Customer, error)
-	UpdateStage(ctx context.Context, tenantID, customerID, stageID uuid.UUID) error
+	UpdateStage(ctx context.Context, tenantID, customerID uuid.UUID, stageID *uuid.UUID) error
 	UpdateField(ctx context.Context, tenantID, customerID uuid.UUID, field string, value any) error
 }
 
@@ -283,6 +283,24 @@ type TreatmentSvc interface {
 	GetByID(ctx context.Context, tenantID, id uuid.UUID) (*Treatment, error)
 	Update(ctx context.Context, tenantID, id uuid.UUID, input *TreatmentInput) (*Treatment, error)
 	UpdateStatus(ctx context.Context, tenantID, id uuid.UUID, input *UpdateTreatmentStatusInput) (*Treatment, error)
+}
+
+// TreatmentSessionRepository operaciones DB para sesiones de tratamiento.
+type TreatmentSessionRepository interface {
+	Create(ctx context.Context, tenantID, treatmentID uuid.UUID, input *TreatmentSessionInput) (*TreatmentSession, error)
+	List(ctx context.Context, tenantID, treatmentID uuid.UUID) ([]*TreatmentSession, error)
+	GetByID(ctx context.Context, tenantID, id uuid.UUID) (*TreatmentSession, error)
+	Update(ctx context.Context, tenantID, id uuid.UUID, input *UpdateTreatmentSessionInput) (*TreatmentSession, error)
+	Delete(ctx context.Context, tenantID, id uuid.UUID) error
+}
+
+// TreatmentSessionSvc lógica de negocio para sesiones de tratamiento.
+type TreatmentSessionSvc interface {
+	Create(ctx context.Context, tenantID, treatmentID uuid.UUID, input *TreatmentSessionInput) (*TreatmentSession, error)
+	List(ctx context.Context, tenantID, treatmentID uuid.UUID) ([]*TreatmentSession, error)
+	GetByID(ctx context.Context, tenantID, id uuid.UUID) (*TreatmentSession, error)
+	Update(ctx context.Context, tenantID, treatmentID, id uuid.UUID, input *UpdateTreatmentSessionInput) (*TreatmentSession, error)
+	Delete(ctx context.Context, tenantID, treatmentID, id uuid.UUID) error
 }
 
 // ── Tasks ────────────────────────────────────────────────────────────────────
