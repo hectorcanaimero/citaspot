@@ -94,8 +94,11 @@ func (r *treatmentSessionRepo) Create(ctx context.Context, tenantID, treatmentID
 		INSERT INTO treatment_sessions
 			(id, tenant_id, treatment_id, professional_id, status,
 			 scheduled_at, duration_minutes, procedures_done, notes,
-			 paid_in_session, currency, next_session_at, created_at, updated_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,NOW(),NOW())
+			 paid_in_session, currency, next_session_at,
+			 completed_at, created_at, updated_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,
+		        CASE WHEN $5::text = 'completed' THEN NOW() ELSE NULL END,
+		        NOW(), NOW())
 	`,
 		id, tenantID, treatmentID, input.ProfessionalID, input.Status,
 		input.ScheduledAt, input.DurationMinutes,
@@ -160,7 +163,12 @@ func (r *treatmentSessionRepo) List(ctx context.Context, tenantID, treatmentID u
 		}
 		sessions = append(sessions, s)
 	}
-	tx.Commit(ctx)
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
 	return sessions, nil
 }
 
@@ -215,12 +223,7 @@ func (r *treatmentSessionRepo) Update(ctx context.Context, tenantID, id uuid.UUI
 		return nil, err
 	}
 
-	completedAt := "NULL"
-	if input.Status == "completed" {
-		completedAt = "NOW()"
-	}
-
-	_, err = tx.Exec(ctx, fmt.Sprintf(`
+	_, err = tx.Exec(ctx, `
 		UPDATE treatment_sessions SET
 			status           = $2,
 			duration_minutes = $3,
@@ -229,10 +232,10 @@ func (r *treatmentSessionRepo) Update(ctx context.Context, tenantID, id uuid.UUI
 			paid_in_session  = $6,
 			currency         = $7,
 			next_session_at  = $8,
-			completed_at     = %s,
+			completed_at     = CASE WHEN $2::text = 'completed' THEN NOW() ELSE NULL END,
 			updated_at       = NOW()
 		WHERE id = $1
-	`, completedAt),
+	`,
 		id, input.Status, input.DurationMinutes,
 		nullString(input.ProceduresDone), nullString(input.Notes),
 		input.PaidInSession, nullString(input.Currency), input.NextSessionAt,
