@@ -1,10 +1,10 @@
--- 019_treatment_sessions.sql
--- Sesiones individuales de un tratamiento (cada cita dentro de un plan de tratamiento)
+-- Sesiones individuales de un tratamiento.
 
 CREATE TABLE treatment_sessions (
   id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   tenant_id         UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   treatment_id      UUID NOT NULL REFERENCES treatments(id) ON DELETE CASCADE,
+  -- ON DELETE RESTRICT intencional: los profesionales se archivan, no se eliminan
   professional_id   UUID NOT NULL REFERENCES professionals(id),
 
   status            TEXT NOT NULL DEFAULT 'pending'
@@ -29,7 +29,8 @@ CREATE TABLE treatment_sessions (
 ALTER TABLE treatment_sessions ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY treatment_sessions_tenant_isolation ON treatment_sessions
-  USING (tenant_id = current_setting('app.tenant_id')::UUID);
+  USING (tenant_id = current_setting('app.tenant_id')::UUID)
+  WITH CHECK (tenant_id = current_setting('app.tenant_id')::UUID);
 
 CREATE INDEX idx_treatment_sessions_treatment ON treatment_sessions(treatment_id);
 CREATE INDEX idx_treatment_sessions_tenant_scheduled ON treatment_sessions(tenant_id, scheduled_at);
