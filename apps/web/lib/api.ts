@@ -1008,16 +1008,7 @@ export const whatsapp = {
   // Retorna el QR base64 si ya fue recibido por el backend vía webhook.
   // Retorna null si el QR aún no está disponible (204 No Content).
   async getQR(): Promise<{ qr: string } | null> {
-    const token = await (async () => {
-      if (typeof window === 'undefined') return null;
-      const { createClient } = await import('@/lib/supabase/browser');
-      const supabase = createClient();
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      return session?.access_token ?? null;
-    })();
-    const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
+    const token = await getToken();
     const res = await fetch(`${API_URL}/api/v1/whatsapp/qr`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
