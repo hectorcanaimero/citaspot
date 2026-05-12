@@ -13,6 +13,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gofiber/contrib/swagger"
+	"github.com/joho/godotenv"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	fiberlogger "github.com/gofiber/fiber/v2/middleware/logger"
@@ -58,6 +59,13 @@ const redocHTML = `<!DOCTYPE html>
 </html>`
 
 func main() {
+	// Carga .env si existe — útil cuando se corre el API local (no Docker).
+	// Busca en el directorio actual y luego en la raíz del monorepo (../../.env).
+	// En producción no hay .env y esto es no-op.
+	if err := godotenv.Load(); err != nil {
+		_ = godotenv.Load("../../.env")
+	}
+
 	cfg := config.Load()
 	logger.Init(cfg.AppEnv)
 
@@ -119,8 +127,9 @@ func main() {
 	reminderRepo  := repository.NewReminderRepository(pool)
 	knowledgeRepo := repository.NewKnowledgeRepository(pool)
 	pipelineRepo  := repository.NewPipelineStageRepository(pool)
-	treatmentRepo := repository.NewTreatmentRepository(pool)
-	taskRepo      := repository.NewTaskRepository(pool)
+	treatmentRepo        := repository.NewTreatmentRepository(pool)
+	treatmentSessionRepo := repository.NewTreatmentSessionRepository(pool)
+	taskRepo             := repository.NewTaskRepository(pool)
 	ruleRepo      := repository.NewRuleRepository(pool)
 	ruleExecRepo  := repository.NewRuleExecutionRepository(pool)
 	crmMetricsRepo := repository.NewCRMMetricsRepository(pool)
@@ -142,8 +151,9 @@ func main() {
 	knowledgeSvc := service.NewKnowledgeSvc(knowledgeRepo, publisher)
 
 	pipelineSvc  := service.NewPipelineStageSvc(pipelineRepo)
-	treatmentSvc := service.NewTreatmentSvc(treatmentRepo, publisher)
-	taskSvc      := service.NewTaskSvc(taskRepo)
+	treatmentSvc        := service.NewTreatmentSvc(treatmentRepo, publisher)
+	treatmentSessionSvc := service.NewTreatmentSessionSvc(treatmentSessionRepo, treatmentRepo)
+	taskSvc             := service.NewTaskSvc(taskRepo)
 	ruleSvc      := service.NewRuleSvc(ruleRepo, ruleExecRepo)
 
 	// ── MinIO (storage de branding assets) ──────────────────────────────────
@@ -191,14 +201,13 @@ func main() {
 	blockHandler     := handler.NewScheduleBlockHandler(scheduleRepo)
 	billingHandler   := handler.NewBillingHandler(authRepo, rdb, cfg.StripeSecretKey, cfg.StripeWebhookSecret, cfg.StripePriceStarter, cfg.StripePricePro)
 	pipelineHandler  := handler.NewPipelineStageHandler(pipelineSvc)
-	treatmentHandler := handler.NewTreatmentHandler(treatmentSvc)
-	taskHandler      := handler.NewTaskHandler(taskSvc)
+	treatmentHandler        := handler.NewTreatmentHandler(treatmentSvc)
+	treatmentSessionHandler := handler.NewTreatmentSessionHandler(treatmentSessionSvc)
+	taskHandler             := handler.NewTaskHandler(taskSvc)
 	ruleHandler      := handler.NewRuleHandler(ruleSvc)
 	crmHandler       := handler.NewCRMHandler(crmMetricsRepo)
-	var brandingHandler *handler.BrandingHandler
-	if brandingSvc != nil {
-		brandingHandler = handler.NewBrandingHandler(brandingSvc)
-	}
+	// brandingSvc puede ser nil si MinIO no está disponible — el handler devuelve 503 en ese caso.
+	brandingHandler := handler.NewBrandingHandler(brandingSvc)
 
 	// ── Workers background ────────────────────────────────────────────────────
 	reminderWorker := worker.NewReminderWorker(reminderRepo, notifRepo, waClient)
@@ -246,6 +255,8 @@ func main() {
 
 	// ── Fiber ─────────────────────────────────────────────────────────────────
 	app := fiber.New(fiber.Config{
+		// El límite debe cubrir el asset más grande permitido (portada 5 MB) + overhead multipart.
+		BodyLimit: 6 * 1024 * 1024,
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			code := fiber.StatusInternalServerError
 			var e *fiber.Error
@@ -467,6 +478,9 @@ func main() {
 	profs.Patch("/:id", profHandler.Update)
 	profs.Get("/:id/schedule", profHandler.GetSchedule)
 	profs.Put("/:id/schedule", profHandler.SetSchedule)
+	profs.Get("/:id/services", profHandler.ListServices)
+	profs.Post("/:id/services/:serviceID", profHandler.AssignService)
+	profs.Delete("/:id/services/:serviceID", profHandler.RemoveService)
 
 	srvs := protected.Group("/services")
 	srvs.Get("/", svcHandler.List)
@@ -495,6 +509,8 @@ func main() {
 
 	customers := protected.Group("/customers")
 	customers.Get("/", customerHandler.List)
+	customers.Get("/:id", customerHandler.GetByID)
+	customers.Patch("/:id/stage", customerHandler.UpdateStage)
 
 	protected.Get("/whatsapp/status", waHandler.Status)
 	protected.Get("/whatsapp/qr", waHandler.GetQR)
@@ -514,13 +530,12 @@ func main() {
 	protected.Patch("/tenant/profile", settingsHandler.UpdateTenantProfile)
 	protected.Patch("/me/profile", settingsHandler.UpdateMyProfile)
 
-	// Tenant branding (logo + portada). Solo registrado si MinIO está disponible.
-	if brandingHandler != nil {
-		branding := protected.Group("/tenant/branding")
-		branding.Post("/logo", brandingHandler.UploadLogo)
-		branding.Post("/cover", brandingHandler.UploadCover)
-		branding.Delete("/:kind", brandingHandler.Remove)
-	}
+	// Tenant branding (logo + portada). Las rutas siempre se registran.
+	// Si MinIO no está disponible, el handler devuelve 503 con mensaje descriptivo.
+	branding := protected.Group("/tenant/branding")
+	branding.Post("/logo", brandingHandler.UploadLogo)
+	branding.Post("/cover", brandingHandler.UploadCover)
+	branding.Delete("/:kind", brandingHandler.Remove)
 
 	// Schedule Blocks
 	blocks := protected.Group("/schedule-blocks")
@@ -563,6 +578,14 @@ func main() {
 	treatments.Get("/:id", treatmentHandler.GetByID)
 	treatments.Patch("/:id", treatmentHandler.Update)
 	treatments.Patch("/:id/status", treatmentHandler.UpdateStatus)
+
+	// Sesiones de tratamiento
+	treatmentSessions := treatments.Group("/:id/sessions")
+	treatmentSessions.Get("/", treatmentSessionHandler.List)
+	treatmentSessions.Post("/", treatmentSessionHandler.Create)
+	treatmentSessions.Get("/:sid", treatmentSessionHandler.GetByID)
+	treatmentSessions.Patch("/:sid", treatmentSessionHandler.Update)
+	treatmentSessions.Delete("/:sid", treatmentSessionHandler.Delete)
 
 	// Tasks
 	tasks := protected.Group("/tasks")
