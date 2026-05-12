@@ -4,6 +4,7 @@ package handler_test
 
 import (
 	"context"
+	"time"
 
 	"github.com/citaspot/api/internal/domain"
 	"github.com/google/uuid"
@@ -382,6 +383,10 @@ type mockAuthRepo struct {
 	findTenantBySlugFn      func(context.Context, string) (*domain.Tenant, error)
 	updateTenantBillingFn   func(context.Context, uuid.UUID, string, string, string, string) error
 	findTenantStripeIDsFn   func(context.Context, uuid.UUID) (string, string, error)
+	getTenantSettingsFn     func(context.Context, uuid.UUID) (*domain.TenantSettings, error)
+	updateTenantSettingsFn  func(context.Context, uuid.UUID, *domain.TenantSettings) error
+	updateTenantProfileFn   func(context.Context, uuid.UUID, *domain.UpdateTenantProfileRequest) error
+	updateUserProfileFn     func(context.Context, uuid.UUID, uuid.UUID, *domain.UpdateUserProfileRequest) error
 }
 
 func (m *mockAuthRepo) CreateTenant(ctx context.Context, t *domain.Tenant) error {
@@ -460,18 +465,30 @@ func (m *mockAuthRepo) CompleteOnboarding(ctx context.Context, tenantID uuid.UUI
 }
 
 func (m *mockAuthRepo) GetTenantSettings(ctx context.Context, tenantID uuid.UUID) (*domain.TenantSettings, error) {
+	if m.getTenantSettingsFn != nil {
+		return m.getTenantSettingsFn(ctx, tenantID)
+	}
 	return &domain.TenantSettings{}, nil
 }
 
 func (m *mockAuthRepo) UpdateTenantSettings(ctx context.Context, tenantID uuid.UUID, s *domain.TenantSettings) error {
+	if m.updateTenantSettingsFn != nil {
+		return m.updateTenantSettingsFn(ctx, tenantID, s)
+	}
 	return nil
 }
 
 func (m *mockAuthRepo) UpdateTenantProfile(ctx context.Context, tenantID uuid.UUID, req *domain.UpdateTenantProfileRequest) error {
+	if m.updateTenantProfileFn != nil {
+		return m.updateTenantProfileFn(ctx, tenantID, req)
+	}
 	return nil
 }
 
 func (m *mockAuthRepo) UpdateUserProfile(ctx context.Context, userID, tenantID uuid.UUID, req *domain.UpdateUserProfileRequest) error {
+	if m.updateUserProfileFn != nil {
+		return m.updateUserProfileFn(ctx, userID, tenantID, req)
+	}
 	return nil
 }
 
@@ -502,4 +519,327 @@ func (m *mockPublicSvc) Book(ctx context.Context, slug string, req *domain.Creat
 		return m.bookFn(ctx, slug, req)
 	}
 	return &domain.Appointment{ID: uuid.New()}, nil
+}
+
+// ── PipelineStageSvc ─────────────────────────────────────────────────────────
+
+type mockPipelineStageSvc struct {
+	createFn  func(context.Context, uuid.UUID, *domain.PipelineStageInput) (*domain.PipelineStage, error)
+	listFn    func(context.Context, uuid.UUID) ([]*domain.PipelineStage, error)
+	getByIDFn func(context.Context, uuid.UUID, uuid.UUID) (*domain.PipelineStage, error)
+	updateFn  func(context.Context, uuid.UUID, uuid.UUID, *domain.PipelineStageInput) (*domain.PipelineStage, error)
+	deleteFn  func(context.Context, uuid.UUID, uuid.UUID) error
+	reorderFn func(context.Context, uuid.UUID, []domain.ReorderStageInput) error
+}
+
+func (m *mockPipelineStageSvc) Create(ctx context.Context, tenantID uuid.UUID, input *domain.PipelineStageInput) (*domain.PipelineStage, error) {
+	if m.createFn != nil {
+		return m.createFn(ctx, tenantID, input)
+	}
+	return &domain.PipelineStage{ID: uuid.New(), Name: input.Name}, nil
+}
+
+func (m *mockPipelineStageSvc) List(ctx context.Context, tenantID uuid.UUID) ([]*domain.PipelineStage, error) {
+	if m.listFn != nil {
+		return m.listFn(ctx, tenantID)
+	}
+	return []*domain.PipelineStage{}, nil
+}
+
+func (m *mockPipelineStageSvc) GetByID(ctx context.Context, tenantID, id uuid.UUID) (*domain.PipelineStage, error) {
+	if m.getByIDFn != nil {
+		return m.getByIDFn(ctx, tenantID, id)
+	}
+	return &domain.PipelineStage{ID: id, Name: "Test Stage"}, nil
+}
+
+func (m *mockPipelineStageSvc) Update(ctx context.Context, tenantID, id uuid.UUID, input *domain.PipelineStageInput) (*domain.PipelineStage, error) {
+	if m.updateFn != nil {
+		return m.updateFn(ctx, tenantID, id, input)
+	}
+	return &domain.PipelineStage{ID: id}, nil
+}
+
+func (m *mockPipelineStageSvc) Delete(ctx context.Context, tenantID, id uuid.UUID) error {
+	if m.deleteFn != nil {
+		return m.deleteFn(ctx, tenantID, id)
+	}
+	return nil
+}
+
+func (m *mockPipelineStageSvc) Reorder(ctx context.Context, tenantID uuid.UUID, items []domain.ReorderStageInput) error {
+	if m.reorderFn != nil {
+		return m.reorderFn(ctx, tenantID, items)
+	}
+	return nil
+}
+
+// ── TreatmentSvc ─────────────────────────────────────────────────────────────
+
+type mockTreatmentSvc struct {
+	createFn       func(context.Context, uuid.UUID, *domain.TreatmentInput) (*domain.Treatment, error)
+	listFn         func(context.Context, uuid.UUID, *domain.TreatmentListQuery) ([]*domain.Treatment, error)
+	getByIDFn      func(context.Context, uuid.UUID, uuid.UUID) (*domain.Treatment, error)
+	updateFn       func(context.Context, uuid.UUID, uuid.UUID, *domain.TreatmentInput) (*domain.Treatment, error)
+	updateStatusFn func(context.Context, uuid.UUID, uuid.UUID, *domain.UpdateTreatmentStatusInput) (*domain.Treatment, error)
+}
+
+func (m *mockTreatmentSvc) Create(ctx context.Context, tenantID uuid.UUID, input *domain.TreatmentInput) (*domain.Treatment, error) {
+	if m.createFn != nil {
+		return m.createFn(ctx, tenantID, input)
+	}
+	return &domain.Treatment{ID: uuid.New(), Name: input.Name}, nil
+}
+
+func (m *mockTreatmentSvc) List(ctx context.Context, tenantID uuid.UUID, q *domain.TreatmentListQuery) ([]*domain.Treatment, error) {
+	if m.listFn != nil {
+		return m.listFn(ctx, tenantID, q)
+	}
+	return []*domain.Treatment{}, nil
+}
+
+func (m *mockTreatmentSvc) GetByID(ctx context.Context, tenantID, id uuid.UUID) (*domain.Treatment, error) {
+	if m.getByIDFn != nil {
+		return m.getByIDFn(ctx, tenantID, id)
+	}
+	return &domain.Treatment{ID: id, Name: "Test Treatment"}, nil
+}
+
+func (m *mockTreatmentSvc) Update(ctx context.Context, tenantID, id uuid.UUID, input *domain.TreatmentInput) (*domain.Treatment, error) {
+	if m.updateFn != nil {
+		return m.updateFn(ctx, tenantID, id, input)
+	}
+	return &domain.Treatment{ID: id}, nil
+}
+
+func (m *mockTreatmentSvc) UpdateStatus(ctx context.Context, tenantID, id uuid.UUID, input *domain.UpdateTreatmentStatusInput) (*domain.Treatment, error) {
+	if m.updateStatusFn != nil {
+		return m.updateStatusFn(ctx, tenantID, id, input)
+	}
+	return &domain.Treatment{ID: id}, nil
+}
+
+// ── TreatmentSessionSvc ──────────────────────────────────────────────────────
+
+type mockTreatmentSessionSvc struct {
+	createFn  func(context.Context, uuid.UUID, uuid.UUID, *domain.TreatmentSessionInput) (*domain.TreatmentSession, error)
+	listFn    func(context.Context, uuid.UUID, uuid.UUID) ([]*domain.TreatmentSession, error)
+	getByIDFn func(context.Context, uuid.UUID, uuid.UUID) (*domain.TreatmentSession, error)
+	updateFn  func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID, *domain.UpdateTreatmentSessionInput) (*domain.TreatmentSession, error)
+	deleteFn  func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) error
+}
+
+func (m *mockTreatmentSessionSvc) Create(ctx context.Context, tenantID, treatmentID uuid.UUID, input *domain.TreatmentSessionInput) (*domain.TreatmentSession, error) {
+	if m.createFn != nil {
+		return m.createFn(ctx, tenantID, treatmentID, input)
+	}
+	return &domain.TreatmentSession{ID: uuid.New()}, nil
+}
+
+func (m *mockTreatmentSessionSvc) List(ctx context.Context, tenantID, treatmentID uuid.UUID) ([]*domain.TreatmentSession, error) {
+	if m.listFn != nil {
+		return m.listFn(ctx, tenantID, treatmentID)
+	}
+	return []*domain.TreatmentSession{}, nil
+}
+
+func (m *mockTreatmentSessionSvc) GetByID(ctx context.Context, tenantID, id uuid.UUID) (*domain.TreatmentSession, error) {
+	if m.getByIDFn != nil {
+		return m.getByIDFn(ctx, tenantID, id)
+	}
+	return &domain.TreatmentSession{ID: id}, nil
+}
+
+func (m *mockTreatmentSessionSvc) Update(ctx context.Context, tenantID, treatmentID, id uuid.UUID, input *domain.UpdateTreatmentSessionInput) (*domain.TreatmentSession, error) {
+	if m.updateFn != nil {
+		return m.updateFn(ctx, tenantID, treatmentID, id, input)
+	}
+	return &domain.TreatmentSession{ID: id}, nil
+}
+
+func (m *mockTreatmentSessionSvc) Delete(ctx context.Context, tenantID, treatmentID, id uuid.UUID) error {
+	if m.deleteFn != nil {
+		return m.deleteFn(ctx, tenantID, treatmentID, id)
+	}
+	return nil
+}
+
+// ── TaskSvc ──────────────────────────────────────────────────────────────────
+
+type mockTaskSvc struct {
+	createFn   func(context.Context, uuid.UUID, *domain.TaskInput) (*domain.Task, error)
+	listFn     func(context.Context, uuid.UUID, *domain.TaskListQuery) ([]*domain.Task, error)
+	getByIDFn  func(context.Context, uuid.UUID, uuid.UUID) (*domain.Task, error)
+	updateFn   func(context.Context, uuid.UUID, uuid.UUID, *domain.TaskInput) (*domain.Task, error)
+	completeFn func(context.Context, uuid.UUID, uuid.UUID) (*domain.Task, error)
+	dismissFn  func(context.Context, uuid.UUID, uuid.UUID) (*domain.Task, error)
+}
+
+func (m *mockTaskSvc) Create(ctx context.Context, tenantID uuid.UUID, input *domain.TaskInput) (*domain.Task, error) {
+	if m.createFn != nil {
+		return m.createFn(ctx, tenantID, input)
+	}
+	return &domain.Task{ID: uuid.New(), Title: input.Title}, nil
+}
+
+func (m *mockTaskSvc) List(ctx context.Context, tenantID uuid.UUID, q *domain.TaskListQuery) ([]*domain.Task, error) {
+	if m.listFn != nil {
+		return m.listFn(ctx, tenantID, q)
+	}
+	return []*domain.Task{}, nil
+}
+
+func (m *mockTaskSvc) GetByID(ctx context.Context, tenantID, id uuid.UUID) (*domain.Task, error) {
+	if m.getByIDFn != nil {
+		return m.getByIDFn(ctx, tenantID, id)
+	}
+	return &domain.Task{ID: id, Title: "Test Task"}, nil
+}
+
+func (m *mockTaskSvc) Update(ctx context.Context, tenantID, id uuid.UUID, input *domain.TaskInput) (*domain.Task, error) {
+	if m.updateFn != nil {
+		return m.updateFn(ctx, tenantID, id, input)
+	}
+	return &domain.Task{ID: id}, nil
+}
+
+func (m *mockTaskSvc) Complete(ctx context.Context, tenantID, id uuid.UUID) (*domain.Task, error) {
+	if m.completeFn != nil {
+		return m.completeFn(ctx, tenantID, id)
+	}
+	return &domain.Task{ID: id, Status: "completed"}, nil
+}
+
+func (m *mockTaskSvc) Dismiss(ctx context.Context, tenantID, id uuid.UUID) (*domain.Task, error) {
+	if m.dismissFn != nil {
+		return m.dismissFn(ctx, tenantID, id)
+	}
+	return &domain.Task{ID: id, Status: "dismissed"}, nil
+}
+
+// ── RuleSvc ──────────────────────────────────────────────────────────────────
+
+type mockRuleSvc struct {
+	createFn         func(context.Context, uuid.UUID, *domain.RuleInput) (*domain.Rule, error)
+	listFn           func(context.Context, uuid.UUID) ([]*domain.Rule, error)
+	getByIDFn        func(context.Context, uuid.UUID, uuid.UUID) (*domain.Rule, error)
+	updateFn         func(context.Context, uuid.UUID, uuid.UUID, *domain.RuleInput) (*domain.Rule, error)
+	deleteFn         func(context.Context, uuid.UUID, uuid.UUID) error
+	listExecutionsFn func(context.Context, uuid.UUID, uuid.UUID, int) ([]*domain.RuleExecution, error)
+}
+
+func (m *mockRuleSvc) Create(ctx context.Context, tenantID uuid.UUID, input *domain.RuleInput) (*domain.Rule, error) {
+	if m.createFn != nil {
+		return m.createFn(ctx, tenantID, input)
+	}
+	return &domain.Rule{ID: uuid.New(), Name: input.Name}, nil
+}
+
+func (m *mockRuleSvc) List(ctx context.Context, tenantID uuid.UUID) ([]*domain.Rule, error) {
+	if m.listFn != nil {
+		return m.listFn(ctx, tenantID)
+	}
+	return []*domain.Rule{}, nil
+}
+
+func (m *mockRuleSvc) GetByID(ctx context.Context, tenantID, id uuid.UUID) (*domain.Rule, error) {
+	if m.getByIDFn != nil {
+		return m.getByIDFn(ctx, tenantID, id)
+	}
+	return &domain.Rule{ID: id, Name: "Test Rule"}, nil
+}
+
+func (m *mockRuleSvc) Update(ctx context.Context, tenantID, id uuid.UUID, input *domain.RuleInput) (*domain.Rule, error) {
+	if m.updateFn != nil {
+		return m.updateFn(ctx, tenantID, id, input)
+	}
+	return &domain.Rule{ID: id}, nil
+}
+
+func (m *mockRuleSvc) Delete(ctx context.Context, tenantID, id uuid.UUID) error {
+	if m.deleteFn != nil {
+		return m.deleteFn(ctx, tenantID, id)
+	}
+	return nil
+}
+
+func (m *mockRuleSvc) ListExecutions(ctx context.Context, tenantID, ruleID uuid.UUID, limit int) ([]*domain.RuleExecution, error) {
+	if m.listExecutionsFn != nil {
+		return m.listExecutionsFn(ctx, tenantID, ruleID, limit)
+	}
+	return []*domain.RuleExecution{}, nil
+}
+
+// ── ScheduleRepository ───────────────────────────────────────────────────────
+
+type mockScheduleRepo struct {
+	getSchedulesFn    func(context.Context, uuid.UUID, uuid.UUID) ([]*domain.Schedule, error)
+	upsertSchedulesFn func(context.Context, uuid.UUID, uuid.UUID, []*domain.Schedule) ([]*domain.Schedule, error)
+	getBlocksFn       func(context.Context, uuid.UUID, uuid.UUID, time.Time, time.Time) ([]*domain.ScheduleBlock, error)
+	getApptsFn        func(context.Context, uuid.UUID, uuid.UUID, time.Time, time.Time) ([]*domain.Appointment, error)
+	createBlockFn     func(context.Context, *domain.ScheduleBlock) error
+	listBlocksFn      func(context.Context, uuid.UUID, *uuid.UUID) ([]*domain.ScheduleBlock, error)
+	deleteBlockFn     func(context.Context, uuid.UUID, uuid.UUID) error
+}
+
+func (m *mockScheduleRepo) GetSchedules(ctx context.Context, tenantID, professionalID uuid.UUID) ([]*domain.Schedule, error) {
+	if m.getSchedulesFn != nil {
+		return m.getSchedulesFn(ctx, tenantID, professionalID)
+	}
+	return []*domain.Schedule{}, nil
+}
+
+func (m *mockScheduleRepo) UpsertSchedules(ctx context.Context, tenantID, professionalID uuid.UUID, schedules []*domain.Schedule) ([]*domain.Schedule, error) {
+	if m.upsertSchedulesFn != nil {
+		return m.upsertSchedulesFn(ctx, tenantID, professionalID, schedules)
+	}
+	return schedules, nil
+}
+
+func (m *mockScheduleRepo) GetBlocks(ctx context.Context, tenantID, professionalID uuid.UUID, from, to time.Time) ([]*domain.ScheduleBlock, error) {
+	if m.getBlocksFn != nil {
+		return m.getBlocksFn(ctx, tenantID, professionalID, from, to)
+	}
+	return []*domain.ScheduleBlock{}, nil
+}
+
+func (m *mockScheduleRepo) GetAppointmentsInRange(ctx context.Context, tenantID, professionalID uuid.UUID, from, to time.Time) ([]*domain.Appointment, error) {
+	if m.getApptsFn != nil {
+		return m.getApptsFn(ctx, tenantID, professionalID, from, to)
+	}
+	return []*domain.Appointment{}, nil
+}
+
+func (m *mockScheduleRepo) CreateBlock(ctx context.Context, b *domain.ScheduleBlock) error {
+	if m.createBlockFn != nil {
+		return m.createBlockFn(ctx, b)
+	}
+	return nil
+}
+
+func (m *mockScheduleRepo) ListBlocks(ctx context.Context, tenantID uuid.UUID, professionalID *uuid.UUID) ([]*domain.ScheduleBlock, error) {
+	if m.listBlocksFn != nil {
+		return m.listBlocksFn(ctx, tenantID, professionalID)
+	}
+	return []*domain.ScheduleBlock{}, nil
+}
+
+func (m *mockScheduleRepo) DeleteBlock(ctx context.Context, tenantID, id uuid.UUID) error {
+	if m.deleteBlockFn != nil {
+		return m.deleteBlockFn(ctx, tenantID, id)
+	}
+	return nil
+}
+
+// ── CRMMetricsRepository ────────────────────────────────────────────────────
+
+type mockCRMMetricsRepo struct {
+	getMetricsFn func(context.Context, uuid.UUID) (*domain.CRMMetrics, error)
+}
+
+func (m *mockCRMMetricsRepo) GetMetrics(ctx context.Context, tenantID uuid.UUID) (*domain.CRMMetrics, error) {
+	if m.getMetricsFn != nil {
+		return m.getMetricsFn(ctx, tenantID)
+	}
+	return &domain.CRMMetrics{}, nil
 }
