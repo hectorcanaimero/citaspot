@@ -557,6 +557,52 @@ type UpdateTreatmentStatusInput struct {
 	Status string `json:"status" validate:"required,oneof=proposed accepted in_progress completed abandoned"`
 }
 
+// TreatmentSession representa una sesión individual dentro de un tratamiento.
+type TreatmentSession struct {
+	ID              uuid.UUID  `json:"id"`
+	TenantID        uuid.UUID  `json:"tenant_id"`
+	TreatmentID     uuid.UUID  `json:"treatment_id"`
+	ProfessionalID  uuid.UUID  `json:"professional_id"`
+	Status          string     `json:"status"`
+	ScheduledAt     time.Time  `json:"scheduled_at"`
+	DurationMinutes *int       `json:"duration_minutes,omitempty"`
+	CompletedAt     *time.Time `json:"completed_at,omitempty"`
+	ProceduresDone  string     `json:"procedures_done,omitempty"`
+	Notes           string     `json:"notes,omitempty"`
+	PaidInSession   *float64   `json:"paid_in_session,omitempty"`
+	Currency        string     `json:"currency,omitempty"`
+	NextSessionAt   *time.Time `json:"next_session_at,omitempty"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
+
+	// JOIN expandido
+	ProfessionalName string `json:"professional_name,omitempty"`
+}
+
+// TreatmentSessionInput datos para crear una sesión.
+type TreatmentSessionInput struct {
+	ProfessionalID  uuid.UUID  `json:"professional_id"  validate:"required"`
+	Status          string     `json:"status"           validate:"required,oneof=pending completed"`
+	ScheduledAt     time.Time  `json:"scheduled_at"     validate:"required"`
+	DurationMinutes *int       `json:"duration_minutes" validate:"omitempty,min=1"`
+	ProceduresDone  string     `json:"procedures_done"`
+	Notes           string     `json:"notes"`
+	PaidInSession   *float64   `json:"paid_in_session"  validate:"omitempty,min=0"`
+	Currency        string     `json:"currency"         validate:"omitempty,len=3"`
+	NextSessionAt   *time.Time `json:"next_session_at"`
+}
+
+// UpdateTreatmentSessionInput datos para actualizar una sesión.
+type UpdateTreatmentSessionInput struct {
+	Status          string     `json:"status"           validate:"required,oneof=pending completed cancelled"`
+	DurationMinutes *int       `json:"duration_minutes" validate:"omitempty,min=1"`
+	ProceduresDone  string     `json:"procedures_done"`
+	Notes           string     `json:"notes"`
+	PaidInSession   *float64   `json:"paid_in_session"  validate:"omitempty,min=0"`
+	Currency        string     `json:"currency"         validate:"omitempty,len=3"`
+	NextSessionAt   *time.Time `json:"next_session_at"`
+}
+
 // TreatmentListQuery filtros para listar tratamientos.
 type TreatmentListQuery struct {
 	CustomerID     *uuid.UUID `json:"customer_id"`
