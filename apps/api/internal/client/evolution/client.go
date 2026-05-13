@@ -134,6 +134,7 @@ func (c *Client) SetWebhook(ctx context.Context, instanceName, webhookURL string
 			"enabled":         true,
 			"url":             webhookURL,
 			"webhookByEvents": false,
+			"webhookBase64":   true,
 			"events": []string{
 				"MESSAGES_UPSERT",
 				"CONNECTION_UPDATE",
@@ -184,13 +185,32 @@ func (c *Client) FetchQR(ctx context.Context, instanceName string) (string, erro
 		return "", nil // instancia no existe o ya conectada — no es error fatal
 	}
 
-	var result struct {
-		Base64 string `json:"base64"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
 		return "", nil
 	}
-	return result.Base64, nil
+
+	// Evolution v2 puede devolver el base64 en la raíz o dentro de un objeto anidado.
+	// Intentar primero la estructura plana: {"base64": "data:image/png;base64,..."}
+	var flat struct {
+		Base64 string `json:"base64"`
+	}
+	if err := json.Unmarshal(body, &flat); err == nil && flat.Base64 != "" {
+		return flat.Base64, nil
+	}
+
+	// Fallback: estructura anidada de Evolution v2.2+
+	// {"qrcode": {"base64": "..."}} o {"instance": {...}, "qrcode": {"base64": "..."}}
+	var nested struct {
+		QRCode struct {
+			Base64 string `json:"base64"`
+		} `json:"qrcode"`
+	}
+	if err := json.Unmarshal(body, &nested); err == nil && nested.QRCode.Base64 != "" {
+		return nested.QRCode.Base64, nil
+	}
+
+	return "", nil
 }
 
 // Disconnect cierra la sesión de WhatsApp del tenant.

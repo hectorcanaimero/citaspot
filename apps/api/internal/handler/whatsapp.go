@@ -68,7 +68,13 @@ func (h *WhatsAppHandler) Connect(c *fiber.Ctx) error {
 		return c.Status(http.StatusInternalServerError).JSON(errorResponse{Error: "Error al iniciar la conexión con WhatsApp"})
 	}
 
-	// Retornar estado "connecting" — el QR llega vía webhook en segundos
+	// Intentar capturar el QR inmediatamente (best-effort).
+	// Si Evolution ya generó el QR, lo tenemos disponible sin esperar el webhook.
+	if qr, err := h.waClient.FetchQR(c.Context(), tenant.Slug); err == nil && qr != "" {
+		qrStore.Store(tenant.Slug, qr)
+		slog.Info("whatsapp.Connect: QR capturado directamente", "tenant", tenant.Slug)
+	}
+
 	return c.JSON(fiber.Map{"status": "CONNECTING", "instance": tenant.Slug})
 }
 
