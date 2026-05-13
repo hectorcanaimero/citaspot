@@ -88,6 +88,7 @@ func (h *WhatsAppHandler) GetQR(c *fiber.Ctx) error {
 	}
 
 	qr, ok := qrStore.Load(tenant.Slug)
+	slog.Info("whatsapp.GetQR: lookup", "tenant", tenant.Slug, "found", ok, "hasValue", qr != nil && qr != "")
 	if !ok || qr == "" {
 		// Fallback: consultar Evolution API directamente.
 		// Útil en desarrollo donde el webhook QRCODE_UPDATED puede no llegar.
