@@ -79,8 +79,8 @@ func (c *Client) SendText(ctx context.Context, instanceName, phone, text string)
 
 // Connect crea la instancia en Evolution API (si no existe) e inicia la conexión.
 // Si webhookURL está configurado, registra automáticamente el webhook por instancia.
-// Siempre llama a /instance/connect para forzar la generación del QR.
-func (c *Client) Connect(ctx context.Context, instanceName string) error {
+// Retorna el QR base64 si Evolution lo incluye en la respuesta de /instance/connect.
+func (c *Client) Connect(ctx context.Context, instanceName string) (string, error) {
 	body, _ := json.Marshal(map[string]any{
 		"instanceName": instanceName,
 		"qrcode":       true,
@@ -91,14 +91,14 @@ func (c *Client) Connect(ctx context.Context, instanceName string) error {
 	createURL := fmt.Sprintf("%s/instance/create", c.baseURL)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, createURL, bytes.NewReader(body))
 	if err != nil {
-		return fmt.Errorf("evolution.Connect: build request: %w", err)
+		return "", fmt.Errorf("evolution.Connect: build request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("apikey", c.apiKey)
 
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return fmt.Errorf("evolution.Connect: http: %w", err)
+		return "", fmt.Errorf("evolution.Connect: http: %w", err)
 	}
 	resp.Body.Close()
 
@@ -114,17 +114,35 @@ func (c *Client) Connect(ctx context.Context, instanceName string) error {
 	connectURL := fmt.Sprintf("%s/instance/connect/%s", c.baseURL, instanceName)
 	reqConnect, err := http.NewRequestWithContext(ctx, http.MethodGet, connectURL, nil)
 	if err != nil {
-		return fmt.Errorf("evolution.Connect: build connect request: %w", err)
+		return "", fmt.Errorf("evolution.Connect: build connect request: %w", err)
 	}
 	reqConnect.Header.Set("apikey", c.apiKey)
 
 	respConnect, err := c.http.Do(reqConnect)
 	if err != nil {
-		return fmt.Errorf("evolution.Connect: connect http: %w", err)
+		return "", fmt.Errorf("evolution.Connect: connect http: %w", err)
 	}
-	respConnect.Body.Close()
+	defer respConnect.Body.Close()
 
-	return nil
+	// Capturar el QR de la respuesta (si viene)
+	if respConnect.StatusCode != http.StatusOK {
+		return "", nil
+	}
+
+	respBody, err := io.ReadAll(respConnect.Body)
+	if err != nil {
+		return "", nil
+	}
+
+	// Parsear base64 de la respuesta de Evolution
+	var result struct {
+		Base64 string `json:"base64"`
+	}
+	if err := json.Unmarshal(respBody, &result); err == nil && result.Base64 != "" {
+		return result.Base64, nil
+	}
+
+	return "", nil
 }
 
 // SetWebhook configura la URL de webhook para una instancia específica en Evolution API.

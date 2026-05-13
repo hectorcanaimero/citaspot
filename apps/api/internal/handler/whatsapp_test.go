@@ -68,7 +68,7 @@ func TestWhatsAppHandler_Status(t *testing.T) {
 func TestWhatsAppHandler_Connect(t *testing.T) {
 	t.Run("success returns CONNECTING", func(t *testing.T) {
 		h := newWAHandler(nil, &mockWAClient{
-			connectFn: func(_ context.Context, _ string) error { return nil },
+			connectFn: func(_ context.Context, _ string) (string, error) { return "", nil },
 		}, testWebhookSecret)
 		app := newProtectedApp()
 		app.Post("/whatsapp/connect", h.Connect)
@@ -80,8 +80,8 @@ func TestWhatsAppHandler_Connect(t *testing.T) {
 
 	t.Run("evolution api error returns 500", func(t *testing.T) {
 		h := newWAHandler(nil, &mockWAClient{
-			connectFn: func(_ context.Context, _ string) error {
-				return errors.New("evolution API unavailable")
+			connectFn: func(_ context.Context, _ string) (string, error) {
+				return "", errors.New("evolution API unavailable")
 			},
 		}, testWebhookSecret)
 		app := newProtectedApp()

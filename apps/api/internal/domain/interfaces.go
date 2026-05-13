@@ -202,7 +202,8 @@ type WAClient interface {
 	SendText(ctx context.Context, instanceName, phone, text string) (string, error)
 	IsConnected(ctx context.Context, instanceName string) (bool, error)
 	// Connect crea la instancia si no existe, configura el webhook y conecta.
-	Connect(ctx context.Context, instanceName string) error
+	// Retorna el QR base64 si Evolution lo incluye en la respuesta (vacío si ya conectado).
+	Connect(ctx context.Context, instanceName string) (string, error)
 	// Disconnect cierra la sesión de WhatsApp del tenant.
 	Disconnect(ctx context.Context, instanceName string) error
 	// SetWebhook configura la URL de webhook para una instancia en Evolution.

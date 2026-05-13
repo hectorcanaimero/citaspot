@@ -323,7 +323,7 @@ func (m *mockWhatsAppSvc) HandleConnectionUpdate(ctx context.Context, instanceNa
 type mockWAClient struct {
 	sendTextFn    func(context.Context, string, string, string) (string, error)
 	isConnectedFn func(context.Context, string) (bool, error)
-	connectFn     func(context.Context, string) error
+	connectFn     func(context.Context, string) (string, error)
 	disconnectFn  func(context.Context, string) error
 	setWebhookFn  func(context.Context, string, string) error
 	fetchQRFn     func(context.Context, string) (string, error)
@@ -343,11 +343,11 @@ func (m *mockWAClient) IsConnected(ctx context.Context, instanceName string) (bo
 	return true, nil
 }
 
-func (m *mockWAClient) Connect(ctx context.Context, instanceName string) error {
+func (m *mockWAClient) Connect(ctx context.Context, instanceName string) (string, error) {
 	if m.connectFn != nil {
 		return m.connectFn(ctx, instanceName)
 	}
-	return nil
+	return "", nil
 }
 
 func (m *mockWAClient) Disconnect(ctx context.Context, instanceName string) error {
