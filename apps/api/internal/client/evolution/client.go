@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -100,13 +101,15 @@ func (c *Client) Connect(ctx context.Context, instanceName string) (string, erro
 	if err != nil {
 		return "", fmt.Errorf("evolution.Connect: http: %w", err)
 	}
+	createBody, _ := io.ReadAll(resp.Body)
 	resp.Body.Close()
+	slog.Info("evolution.Connect: create", "instance", instanceName, "status", resp.StatusCode, "body", string(createBody[:min(len(createBody), 200)]))
 
 	// 2. Configurar webhook (best-effort)
 	if c.webhookURL != "" {
 		webhookEndpoint := c.webhookURL + "/api/v1/whatsapp/webhook"
 		if err := c.SetWebhook(ctx, instanceName, webhookEndpoint); err != nil {
-			fmt.Printf("evolution.Connect: SetWebhook warning: %v\n", err)
+			slog.Warn("evolution.Connect: SetWebhook warning", "error", err)
 		}
 	}
 
@@ -124,17 +127,14 @@ func (c *Client) Connect(ctx context.Context, instanceName string) (string, erro
 	}
 	defer respConnect.Body.Close()
 
-	// Capturar el QR de la respuesta (si viene)
-	if respConnect.StatusCode != http.StatusOK {
-		return "", nil
-	}
-
 	respBody, err := io.ReadAll(respConnect.Body)
 	if err != nil {
+		slog.Warn("evolution.Connect: read body error", "error", err)
 		return "", nil
 	}
+	slog.Info("evolution.Connect: connect response", "instance", instanceName, "status", respConnect.StatusCode, "bodyLen", len(respBody), "body", string(respBody[:min(len(respBody), 300)]))
 
-	// Parsear base64 de la respuesta de Evolution
+	// Capturar el QR de la respuesta (cualquier status — Evolution puede usar 200 o 201)
 	var result struct {
 		Base64 string `json:"base64"`
 	}
