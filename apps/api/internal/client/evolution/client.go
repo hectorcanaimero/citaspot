@@ -9,6 +9,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/citaspot/api/internal/domain"
@@ -27,7 +28,7 @@ type Client struct {
 // Si está vacío, Connect no configurará el webhook automáticamente.
 func New(baseURL, apiKey, webhookURL string) domain.WAClient {
 	return &Client{
-		baseURL:    baseURL,
+		baseURL:    strings.TrimRight(baseURL, "/"),
 		apiKey:     apiKey,
 		webhookURL: webhookURL,
 		http:       &http.Client{Timeout: 10 * time.Second},
