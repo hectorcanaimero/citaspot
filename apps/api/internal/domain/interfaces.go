@@ -391,3 +391,42 @@ type BrandingService interface {
 	UploadAsset(ctx context.Context, tenantID uuid.UUID, in *BrandingUploadInput) (url string, err error)
 	RemoveAsset(ctx context.Context, tenantID uuid.UUID, kind BrandingAssetKind) error
 }
+
+// ── Clinical Notes ──────────────────────────────────────────────────────────
+
+// ClinicalNoteRepository operaciones DB para notas clínicas SOAP.
+type ClinicalNoteRepository interface {
+	Create(ctx context.Context, note *ClinicalNote) error
+	GetByID(ctx context.Context, tenantID, id uuid.UUID) (*ClinicalNoteWithDetails, error)
+	GetByAppointmentID(ctx context.Context, tenantID, appointmentID uuid.UUID) (*ClinicalNoteWithDetails, error)
+	ListByCustomer(ctx context.Context, tenantID, customerID uuid.UUID, limit, offset int) ([]*ClinicalNoteWithDetails, int, error)
+	Update(ctx context.Context, note *ClinicalNote) error
+	Delete(ctx context.Context, tenantID, id uuid.UUID) error
+}
+
+// ClinicalNoteSvc lógica de negocio para notas clínicas.
+type ClinicalNoteSvc interface {
+	Create(ctx context.Context, tenantID uuid.UUID, appointmentID uuid.UUID, req *CreateClinicalNoteRequest) (*ClinicalNote, error)
+	GetByID(ctx context.Context, tenantID, id uuid.UUID) (*ClinicalNoteWithDetails, error)
+	GetByAppointmentID(ctx context.Context, tenantID, appointmentID uuid.UUID) (*ClinicalNoteWithDetails, error)
+	ListByCustomer(ctx context.Context, tenantID, customerID uuid.UUID, limit, offset int) ([]*ClinicalNoteWithDetails, int, error)
+	Update(ctx context.Context, tenantID, id uuid.UUID, req *UpdateClinicalNoteRequest) error
+	Delete(ctx context.Context, tenantID, id uuid.UUID) error
+}
+
+// ClinicalFileRepository operaciones DB para archivos clínicos.
+type ClinicalFileRepository interface {
+	Create(ctx context.Context, file *ClinicalFile) error
+	ListByNoteID(ctx context.Context, tenantID, noteID uuid.UUID) ([]*ClinicalFile, error)
+	ListByCustomer(ctx context.Context, tenantID, customerID uuid.UUID, category string, limit, offset int) ([]*ClinicalFile, int, error)
+	// Delete elimina el registro y retorna el archivo borrado (para limpieza de MinIO).
+	Delete(ctx context.Context, tenantID, id uuid.UUID) (*ClinicalFile, error)
+}
+
+// ClinicalFileSvc lógica de negocio para archivos clínicos.
+type ClinicalFileSvc interface {
+	Upload(ctx context.Context, tenantID, noteID uuid.UUID, input ClinicalFileUploadInput) (*ClinicalFile, error)
+	ListByNote(ctx context.Context, tenantID, noteID uuid.UUID) ([]*ClinicalFile, error)
+	ListByCustomer(ctx context.Context, tenantID, customerID uuid.UUID, category string, limit, offset int) ([]*ClinicalFile, int, error)
+	Delete(ctx context.Context, tenantID, fileID uuid.UUID) error
+}

@@ -46,4 +46,19 @@ var (
 
 	// ErrInvalidStatusTransition se retorna cuando un cambio de estado no es valido.
 	ErrInvalidStatusTransition = errors.New("transición de estado no válida")
+
+	// ErrClinicalNoteExists se retorna cuando ya existe una nota clínica para la cita.
+	ErrClinicalNoteExists = errors.New("ya existe una nota clínica para esta cita")
+
+	// ErrAppointmentNotCompleted se retorna cuando se intenta crear una nota en una cita no completada.
+	ErrAppointmentNotCompleted = errors.New("solo se pueden crear notas para citas completadas")
+
+	// ErrFileTooLarge se retorna cuando un archivo excede el tamaño máximo.
+	ErrFileTooLarge = errors.New("el archivo excede el tamaño máximo permitido")
+
+	// ErrFileTypeNotAllowed se retorna cuando el tipo de archivo no está permitido.
+	ErrFileTypeNotAllowed = errors.New("tipo de archivo no permitido")
+
+	// ErrMaxFilesReached se retorna cuando se alcanzó el límite de archivos por nota.
+	ErrMaxFilesReached = errors.New("se alcanzó el límite máximo de archivos por nota")
 )

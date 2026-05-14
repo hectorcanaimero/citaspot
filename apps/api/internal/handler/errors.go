@@ -51,6 +51,16 @@ func handleServiceError(c *fiber.Ctx, err error) error {
 		return c.Status(http.StatusBadRequest).JSON(newError("validation_error", err.Error()))
 	case errors.Is(err, domain.ErrInvalidStatusTransition):
 		return c.Status(http.StatusBadRequest).JSON(newError("invalid_status_transition", err.Error()))
+	case errors.Is(err, domain.ErrClinicalNoteExists):
+		return c.Status(http.StatusConflict).JSON(newError("clinical_note_exists", err.Error()))
+	case errors.Is(err, domain.ErrAppointmentNotCompleted):
+		return c.Status(http.StatusBadRequest).JSON(newError("appointment_not_completed", err.Error()))
+	case errors.Is(err, domain.ErrFileTooLarge):
+		return c.Status(http.StatusRequestEntityTooLarge).JSON(newError("file_too_large", err.Error()))
+	case errors.Is(err, domain.ErrFileTypeNotAllowed):
+		return c.Status(http.StatusUnprocessableEntity).JSON(newError("file_type_not_allowed", err.Error()))
+	case errors.Is(err, domain.ErrMaxFilesReached):
+		return c.Status(http.StatusConflict).JSON(newError("max_files_reached", err.Error()))
 	default:
 		// Error inesperado — loggear internamente, no exponer detalles al cliente
 		slog.Error("handler internal error",

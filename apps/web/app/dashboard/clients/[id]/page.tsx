@@ -19,9 +19,11 @@ import {
 import { Badge } from '@/components/ui/badge';
 import type { BadgeVariant } from '@/components/ui/badge';
 import { Spinner } from '@/components/ui/spinner';
-import { customers, treatments, treatmentSessions, tasks, pipelineStages, professionals } from '@/lib/api';
-import type { Customer, Treatment, TreatmentSession, Task, PipelineStage, Professional } from '@/lib/api';
+import { customers, treatments, treatmentSessions, tasks, pipelineStages, professionals, clinicalNotes } from '@/lib/api';
+import type { Customer, Treatment, TreatmentSession, Task, PipelineStage, Professional, ClinicalNoteWithDetails } from '@/lib/api';
 import { SessionModal } from '@/components/sessions/SessionModal';
+import { ClinicalHistorySection } from '@/components/clinical/ClinicalHistorySection';
+import { ClinicalNoteModal } from '@/components/clinical/ClinicalNoteModal';
 import { useTranslations, useDateLocale } from '@/lib/i18n';
 import { format } from 'date-fns';
 
@@ -549,23 +551,27 @@ export default function CustomerProfilePage() {
   const [showTaskForm,         setShowTaskForm]         = useState(false);
   const [sessionsByTreatment,  setSessionsByTreatment]  = useState<Record<string, TreatmentSession[]>>({});
   const [sessionModalTreatment, setSessionModalTreatment] = useState<string | null>(null);
+  const [clinicalNoteList,       setClinicalNoteList]       = useState<ClinicalNoteWithDetails[]>([]);
+  const [showClinicalNoteForm,   setShowClinicalNoteForm]   = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [cust, trRes, tkRes, stRes, prRes] = await Promise.all([
+      const [cust, trRes, tkRes, stRes, prRes, cnRes] = await Promise.all([
         customers.getById(id),
         treatments.list({ customer_id: id }),
         tasks.list({ customer_id: id }),
         pipelineStages.list(),
         professionals.list(),
+        clinicalNotes.listByCustomer(id).catch(() => ({ data: [], total: 0 })),
       ]);
       setCustomer(cust);
       setTreatList(trRes.data ?? []);
       setTaskList(tkRes.data ?? []);
       setStages(stRes.data ?? []);
       setProfList(prRes.data ?? []);
+      setClinicalNoteList(cnRes.data ?? []);
     } catch {
       setError(t.clients.notFound);
     } finally {
@@ -795,6 +801,28 @@ export default function CustomerProfilePage() {
         />
       </div>
 
+      {/* ── Historial Clínico ────────────────────────────────────────────────── */}
+      <div className="mb-4 overflow-hidden rounded-xl border border-neutral-200 bg-white">
+        <div className="flex items-center justify-between border-b border-neutral-100 px-4 py-3">
+          <h2 className="text-sm font-semibold text-neutral-700">{t.clients.clinicalHistory}</h2>
+          <button
+            type="button"
+            onClick={() => setShowClinicalNoteForm(true)}
+            className="flex items-center gap-1 rounded-lg border border-neutral-200 px-2.5 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50 transition-colors"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            {t.clients.newClinicalNote}
+          </button>
+        </div>
+        <ClinicalHistorySection
+          customerId={id}
+          professionalId={profList[0]?.id ?? ''}
+          profList={profList}
+          notes={clinicalNoteList}
+          onNotesChange={setClinicalNoteList}
+        />
+      </div>
+
       {/* ── Notas ────────────────────────────────────────────────────────────── */}
       <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white">
         <div className="border-b border-neutral-100 px-4 py-3">
@@ -838,6 +866,21 @@ export default function CustomerProfilePage() {
             onClose={() => setShowTaskForm(false)}
           />
         </Modal>
+      )}
+
+      {showClinicalNoteForm && (
+        <ClinicalNoteModal
+          customerId={id}
+          professionalId={profList[0]?.id ?? ''}
+          onSaved={async () => {
+            setShowClinicalNoteForm(false);
+            try {
+              const res = await clinicalNotes.listByCustomer(id);
+              setClinicalNoteList(res.data ?? []);
+            } catch { /* noop */ }
+          }}
+          onClose={() => setShowClinicalNoteForm(false)}
+        />
       )}
 
       {sessionModalTreatment && (

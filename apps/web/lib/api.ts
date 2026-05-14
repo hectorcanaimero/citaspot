@@ -879,6 +879,7 @@ export interface PublicProfile {
   business_type: string;
   city?: string;
   country?: string;
+  timezone?: string;
   services: Service[];
   professionals: Professional[];
   service_professionals: ServiceProfessionalLink[];
@@ -1097,6 +1098,127 @@ export interface CRMMetrics {
 export const crm = {
   async getMetrics(): Promise<CRMMetrics> {
     return request('/api/v1/crm/metrics');
+  },
+};
+
+// ── Clinical History (Notas SOAP + Archivos) ────────────────────────────────
+
+export interface ClinicalNote {
+  id: string;
+  tenant_id: string;
+  appointment_id: string;
+  customer_id: string;
+  professional_id: string;
+  subjective: string;
+  objective: string;
+  assessment: string;
+  plan: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ClinicalNoteWithDetails extends ClinicalNote {
+  professional_name: string;
+  service_name: string;
+  appointment_date: string;
+  files: ClinicalFile[];
+}
+
+export interface ClinicalFile {
+  id: string;
+  tenant_id: string;
+  clinical_note_id: string;
+  customer_id: string;
+  file_name: string;
+  file_url: string;
+  content_type: string;
+  size_bytes: number;
+  category: 'xray' | 'lab_result' | 'photo' | 'report' | 'prescription' | 'other';
+  description: string;
+  uploaded_by: string;
+  created_at: string;
+}
+
+export const clinicalNotes = {
+  async listByCustomer(customerId: string, limit = 20, offset = 0): Promise<{ data: ClinicalNoteWithDetails[]; total: number }> {
+    return request(`/api/v1/customers/${customerId}/clinical-notes?limit=${limit}&offset=${offset}`);
+  },
+
+  async getById(customerId: string, noteId: string): Promise<ClinicalNoteWithDetails> {
+    return request(`/api/v1/customers/${customerId}/clinical-notes/${noteId}`);
+  },
+
+  async getByAppointment(appointmentId: string): Promise<ClinicalNoteWithDetails> {
+    return request(`/api/v1/appointments/${appointmentId}/clinical-note`);
+  },
+
+  async create(appointmentId: string, data: {
+    professional_id: string;
+    subjective?: string;
+    objective?: string;
+    assessment?: string;
+    plan?: string;
+  }): Promise<ClinicalNote> {
+    return request(`/api/v1/appointments/${appointmentId}/clinical-note`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async update(noteId: string, data: {
+    subjective?: string;
+    objective?: string;
+    assessment?: string;
+    plan?: string;
+  }): Promise<void> {
+    return request(`/api/v1/clinical-notes/${noteId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async remove(noteId: string): Promise<void> {
+    return request(`/api/v1/clinical-notes/${noteId}`, { method: 'DELETE' });
+  },
+};
+
+export const clinicalFiles = {
+  async listByNote(noteId: string): Promise<{ data: ClinicalFile[] }> {
+    return request(`/api/v1/clinical-notes/${noteId}/files`);
+  },
+
+  async listByCustomer(customerId: string, category?: string, limit = 20, offset = 0): Promise<{ data: ClinicalFile[]; total: number }> {
+    const qs = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+    if (category) qs.set('category', category);
+    return request(`/api/v1/customers/${customerId}/clinical-files?${qs}`);
+  },
+
+  async upload(noteId: string, file: File, professionalId: string, category = 'other', description = ''): Promise<ClinicalFile> {
+    const token = await getToken();
+    const form = new FormData();
+    form.append('file', file);
+    form.append('professional_id', professionalId);
+    form.append('category', category);
+    form.append('description', description);
+
+    const res = await fetch(`${API_URL}/api/v1/clinical-notes/${noteId}/files/upload`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: form,
+    });
+
+    if (res.status === 401) {
+      throw new APIError(401, 'Sesión expirada. Por favor inicia sesión de nuevo.', 'session_expired');
+    }
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({ message: 'Error al subir el archivo' }));
+      throw new APIError(res.status, body.message ?? body.error ?? 'Error al subir el archivo');
+    }
+    return res.json();
+  },
+
+  async remove(fileId: string): Promise<void> {
+    return request(`/api/v1/clinical-files/${fileId}`, { method: 'DELETE' });
   },
 };
 

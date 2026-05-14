@@ -133,6 +133,8 @@ func main() {
 	ruleRepo      := repository.NewRuleRepository(pool)
 	ruleExecRepo  := repository.NewRuleExecutionRepository(pool)
 	crmMetricsRepo := repository.NewCRMMetricsRepository(pool)
+	clinicalNoteRepo := repository.NewClinicalNoteRepository(pool)
+	clinicalFileRepo := repository.NewClinicalFileRepository(pool)
 
 	// ── Servicios ─────────────────────────────────────────────────────────────
 	authSvc    := service.NewAuthService(authRepo, cfg)
@@ -158,6 +160,8 @@ func main() {
 
 	// ── MinIO (storage de branding assets) ──────────────────────────────────
 	var brandingSvc domain.BrandingService
+	var clinicalNoteSvc domain.ClinicalNoteSvc
+	var clinicalFileSvc domain.ClinicalFileSvc
 	if cfg.MinIOEndpoint != "" {
 		storageCtx, storageCancel := context.WithTimeout(ctx, 10*time.Second)
 		storageClient, storageErr := storage.New(storageCtx, storage.Config{
@@ -173,10 +177,17 @@ func main() {
 			slog.Error("MinIO init falló — uploads de branding deshabilitados", "err", storageErr)
 		} else {
 			brandingSvc = service.NewBrandingSvc(storageClient, authRepo)
+			clinicalNoteSvc = service.NewClinicalNoteSvc(clinicalNoteRepo, clinicalFileRepo, apptRepo, storageClient)
+			clinicalFileSvc = service.NewClinicalFileSvc(clinicalFileRepo, clinicalNoteRepo, storageClient)
 			slog.Info("MinIO listo", "bucket", storageClient.Bucket())
 		}
 	} else {
 		slog.Warn("MINIO_ENDPOINT no configurado — uploads de branding deshabilitados")
+	}
+	// Clinical History sin MinIO: notas funcionan, uploads deshabilitados
+	if clinicalNoteSvc == nil {
+		clinicalNoteSvc = service.NewClinicalNoteSvc(clinicalNoteRepo, clinicalFileRepo, apptRepo, nil)
+		clinicalFileSvc = service.NewClinicalFileSvc(clinicalFileRepo, clinicalNoteRepo, nil)
 	}
 
 	// ── Motor de reglas ──────────────────────────────────────────────────────
@@ -208,6 +219,8 @@ func main() {
 	crmHandler       := handler.NewCRMHandler(crmMetricsRepo)
 	// brandingSvc puede ser nil si MinIO no está disponible — el handler devuelve 503 en ese caso.
 	brandingHandler := handler.NewBrandingHandler(brandingSvc)
+	clinicalNoteHandler := handler.NewClinicalNoteHandler(clinicalNoteSvc)
+	clinicalFileHandler := handler.NewClinicalFileHandler(clinicalFileSvc)
 
 	// ── Workers background ────────────────────────────────────────────────────
 	reminderWorker := worker.NewReminderWorker(reminderRepo, notifRepo, waClient)
@@ -255,8 +268,8 @@ func main() {
 
 	// ── Fiber ─────────────────────────────────────────────────────────────────
 	app := fiber.New(fiber.Config{
-		// El límite debe cubrir el asset más grande permitido (portada 5 MB) + overhead multipart.
-		BodyLimit: 6 * 1024 * 1024,
+		// El límite debe cubrir archivos clínicos (10 MB) + overhead multipart.
+		BodyLimit: 12 * 1024 * 1024,
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			code := fiber.StatusInternalServerError
 			var e *fiber.Error
@@ -604,6 +617,21 @@ func main() {
 	rules.Patch("/:id", ruleHandler.Update)
 	rules.Delete("/:id", ruleHandler.Delete)
 	rules.Get("/:id/executions", ruleHandler.ListExecutions)
+
+	// Clinical Notes
+	appts.Post("/:id/clinical-note", clinicalNoteHandler.Create)
+	appts.Get("/:id/clinical-note", clinicalNoteHandler.GetByAppointment)
+	customers.Get("/:id/clinical-notes", clinicalNoteHandler.ListByCustomer)
+	customers.Get("/:id/clinical-notes/:noteId", clinicalNoteHandler.GetByID)
+	clinicalNotes := protected.Group("/clinical-notes")
+	clinicalNotes.Patch("/:noteId", clinicalNoteHandler.Update)
+	clinicalNotes.Delete("/:noteId", clinicalNoteHandler.Delete)
+	clinicalNotes.Post("/:noteId/files/upload", clinicalFileHandler.Upload)
+	clinicalNotes.Get("/:noteId/files", clinicalFileHandler.ListByNote)
+
+	// Clinical Files
+	customers.Get("/:id/clinical-files", clinicalFileHandler.ListByCustomer)
+	protected.Delete("/clinical-files/:fileId", clinicalFileHandler.Delete)
 
 	// CRM Metrics
 	protected.Get("/crm/metrics", crmHandler.Metrics)
