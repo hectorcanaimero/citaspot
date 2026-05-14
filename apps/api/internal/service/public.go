@@ -52,6 +52,11 @@ func (s *publicSvc) GetProfile(ctx context.Context, slug string) (*domain.Public
 		return nil, fmt.Errorf("publicSvc.GetProfile: professionals: %w", err)
 	}
 
+	links, err := s.profRepo.ListServiceLinks(ctx, tenant.ID)
+	if err != nil {
+		return nil, fmt.Errorf("publicSvc.GetProfile: service links: %w", err)
+	}
+
 	return &domain.PublicProfile{
 		Slug:               tenant.Slug,
 		Name:               tenant.Name,
@@ -59,8 +64,9 @@ func (s *publicSvc) GetProfile(ctx context.Context, slug string) (*domain.Public
 		City:               tenant.City,
 		Country:            tenant.Country,
 		Timezone:           tenant.Timezone,
-		Services:           services,
-		Professionals:      professionals,
+		Services:             services,
+		Professionals:        professionals,
+		ServiceProfessionals: links,
 		BookingIntroText:   tenant.Settings.BookingIntroText,
 		BookingSuccessText: tenant.Settings.BookingSuccessText,
 		BotName:            tenant.Settings.BotName,

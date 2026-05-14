@@ -346,6 +346,12 @@ type Pagination struct {
 
 // ── Public booking ────────────────────────────────────────────────────────────
 
+// ServiceProfessionalLink mapea qué profesional ofrece qué servicio.
+type ServiceProfessionalLink struct {
+	ServiceID      uuid.UUID `json:"service_id"`
+	ProfessionalID uuid.UUID `json:"professional_id"`
+}
+
 // PublicProfile vista pública de un negocio (sin auth).
 type PublicProfile struct {
 	Slug          string          `json:"slug"`
@@ -354,8 +360,9 @@ type PublicProfile struct {
 	City          string          `json:"city,omitempty"`
 	Country       string          `json:"country,omitempty"`
 	Timezone      string          `json:"timezone"`
-	Services      []*Service      `json:"services"`
-	Professionals []*Professional `json:"professionals"`
+	Services             []*Service               `json:"services"`
+	Professionals        []*Professional           `json:"professionals"`
+	ServiceProfessionals []ServiceProfessionalLink `json:"service_professionals"`
 	BookingIntroText   string `json:"booking_intro_text,omitempty"`
 	BookingSuccessText string `json:"booking_success_text,omitempty"`
 	BotName            string `json:"bot_name,omitempty"`

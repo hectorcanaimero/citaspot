@@ -117,7 +117,7 @@ export default function BookingPage() {
           <div className="h-20 w-full rounded-2xl bg-gradient-to-br from-primary-100 via-primary-50 to-sky-50 sm:h-24" />
         )}
 
-        <div className={`flex flex-col items-center text-center ${hasCover ? '-mt-10' : '-mt-12'}`}>
+        <div className={`relative z-10 flex flex-col items-center text-center ${hasCover ? '-mt-10' : '-mt-12'}`}>
           {hasLogo ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -201,7 +201,19 @@ export default function BookingPage() {
                 {profile.services.map((s) => (
                   <button
                     key={s.id}
-                    onClick={() => { setSelectedService(s); setStep('professional'); }}
+                    onClick={() => {
+                      setSelectedService(s);
+                      const available = (profile.service_professionals ?? [])
+                        .filter((sp) => sp.service_id === s.id)
+                        .map((sp) => profile.professionals.find((p) => p.id === sp.professional_id))
+                        .filter(Boolean);
+                      if (available.length === 1) {
+                        setSelectedProfessional(available[0]!);
+                        setStep('datetime');
+                      } else {
+                        setStep('professional');
+                      }
+                    }}
                     className="flex items-center justify-between rounded-lg border border-neutral-200 px-4 py-3 text-left transition-colors hover:border-primary-300 hover:bg-primary-50"
                   >
                     <div>
@@ -218,34 +230,47 @@ export default function BookingPage() {
           )}
 
           {/* Paso 2: Profesional */}
-          {step === 'professional' && (
+          {step === 'professional' && (() => {
+            const availableProfessionals = profile.professionals.filter((p) =>
+              (profile.service_professionals ?? []).some(
+                (sp) => sp.service_id === selectedService?.id && sp.professional_id === p.id
+              )
+            );
+            return (
             <div>
               <h2 className="mb-4 text-base font-semibold text-neutral-900">{t.booking.whoPrefer}</h2>
               <div className="flex flex-col gap-2">
-                {profile.professionals.map((p) => (
-                  <button
-                    key={p.id}
-                    onClick={() => { setSelectedProfessional(p); setStep('datetime'); }}
-                    className="flex items-center gap-3 rounded-lg border border-neutral-200 px-4 py-3 text-left transition-colors hover:border-primary-300 hover:bg-primary-50"
-                  >
-                    <div
-                      className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-white text-sm font-semibold"
-                      style={{ backgroundColor: p.color || '#8b5cf6' }}
+                {availableProfessionals.length === 0 ? (
+                  <p className="text-center text-sm text-neutral-500 py-4">
+                    {t.booking.noProfessionalsForService}
+                  </p>
+                ) : (
+                  availableProfessionals.map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={() => { setSelectedProfessional(p); setStep('datetime'); }}
+                      className="flex items-center gap-3 rounded-lg border border-neutral-200 px-4 py-3 text-left transition-colors hover:border-primary-300 hover:bg-primary-50"
                     >
-                      {p.name[0]}
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-neutral-900">{p.name}</p>
-                      {p.specialty && <p className="text-xs text-neutral-500">{p.specialty}</p>}
-                    </div>
-                  </button>
-                ))}
+                      <div
+                        className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-white text-sm font-semibold"
+                        style={{ backgroundColor: p.color || '#8b5cf6' }}
+                      >
+                        {p.name[0]}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-neutral-900">{p.name}</p>
+                        {p.specialty && <p className="text-xs text-neutral-500">{p.specialty}</p>}
+                      </div>
+                    </button>
+                  ))
+                )}
               </div>
               <Button variant="ghost" size="sm" onClick={() => setStep('service')} className="mt-4">
                 {t.booking.backButton}
               </Button>
             </div>
-          )}
+            );
+          })()}
 
           {/* Paso 3: Fecha y hora */}
           {step === 'datetime' && (

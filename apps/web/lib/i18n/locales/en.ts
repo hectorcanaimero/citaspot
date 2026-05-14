@@ -574,6 +574,7 @@ export const en = {
     whoPrefer: 'Who do you prefer?',
     whenCita: 'When do you want your appointment?',
     dateLabel: 'Date',
+    noProfessionalsForService: 'No professionals available for this service.',
     noSlots: 'No available slots for this date.',
     availableSlots: 'Available slots',
     contactData: 'Your contact details',

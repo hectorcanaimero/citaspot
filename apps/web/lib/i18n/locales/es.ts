@@ -569,6 +569,7 @@ export const es = {
     whoPrefer: '¿Con quién prefieres?',
     whenCita: '¿Cuándo quieres tu cita?',
     dateLabel: 'Fecha',
+    noProfessionalsForService: 'No hay profesionales disponibles para este servicio.',
     noSlots: 'No hay horarios disponibles para esta fecha.',
     availableSlots: 'Horarios disponibles',
     contactData: 'Tus datos de contacto',

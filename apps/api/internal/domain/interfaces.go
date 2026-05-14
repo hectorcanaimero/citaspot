@@ -62,6 +62,7 @@ type ProfessionalRepository interface {
 	ListServices(ctx context.Context, tenantID, professionalID uuid.UUID) ([]*Service, error)
 	AssignService(ctx context.Context, tenantID, professionalID, serviceID uuid.UUID) error
 	RemoveService(ctx context.Context, tenantID, professionalID, serviceID uuid.UUID) error
+	ListServiceLinks(ctx context.Context, tenantID uuid.UUID) ([]ServiceProfessionalLink, error)
 }
 
 // ProfessionalSvc lógica de negocio para profesionales.

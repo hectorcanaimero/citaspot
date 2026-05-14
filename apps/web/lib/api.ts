@@ -868,6 +868,11 @@ export const knowledge = {
 
 // ── Public (sin auth) ──────────────────────────────────────────────────────────
 
+export interface ServiceProfessionalLink {
+  service_id: string;
+  professional_id: string;
+}
+
 export interface PublicProfile {
   slug: string;
   name: string;
@@ -876,6 +881,7 @@ export interface PublicProfile {
   country?: string;
   services: Service[];
   professionals: Professional[];
+  service_professionals: ServiceProfessionalLink[];
   booking_intro_text?: string;
   booking_success_text?: string;
   bot_name?: string;

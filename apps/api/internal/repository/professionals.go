@@ -180,6 +180,35 @@ func (r *professionalRepository) ListServices(ctx context.Context, tenantID, pro
 	return result, err
 }
 
+// ListServiceLinks retorna todos los pares servicio-profesional activos del tenant.
+func (r *professionalRepository) ListServiceLinks(ctx context.Context, tenantID uuid.UUID) ([]domain.ServiceProfessionalLink, error) {
+	var result []domain.ServiceProfessionalLink
+	err := withTenant(ctx, r.db, tenantID, func(tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `
+			SELECT ps.service_id, ps.professional_id
+			FROM professional_services ps
+			JOIN professionals p ON p.id = ps.professional_id
+			JOIN services s ON s.id = ps.service_id
+			WHERE p.tenant_id = $1
+			  AND p.is_active = true
+			  AND s.is_active = true
+		`, tenantID)
+		if err != nil {
+			return fmt.Errorf("professionalRepository.ListServiceLinks: query: %w", err)
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var link domain.ServiceProfessionalLink
+			if err := rows.Scan(&link.ServiceID, &link.ProfessionalID); err != nil {
+				return fmt.Errorf("professionalRepository.ListServiceLinks: scan: %w", err)
+			}
+			result = append(result, link)
+		}
+		return rows.Err()
+	})
+	return result, err
+}
+
 // AssignService asigna un servicio a un profesional validando que ambos pertenecen al tenant.
 func (r *professionalRepository) AssignService(ctx context.Context, tenantID, professionalID, serviceID uuid.UUID) error {
 	return withTenant(ctx, r.db, tenantID, func(tx pgx.Tx) error {
