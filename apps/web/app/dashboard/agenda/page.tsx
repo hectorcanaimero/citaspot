@@ -25,6 +25,7 @@ import {
 } from '@/lib/calendar-utils';
 import { useTranslations, useDateLocale } from '@/lib/i18n';
 import NewAppointmentModal from '@/components/dashboard/NewAppointmentModal';
+import { ToggleSwitch } from '@/components/ui/toggle-switch';
 
 // ── Tipos ──────────────────────────────────────────────────────────────────────
 
@@ -651,19 +652,7 @@ export default function AgendaPage() {
         <div className="flex flex-shrink-0 items-center gap-3 border-b border-neutral-100 bg-neutral-50 px-5 py-2">
 
           <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-neutral-600">
-            <button
-              type="button"
-              role="switch"
-              aria-checked={showAvail}
-              onClick={() => setShowAvail(v => !v)}
-              className={`relative h-4 w-8 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-offset-1 ${
-                showAvail ? 'bg-emerald-500' : 'bg-neutral-300'
-              }`}
-            >
-              <span className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform ${
-                showAvail ? 'translate-x-4' : 'translate-x-0.5'
-              }`} />
-            </button>
+            <ToggleSwitch checked={showAvail} onCheckedChange={() => setShowAvail(v => !v)} activeColor="bg-emerald-500" size="sm" />
             {t.agenda.viewAvailability}
           </label>
 

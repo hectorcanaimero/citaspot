@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Spinner } from '@/components/ui/spinner';
+import { ToggleSwitch } from '@/components/ui/toggle-switch';
 import { rules as rulesApi, Rule, RuleExecution } from '@/lib/api';
 import { format } from 'date-fns';
 import { useTranslations, useDateLocale } from '@/lib/i18n';
@@ -134,19 +135,7 @@ export default function AutomationsPage() {
                 {/* Fila principal */}
                 <div className="flex items-center gap-3 px-4 py-3">
                   {/* Toggle activo/inactivo */}
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={rule.is_active}
-                    onClick={() => toggleActive(rule)}
-                    className={`relative h-5 w-9 rounded-full transition-colors flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-primary-400 focus:ring-offset-1 ${
-                      rule.is_active ? 'bg-emerald-500' : 'bg-neutral-300'
-                    }`}
-                  >
-                    <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
-                      rule.is_active ? 'translate-x-4' : 'translate-x-0.5'
-                    }`} />
-                  </button>
+                  <ToggleSwitch checked={rule.is_active} onCheckedChange={() => toggleActive(rule)} activeColor="bg-emerald-500" />
 
                   {/* Nombre y descripcion */}
                   <div className="flex-1 min-w-0">

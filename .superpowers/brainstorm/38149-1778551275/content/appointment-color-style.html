@@ -1,0 +1,80 @@
+<h2>¿Cómo se colorean los bloques de citas?</h2>
+<p class="subtitle">Hoy solo hay un borde izquierdo del color del profesional. ¿Qué nivel de color querés en el calendario?</p>
+
+<div class="cards">
+
+  <!-- Opción A: Fondo suave + borde fuerte -->
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f1f5f9;padding:14px;font-family:sans-serif">
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <div style="background:#ec489915;border-left:4px solid #ec4899;border-radius:6px;padding:8px 10px;font-size:12px">
+          <div style="font-weight:700;color:#ec4899">María López</div>
+          <div style="color:#64748b">Ana García · Corte · 10:00</div>
+        </div>
+        <div style="background:#10b98115;border-left:4px solid #10b981;border-radius:6px;padding:8px 10px;font-size:12px">
+          <div style="font-weight:700;color:#10b981">Carlos Ruiz</div>
+          <div style="color:#64748b">Luis Méndez · Masaje · 10:30</div>
+        </div>
+        <div style="background:#f5970015;border-left:4px solid #f59700;border-radius:6px;padding:8px 10px;font-size:12px">
+          <div style="font-weight:700;color:#f59700">Ana Torres</div>
+          <div style="color:#64748b">Pedro Rojas · Facial · 11:00</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Fondo suave + borde coloreado</h3>
+      <p>Fondo muy sutil (~8% opacidad) + borde izquierdo prominente (4px) + nombre del profesional en su color. Legible, no abruma. <strong>Recomendado para muchas citas.</strong></p>
+    </div>
+  </div>
+
+  <!-- Opción B: Bloque sólido estilo Google Calendar -->
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f1f5f9;padding:14px;font-family:sans-serif">
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <div style="background:#ec4899;border-radius:6px;padding:8px 10px;font-size:12px;color:white">
+          <div style="font-weight:700">María López</div>
+          <div style="opacity:0.85">Ana García · Corte · 10:00</div>
+        </div>
+        <div style="background:#10b981;border-radius:6px;padding:8px 10px;font-size:12px;color:white">
+          <div style="font-weight:700">Carlos Ruiz</div>
+          <div style="opacity:0.85">Luis Méndez · Masaje · 10:30</div>
+        </div>
+        <div style="background:#f59700;border-radius:6px;padding:8px 10px;font-size:12px;color:white">
+          <div style="font-weight:700">Ana Torres</div>
+          <div style="opacity:0.85">Pedro Rojas · Facial · 11:00</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Bloque sólido (Google Calendar)</h3>
+      <p>Color sólido del profesional como fondo, texto blanco. Máximo impacto visual, diferenciación instantánea. Puede verse "pesado" con muchas citas. <strong>Más impacto, menos lectura.</strong></p>
+    </div>
+  </div>
+
+  <!-- Opción C: Header coloreado + cuerpo blanco -->
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f1f5f9;padding:14px;font-family:sans-serif">
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <div style="border-radius:6px;overflow:hidden;border:1px solid #ec489940">
+          <div style="background:#ec4899;padding:4px 10px;font-size:11px;font-weight:700;color:white">● María López</div>
+          <div style="background:white;padding:6px 10px;font-size:11px;color:#334155">Ana García · Corte · 10:00</div>
+        </div>
+        <div style="border-radius:6px;overflow:hidden;border:1px solid #10b98140">
+          <div style="background:#10b981;padding:4px 10px;font-size:11px;font-weight:700;color:white">● Carlos Ruiz</div>
+          <div style="background:white;padding:6px 10px;font-size:11px;color:#334155">Luis Méndez · Masaje · 10:30</div>
+        </div>
+        <div style="border-radius:6px;overflow:hidden;border:1px solid #f5970040">
+          <div style="background:#f59700;padding:4px 10px;font-size:11px;font-weight:700;color:white">● Ana Torres</div>
+          <div style="background:white;padding:6px 10px;font-size:11px;color:#334155">Pedro Rojas · Facial · 11:00</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Header coloreado + cuerpo blanco</h3>
+      <p>Solo el header del bloque tiene el color del profesional (sólido), el cuerpo queda en blanco para máxima legibilidad. Equilibrio entre impacto y claridad. <strong>El más legible con mucha info.</strong></p>
+    </div>
+  </div>
+
+</div>
+
+<p class="subtitle" style="margin-top:16px">💡 Mi recomendación: <strong>Opción A</strong> — combina bien con el diseño actual y escala mejor con calendarios densos.</p>

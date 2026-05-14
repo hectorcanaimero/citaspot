@@ -8,6 +8,7 @@ import { Input }   from '@/components/ui/input';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge }   from '@/components/ui/badge';
 import { Spinner } from '@/components/ui/spinner';
+import { ToggleSwitch } from '@/components/ui/toggle-switch';
 import { professionals as profsApi, services as servicesApi, Professional, Service, Schedule, ProfessionalInput, APIError } from '@/lib/api';
 import { useTranslations } from '@/lib/i18n';
 
@@ -82,17 +83,7 @@ function ScheduleEditor({ profId, initial }: { profId: string; initial: DayMap }
         const day = days[dow];
         return (
           <div key={dow} className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => toggle(dow)}
-              className={`relative h-5 w-9 flex-shrink-0 rounded-full transition-colors duration-200 ${
-                day.is_active ? 'bg-primary-600' : 'bg-neutral-200'
-              }`}
-            >
-              <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform duration-200 ${
-                day.is_active ? 'translate-x-4' : 'translate-x-0.5'
-              }`} />
-            </button>
+            <ToggleSwitch checked={day.is_active} onCheckedChange={() => toggle(dow)} />
             <span className={`w-8 text-sm ${day.is_active ? 'text-neutral-900 font-medium' : 'text-neutral-400'}`}>
               {dayLabels[String(dow)]}
             </span>

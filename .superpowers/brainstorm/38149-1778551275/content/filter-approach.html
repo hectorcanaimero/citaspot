@@ -1,0 +1,110 @@
+<h2>CITAS-22 — ¿Cómo querés filtrar por especialista?</h2>
+<p class="subtitle">Las 3 opciones difieren en qué tan prominente es el control y si podés ver varios a la vez</p>
+
+<div class="cards">
+
+  <!-- Opción A -->
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f8fafc;padding:16px;font-family:sans-serif">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+        <span style="background:#6366f1;color:white;border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600">● Todos</span>
+        <span style="background:#ec489920;color:#ec4899;border:1.5px solid #ec4899;border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600">● María</span>
+        <span style="background:#10b98120;color:#10b981;border:1.5px solid #10b981;border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600">● Carlos</span>
+        <span style="background:#f5970020;color:#f59700;border:1.5px solid #f59700;border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600">● Ana</span>
+      </div>
+      <div style="background:white;border-radius:8px;padding:8px;border:1px solid #e2e8f0">
+        <div style="display:flex;gap:6px;margin-bottom:6px">
+          <div style="flex:1;background:#ec489930;border-left:3px solid #ec4899;border-radius:4px;padding:6px 8px;font-size:11px">
+            <b>María</b><br>Ana García · Corte
+          </div>
+          <div style="flex:1;background:#10b98130;border-left:3px solid #10b981;border-radius:4px;padding:6px 8px;font-size:11px">
+            <b>Carlos</b><br>Luis M. · Masaje
+          </div>
+        </div>
+        <div style="background:#f5970030;border-left:3px solid #f59700;border-radius:4px;padding:6px 8px;font-size:11px;width:48%">
+          <b>Ana</b><br>Pedro R. · Facial
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Pills multi-selección</h3>
+      <p>Chips horizontales con toggle. Podés ver varios profesionales a la vez. Las citas se colorean con el color del profesional (fondo suave + borde). "Todos" limpia la selección. <strong>Máxima flexibilidad.</strong></p>
+    </div>
+  </div>
+
+  <!-- Opción B -->
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f8fafc;padding:16px;font-family:sans-serif">
+      <div style="display:flex;border-bottom:2px solid #e2e8f0;margin-bottom:10px">
+        <span style="padding:6px 14px;font-size:12px;font-weight:600;color:#6366f1;border-bottom:2px solid #6366f1;margin-bottom:-2px">Todos</span>
+        <span style="padding:6px 14px;font-size:12px;color:#64748b;display:flex;align-items:center;gap:5px">
+          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#ec4899"></span>María
+        </span>
+        <span style="padding:6px 14px;font-size:12px;color:#64748b;display:flex;align-items:center;gap:5px">
+          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10b981"></span>Carlos
+        </span>
+        <span style="padding:6px 14px;font-size:12px;color:#64748b;display:flex;align-items:center;gap:5px">
+          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f59700"></span>Ana
+        </span>
+      </div>
+      <div style="background:white;border-radius:8px;padding:8px;border:1px solid #e2e8f0">
+        <div style="display:flex;gap:6px">
+          <div style="flex:1;background:#ec489920;border-left:3px solid #ec4899;border-radius:4px;padding:6px 8px;font-size:11px">
+            <b style="color:#ec4899">María</b><br>Ana García · Corte
+          </div>
+          <div style="flex:1;background:#10b98120;border-left:3px solid #10b981;border-radius:4px;padding:6px 8px;font-size:11px">
+            <b style="color:#10b981">Carlos</b><br>Luis M. · Masaje
+          </div>
+          <div style="flex:1;background:#f5970020;border-left:3px solid #f59700;border-radius:4px;padding:6px 8px;font-size:11px">
+            <b style="color:#f59700">Ana</b><br>Pedro R. · Facial
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Tabs estilo underline</h3>
+      <p>Un tab por profesional + "Todos". Selección de uno a la vez. Más limpio visualmente, familiar para usuarios. Las citas siempre coloridas incluso en "Todos". <strong>Simplicidad y claridad.</strong></p>
+    </div>
+  </div>
+
+  <!-- Opción C -->
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="background:#f8fafc;padding:16px;font-family:sans-serif;display:flex;gap:10px">
+      <div style="width:110px;background:white;border-radius:8px;border:1px solid #e2e8f0;padding:8px">
+        <div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:8px">Especialistas</div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <label style="display:flex;align-items:center;gap:6px;font-size:11px;cursor:pointer">
+            <input type="checkbox" checked style="accent-color:#ec4899">
+            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#ec4899"></span>
+            María
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:11px;cursor:pointer">
+            <input type="checkbox" checked style="accent-color:#10b981">
+            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10b981"></span>
+            Carlos
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:11px;cursor:pointer">
+            <input type="checkbox" style="accent-color:#f59700">
+            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f59700"></span>
+            Ana
+          </label>
+        </div>
+      </div>
+      <div style="flex:1;background:white;border-radius:8px;border:1px solid #e2e8f0;padding:8px">
+        <div style="background:#ec489920;border-left:3px solid #ec4899;border-radius:4px;padding:5px 7px;font-size:11px;margin-bottom:5px">
+          Ana García · Corte
+        </div>
+        <div style="background:#10b98120;border-left:3px solid #10b981;border-radius:4px;padding:5px 7px;font-size:11px">
+          Luis M. · Masaje
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Panel lateral con checkboxes</h3>
+      <p>Sidebar colapsable al costado del calendario. Checkboxes para mostrar/ocultar cada profesional. Ocupa más espacio pero es muy claro para negocios con muchos profesionales. <strong>Mayor escala.</strong></p>
+    </div>
+  </div>
+
+</div>
+
+<p class="subtitle" style="margin-top:16px">💡 Mi recomendación: <strong>Opción A</strong> — ya existe algo parecido en el código, solo hay que agregar multi-selección y mejorar el color de las citas.</p>

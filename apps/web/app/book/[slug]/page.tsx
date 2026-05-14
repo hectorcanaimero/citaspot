@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
-import { format, parseISO } from 'date-fns';
+import { formatInTimeZone } from 'date-fns-tz';
 import { CheckCircle2, Calendar, Clock, User, Phone } from 'lucide-react';
 import { Button }  from '@/components/ui/button';
 import { Input }   from '@/components/ui/input';
@@ -147,7 +147,8 @@ export default function BookingPage() {
 
   // ── Success ──────────────────────────────────────────────────────────────────
   if (step === 'success' && booked) {
-    const dateStr = format(parseISO(booked.starts_at), "d 'de' MMMM 'a las' h:mm a", { locale: dateLocale });
+    const bookedTz = profile.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const dateStr = formatInTimeZone(booked.starts_at, bookedTz, "d 'de' MMMM 'a las' h:mm a", { locale: dateLocale });
     return (
       <div className="flex min-h-screen items-center justify-center bg-neutral-50 px-4">
         <div className="w-full max-w-md animate-slide-up">
@@ -209,10 +210,8 @@ export default function BookingPage() {
                         .filter(Boolean);
                       if (available.length === 1) {
                         setSelectedProfessional(available[0]!);
-                        setStep('datetime');
-                      } else {
-                        setStep('professional');
                       }
+                      setStep('professional');
                     }}
                     className="flex items-center justify-between rounded-lg border border-neutral-200 px-4 py-3 text-left transition-colors hover:border-primary-300 hover:bg-primary-50"
                   >
@@ -245,11 +244,15 @@ export default function BookingPage() {
                     {t.booking.noProfessionalsForService}
                   </p>
                 ) : (
-                  availableProfessionals.map((p) => (
+                  availableProfessionals.map((p) => {
+                    const sel = selectedProfessional?.id === p.id;
+                    return (
                     <button
                       key={p.id}
                       onClick={() => { setSelectedProfessional(p); setStep('datetime'); }}
-                      className="flex items-center gap-3 rounded-lg border border-neutral-200 px-4 py-3 text-left transition-colors hover:border-primary-300 hover:bg-primary-50"
+                      className={`flex items-center gap-3 rounded-lg border px-4 py-3 text-left transition-colors hover:border-primary-300 hover:bg-primary-50 ${
+                        sel ? 'border-primary-500 bg-primary-50' : 'border-neutral-200'
+                      }`}
                     >
                       <div
                         className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-white text-sm font-semibold"
@@ -262,12 +265,20 @@ export default function BookingPage() {
                         {p.specialty && <p className="text-xs text-neutral-500">{p.specialty}</p>}
                       </div>
                     </button>
-                  ))
+                    );
+                  })
                 )}
               </div>
-              <Button variant="ghost" size="sm" onClick={() => setStep('service')} className="mt-4">
-                {t.booking.backButton}
-              </Button>
+              <div className="mt-4 flex gap-3">
+                <Button variant="ghost" size="sm" onClick={() => setStep('service')}>
+                  {t.booking.backButton}
+                </Button>
+                {availableProfessionals.length === 1 && selectedProfessional && (
+                  <Button size="md" onClick={() => setStep('datetime')} className="flex-1">
+                    {t.booking.continueBtn}
+                  </Button>
+                )}
+              </div>
             </div>
             );
           })()}
@@ -294,7 +305,8 @@ export default function BookingPage() {
                       <p className="mb-2 text-sm font-medium text-neutral-700">{t.booking.availableSlots}</p>
                       <div className="grid grid-cols-3 gap-2">
                         {slots.map((s) => {
-                          const timeLabel = format(parseISO(s.starts_at), 'h:mm a');
+                          const tz = profile.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+                          const timeLabel = formatInTimeZone(s.starts_at, tz, 'h:mm a');
                           const sel = selectedSlot?.starts_at === s.starts_at;
                           return (
                             <button
@@ -367,11 +379,11 @@ export default function BookingPage() {
                 </div>
                 <div className="flex items-center gap-2 text-neutral-700">
                   <Calendar className="h-4 w-4 text-primary-500" />
-                  <span>{format(parseISO(selectedSlot.starts_at), "d 'de' MMMM yyyy", { locale: dateLocale })}</span>
+                  <span>{formatInTimeZone(selectedSlot.starts_at, profile.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone, "d 'de' MMMM yyyy", { locale: dateLocale })}</span>
                 </div>
                 <div className="flex items-center gap-2 text-neutral-700">
                   <Clock className="h-4 w-4 text-primary-500" />
-                  <span>{format(parseISO(selectedSlot.starts_at), 'h:mm a')}</span>
+                  <span>{formatInTimeZone(selectedSlot.starts_at, profile.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone, 'h:mm a')}</span>
                 </div>
                 <div className="flex items-center gap-2 text-neutral-700">
                   <Phone className="h-4 w-4 text-primary-500" />

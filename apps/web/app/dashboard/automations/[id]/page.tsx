@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft, Plus, X } from 'lucide-react';
 import { Spinner } from '@/components/ui/spinner';
+import { ToggleSwitch } from '@/components/ui/toggle-switch';
 import { rules as rulesApi, Rule } from '@/lib/api';
 import { useTranslations } from '@/lib/i18n';
 
@@ -507,21 +508,7 @@ export default function EditRulePage() {
             </div>
             <div className="flex items-end pb-2">
               <label className="flex cursor-pointer items-center gap-2">
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={isActive}
-                  onClick={() => setIsActive(v => !v)}
-                  className={`relative h-5 w-9 flex-shrink-0 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-neutral-400 focus:ring-offset-1 ${
-                    isActive ? 'bg-emerald-500' : 'bg-neutral-300'
-                  }`}
-                >
-                  <span
-                    className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
-                      isActive ? 'translate-x-4' : 'translate-x-0.5'
-                    }`}
-                  />
-                </button>
+                <ToggleSwitch checked={isActive} onCheckedChange={() => setIsActive(v => !v)} activeColor="bg-emerald-500" />
                 <span className="text-sm font-medium text-neutral-700">{ta.isActiveLabel}</span>
               </label>
             </div>

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input }  from '@/components/ui/input';
 import { Card }   from '@/components/ui/card';
+import { ToggleSwitch } from '@/components/ui/toggle-switch';
 import { professionals as profsApi, APIError } from '@/lib/api';
 import { useTranslations } from '@/lib/i18n';
 
@@ -109,19 +110,7 @@ export default function OnboardingSchedulePage() {
               return (
                 <div key={dow} className="flex items-center gap-3">
                   {/* Toggle */}
-                  <button
-                    type="button"
-                    onClick={() => toggleDay(dow)}
-                    className={`relative h-5 w-9 flex-shrink-0 rounded-full transition-colors duration-200 ${
-                      day.is_active ? 'bg-primary-600' : 'bg-neutral-200'
-                    }`}
-                  >
-                    <span
-                      className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform duration-200 ${
-                        day.is_active ? 'translate-x-4' : 'translate-x-0.5'
-                      }`}
-                    />
-                  </button>
+                  <ToggleSwitch checked={day.is_active} onCheckedChange={() => toggleDay(dow)} />
 
                   {/* Día */}
                   <span className={`w-20 text-sm ${day.is_active ? 'text-neutral-900 font-medium' : 'text-neutral-400'}`}>
