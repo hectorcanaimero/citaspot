@@ -843,3 +843,114 @@ func (m *mockCRMMetricsRepo) GetMetrics(ctx context.Context, tenantID uuid.UUID)
 	}
 	return &domain.CRMMetrics{}, nil
 }
+
+// ── ClinicalNoteSvc ─────────────────────────────────────────────────────────
+
+type mockClinicalNoteSvc struct {
+	createFn           func(context.Context, uuid.UUID, uuid.UUID, *domain.CreateClinicalNoteRequest) (*domain.ClinicalNote, error)
+	getByIDFn          func(context.Context, uuid.UUID, uuid.UUID) (*domain.ClinicalNoteWithDetails, error)
+	getByAppointmentFn func(context.Context, uuid.UUID, uuid.UUID) (*domain.ClinicalNoteWithDetails, error)
+	listByCustomerFn   func(context.Context, uuid.UUID, uuid.UUID, int, int) ([]*domain.ClinicalNoteWithDetails, int, error)
+	updateFn           func(context.Context, uuid.UUID, uuid.UUID, *domain.UpdateClinicalNoteRequest) error
+	deleteFn           func(context.Context, uuid.UUID, uuid.UUID) error
+}
+
+func (m *mockClinicalNoteSvc) Create(ctx context.Context, tenantID, appointmentID uuid.UUID, req *domain.CreateClinicalNoteRequest) (*domain.ClinicalNote, error) {
+	if m.createFn != nil {
+		return m.createFn(ctx, tenantID, appointmentID, req)
+	}
+	return &domain.ClinicalNote{ID: uuid.New(), AppointmentID: appointmentID}, nil
+}
+
+func (m *mockClinicalNoteSvc) GetByID(ctx context.Context, tenantID, id uuid.UUID) (*domain.ClinicalNoteWithDetails, error) {
+	if m.getByIDFn != nil {
+		return m.getByIDFn(ctx, tenantID, id)
+	}
+	return &domain.ClinicalNoteWithDetails{ClinicalNote: domain.ClinicalNote{ID: id}}, nil
+}
+
+func (m *mockClinicalNoteSvc) GetByAppointmentID(ctx context.Context, tenantID, appointmentID uuid.UUID) (*domain.ClinicalNoteWithDetails, error) {
+	if m.getByAppointmentFn != nil {
+		return m.getByAppointmentFn(ctx, tenantID, appointmentID)
+	}
+	return &domain.ClinicalNoteWithDetails{ClinicalNote: domain.ClinicalNote{ID: uuid.New(), AppointmentID: appointmentID}}, nil
+}
+
+func (m *mockClinicalNoteSvc) ListByCustomer(ctx context.Context, tenantID, customerID uuid.UUID, limit, offset int) ([]*domain.ClinicalNoteWithDetails, int, error) {
+	if m.listByCustomerFn != nil {
+		return m.listByCustomerFn(ctx, tenantID, customerID, limit, offset)
+	}
+	return []*domain.ClinicalNoteWithDetails{}, 0, nil
+}
+
+func (m *mockClinicalNoteSvc) Update(ctx context.Context, tenantID, id uuid.UUID, req *domain.UpdateClinicalNoteRequest) error {
+	if m.updateFn != nil {
+		return m.updateFn(ctx, tenantID, id, req)
+	}
+	return nil
+}
+
+func (m *mockClinicalNoteSvc) Delete(ctx context.Context, tenantID, id uuid.UUID) error {
+	if m.deleteFn != nil {
+		return m.deleteFn(ctx, tenantID, id)
+	}
+	return nil
+}
+
+// ── ClinicalFileSvc ─────────────────────────────────────────────────────────
+
+type mockClinicalFileSvc struct {
+	uploadFn         func(context.Context, uuid.UUID, uuid.UUID, domain.ClinicalFileUploadInput) (*domain.ClinicalFile, error)
+	listByNoteFn     func(context.Context, uuid.UUID, uuid.UUID) ([]*domain.ClinicalFile, error)
+	listByCustomerFn func(context.Context, uuid.UUID, uuid.UUID, string, int, int) ([]*domain.ClinicalFile, int, error)
+	deleteFn         func(context.Context, uuid.UUID, uuid.UUID) error
+}
+
+func (m *mockClinicalFileSvc) Upload(ctx context.Context, tenantID, noteID uuid.UUID, input domain.ClinicalFileUploadInput) (*domain.ClinicalFile, error) {
+	if m.uploadFn != nil {
+		return m.uploadFn(ctx, tenantID, noteID, input)
+	}
+	return &domain.ClinicalFile{ID: uuid.New(), ClinicalNoteID: noteID}, nil
+}
+
+func (m *mockClinicalFileSvc) ListByNote(ctx context.Context, tenantID, noteID uuid.UUID) ([]*domain.ClinicalFile, error) {
+	if m.listByNoteFn != nil {
+		return m.listByNoteFn(ctx, tenantID, noteID)
+	}
+	return []*domain.ClinicalFile{}, nil
+}
+
+func (m *mockClinicalFileSvc) ListByCustomer(ctx context.Context, tenantID, customerID uuid.UUID, category string, limit, offset int) ([]*domain.ClinicalFile, int, error) {
+	if m.listByCustomerFn != nil {
+		return m.listByCustomerFn(ctx, tenantID, customerID, category, limit, offset)
+	}
+	return []*domain.ClinicalFile{}, 0, nil
+}
+
+func (m *mockClinicalFileSvc) Delete(ctx context.Context, tenantID, fileID uuid.UUID) error {
+	if m.deleteFn != nil {
+		return m.deleteFn(ctx, tenantID, fileID)
+	}
+	return nil
+}
+
+// ── BrandingService ─────────────────────────────────────────────────────────
+
+type mockBrandingSvc struct {
+	uploadAssetFn func(context.Context, uuid.UUID, *domain.BrandingUploadInput) (string, error)
+	removeAssetFn func(context.Context, uuid.UUID, domain.BrandingAssetKind) error
+}
+
+func (m *mockBrandingSvc) UploadAsset(ctx context.Context, tenantID uuid.UUID, in *domain.BrandingUploadInput) (string, error) {
+	if m.uploadAssetFn != nil {
+		return m.uploadAssetFn(ctx, tenantID, in)
+	}
+	return "https://cdn.example.com/branding/logo.png", nil
+}
+
+func (m *mockBrandingSvc) RemoveAsset(ctx context.Context, tenantID uuid.UUID, kind domain.BrandingAssetKind) error {
+	if m.removeAssetFn != nil {
+		return m.removeAssetFn(ctx, tenantID, kind)
+	}
+	return nil
+}
