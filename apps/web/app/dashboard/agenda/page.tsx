@@ -9,6 +9,7 @@ import {
   startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval,
   isSameDay, isToday as isTodayFn, isSameMonth,
 } from 'date-fns';
+import { formatInTimeZone } from 'date-fns-tz';
 import {
   ChevronLeft, ChevronRight, Plus, AlignLeft, CalendarDays, LayoutGrid, List,
 } from 'lucide-react';
@@ -18,6 +19,7 @@ import {
   professionals, Professional,
   services, Service,
   TimeSlot,
+  auth,
 } from '@/lib/api';
 import {
   START_HOUR, END_HOUR, HOUR_PX, TOTAL_HOURS, GRID_PX,
@@ -56,7 +58,7 @@ const STATUS_CFG: Record<
 
 // ── Bloque de cita (en el grid de tiempo) ─────────────────────────────────────
 
-function ApptBlock({ appt, profColor, onClick }: { appt: ApptWithCol; profColor?: string; onClick?: () => void }) {
+function ApptBlock({ appt, profColor, onClick, tz }: { appt: ApptWithCol; profColor?: string; onClick?: () => void; tz: string }) {
   const top    = topPx(appt.starts_at);
   const height = heightPx(appt.service_duration_min);
   const pct    = 100 / appt.span;
@@ -79,7 +81,7 @@ function ApptBlock({ appt, profColor, onClick }: { appt: ApptWithCol; profColor?
       onClick={onClick}
     >
       <p className="font-semibold leading-tight truncate text-neutral-800">
-        {format(new Date(appt.starts_at), 'HH:mm')} {appt.customer_name}
+        {formatInTimeZone(appt.starts_at, tz, 'HH:mm')} {appt.customer_name}
       </p>
       {height >= 38 && (
         <p className="truncate leading-tight text-neutral-500">{appt.service_name}</p>
@@ -136,6 +138,7 @@ function DayColumn({
   isLoadingDay,
   profColorMap = {},
   onApptClick,
+  tz,
 }: {
   date: Date;
   appts: Appointment[];
@@ -143,6 +146,7 @@ function DayColumn({
   isLoadingDay: boolean;
   profColorMap?: Record<string, string>;
   onApptClick?: (appt: Appointment) => void;
+  tz: string;
 }) {
   const positioned = assignColumns(appts);
   const today      = isTodayFn(date);
@@ -178,7 +182,7 @@ function DayColumn({
       )}
 
       {slots.map((slot, i) => <SlotBlock key={i} slot={slot} />)}
-      {positioned.map(appt => <ApptBlock key={appt.id} appt={appt} profColor={profColorMap[appt.professional_id]} onClick={onApptClick ? () => onApptClick(appt) : undefined} />)}
+      {positioned.map(appt => <ApptBlock key={appt.id} appt={appt} profColor={profColorMap[appt.professional_id]} onClick={onApptClick ? () => onApptClick(appt) : undefined} tz={tz} />)}
 
       {today && nowTop >= 0 && nowTop <= GRID_PX && (
         <div
@@ -201,12 +205,14 @@ function DayView({
   slots,
   profColorMap = {},
   onApptClick,
+  tz,
 }: {
   date: Date;
   dayMap: Record<string, DayState>;
   slots: TimeSlot[];
   profColorMap?: Record<string, string>;
   onApptClick?: (appt: Appointment) => void;
+  tz: string;
 }) {
   const str     = toDateStr(date);
   const state   = dayMap[str];
@@ -216,7 +222,7 @@ function DayView({
   return (
     <div className="flex h-full overflow-y-auto">
       <TimeLabels />
-      <DayColumn date={date} appts={appts} slots={slots} isLoadingDay={loading} profColorMap={profColorMap} onApptClick={onApptClick} />
+      <DayColumn date={date} appts={appts} slots={slots} isLoadingDay={loading} profColorMap={profColorMap} onApptClick={onApptClick} tz={tz} />
     </div>
   );
 }
@@ -228,11 +234,13 @@ function WeekView({
   dayMap,
   profColorMap = {},
   onApptClick,
+  tz,
 }: {
   weekStart: Date;
   dayMap: Record<string, DayState>;
   profColorMap?: Record<string, string>;
   onApptClick?: (appt: Appointment) => void;
+  tz: string;
 }) {
   const dateLocale = useDateLocale();
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -281,6 +289,7 @@ function WeekView({
               isLoadingDay={loading}
               profColorMap={profColorMap}
               onApptClick={onApptClick}
+              tz={tz}
             />
           );
         })}
@@ -296,11 +305,13 @@ function MonthView({
   dayMap,
   onDayClick,
   profColorMap = {},
+  tz,
 }: {
   month: Date;
   dayMap: Record<string, DayState>;
   onDayClick: (d: Date) => void;
   profColorMap?: Record<string, string>;
+  tz: string;
 }) {
   const t     = useTranslations();
   const start = startOfWeek(startOfMonth(month), { weekStartsOn: 1 });
@@ -395,7 +406,7 @@ function MonthView({
                           borderLeft:      color ? `2px solid ${color}` : '2px solid #d1d5db',
                         }}
                       >
-                        {format(new Date(a.starts_at), 'HH:mm')} {a.customer_name}
+                        {formatInTimeZone(a.starts_at, tz, 'HH:mm')} {a.customer_name}
                       </p>
                     );
                   })}
@@ -438,6 +449,7 @@ export default function AgendaPage() {
   const [showNewAppt, setShowNewAppt] = useState(false);
   const [detailAppt, setDetailAppt] = useState<Appointment | null>(null);
   const [filterProfIds, setFilterProfIds] = useState<Set<string>>(new Set());
+  const [tenantTz, setTenantTz] = useState('UTC');
 
   // Mapa de color por profesional para el borde izquierdo de los bloques
   const profColorMap = useMemo(() => {
@@ -463,6 +475,7 @@ export default function AgendaPage() {
   useEffect(() => {
     professionals.list().then(r => setProfList(r.data ?? [])).catch(() => {});
     services.list().then(r => setSvcList((r.data ?? []).filter(s => s.is_active))).catch(() => {});
+    auth.me().then(({ tenant }) => { if (tenant.timezone) setTenantTz(tenant.timezone); }).catch(() => {});
   }, []);
 
   const ensureLoaded = useCallback((dates: Date[]) => {
@@ -477,7 +490,7 @@ export default function AgendaPage() {
 
     toLoad.forEach(d => {
       const str = toDateStr(d);
-      appointments.list(str)
+      appointments.list(str, tenantTz)
         .then(res => {
           dayMapRef.current[str] = res.data ?? [];
           setDayMap(prev => ({ ...prev, [str]: res.data ?? [] }));
@@ -487,7 +500,7 @@ export default function AgendaPage() {
           setDayMap(prev => ({ ...prev, [str]: 'error' }));
         });
     });
-  }, []);
+  }, [tenantTz]);
 
   useEffect(() => {
     if (view === 'lista') return;
@@ -725,6 +738,7 @@ export default function AgendaPage() {
             slots={slots}
             profColorMap={profColorMap}
             onApptClick={setDetailAppt}
+            tz={tenantTz}
           />
         )}
         {view === 'week' && (
@@ -733,6 +747,7 @@ export default function AgendaPage() {
             dayMap={filteredDayMap}
             profColorMap={profColorMap}
             onApptClick={setDetailAppt}
+            tz={tenantTz}
           />
         )}
         {view === 'month' && (
@@ -741,9 +756,10 @@ export default function AgendaPage() {
             dayMap={filteredDayMap}
             onDayClick={d => { setCurrentDate(d); setView('day'); }}
             profColorMap={profColorMap}
+            tz={tenantTz}
           />
         )}
-        {view === 'lista' && <AppointmentsList />}
+        {view === 'lista' && <AppointmentsList timezone={tenantTz} />}
       </div>
 
       <NewAppointmentModal
@@ -758,6 +774,7 @@ export default function AgendaPage() {
         open={detailAppt !== null}
         onClose={() => setDetailAppt(null)}
         onUpdated={refreshDays}
+        timezone={tenantTz}
       />
     </div>
   );

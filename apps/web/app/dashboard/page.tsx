@@ -4,6 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
+import { formatInTimeZone } from 'date-fns-tz';
 import Link from 'next/link';
 import {
   CalendarDays, AlertCircle, ChevronLeft, ChevronRight,
@@ -107,7 +108,7 @@ export default function DashboardPage() {
     let cancelled = false;
     setApptLoading(true);
     setApptError('');
-    appointments.list(dateStr)
+    appointments.list(dateStr, tenant?.timezone)
       .then((res) => { if (!cancelled) setAppts(res.data ?? []); })
       .catch((err) => {
         if (!cancelled) setApptError(
@@ -116,7 +117,7 @@ export default function DashboardPage() {
       })
       .finally(() => { if (!cancelled) setApptLoading(false); });
     return () => { cancelled = true; };
-  }, [dateStr, t]);
+  }, [dateStr, t, tenant?.timezone]);
 
   useEffect(() => {
     setWALoading(true);
@@ -172,9 +173,9 @@ export default function DashboardPage() {
     if (!next) return;
     setUpdating(appt.id);
     try {
-      const updated = await appointments.updateStatus(appt.id, { status: next });
+      await appointments.updateStatus(appt.id, { status: next });
       setAppts((prev) =>
-        prev.map((a) => (a.id === appt.id ? { ...a, ...(updated as Partial<Appointment>) } : a))
+        prev.map((a) => (a.id === appt.id ? { ...a, status: next } : a))
       );
     } catch { /* ignorar */ }
     finally { setUpdating(null); }
@@ -446,7 +447,7 @@ export default function DashboardPage() {
                     >
                       <div className="w-14 flex-shrink-0 text-center">
                         <p className="text-sm font-bold text-neutral-900">
-                          {format(new Date(appt.starts_at), 'HH:mm')}
+                          {formatInTimeZone(appt.starts_at, tenant?.timezone ?? 'UTC', 'HH:mm')}
                         </p>
                         <p className="text-xs text-neutral-400">{appt.service_duration_min}{t.common.min}</p>
                       </div>
@@ -705,7 +706,7 @@ export default function DashboardPage() {
         onClose={() => setShowNewAppt(false)}
         onCreated={() => {
           // Recargar citas del dia actual
-          appointments.list(dateStr)
+          appointments.list(dateStr, tenant?.timezone)
             .then((res) => setAppts(res.data ?? []))
             .catch(() => {});
         }}

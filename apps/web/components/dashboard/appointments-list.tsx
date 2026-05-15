@@ -5,7 +5,8 @@ import {
   Check, X, UserX, ChevronLeft, ChevronRight,
   ChevronDown, ChevronUp, ClipboardList, Search,
 } from 'lucide-react';
-import { format, startOfWeek, endOfWeek, parseISO } from 'date-fns';
+import { format, startOfWeek, endOfWeek } from 'date-fns';
+import { formatInTimeZone } from 'date-fns-tz';
 import { useTranslations, useDateLocale } from '@/lib/i18n';
 import {
   appointments, professionals, services,
@@ -35,7 +36,7 @@ type SortDir = 'asc' | 'desc';
 
 // ── Componente principal ──────────────────────────────────────────────────────
 
-export default function AppointmentsList() {
+export default function AppointmentsList({ timezone }: { timezone?: string }) {
   const t = useTranslations();
   const dateLocale = useDateLocale();
 
@@ -95,6 +96,7 @@ export default function AppointmentsList() {
         sort_dir: sortDir,
         page,
         per_page: perPage,
+        timezone: timezone || undefined,
       });
       setResult(res);
     } catch {
@@ -279,14 +281,14 @@ export default function AppointmentsList() {
               </thead>
               <tbody className="divide-y divide-neutral-100">
                 {data.map(appt => {
-                  const dt = parseISO(appt.starts_at);
+                  const tz = timezone || 'UTC';
                   return (
                     <tr key={appt.id} className="hover:bg-neutral-50 transition-colors">
                       <td className="px-4 py-3 text-neutral-700">
-                        {capitalize(format(dt, 'EEE d MMM', { locale: dateLocale }))}
+                        {capitalize(formatInTimeZone(appt.starts_at, tz, 'EEE d MMM', { locale: dateLocale }))}
                       </td>
                       <td className="px-4 py-3 text-neutral-700">
-                        {format(dt, 'hh:mm a', { locale: dateLocale })}
+                        {formatInTimeZone(appt.starts_at, tz, 'hh:mm a', { locale: dateLocale })}
                       </td>
                       <td className="px-4 py-3 font-medium text-neutral-900">
                         {appt.customer_name}

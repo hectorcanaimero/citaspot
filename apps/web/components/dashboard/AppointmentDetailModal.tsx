@@ -5,6 +5,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
+import { formatInTimeZone } from 'date-fns-tz';
 import { X, Check, Calendar, Clock, User, Scissors, Phone } from 'lucide-react';
 import {
   appointments,
@@ -20,6 +21,7 @@ interface AppointmentDetailModalProps {
   open: boolean;
   onClose: () => void;
   onUpdated: (dateStrs: string[]) => void;
+  timezone?: string;
 }
 
 type Mode = 'view' | 'cancel' | 'reschedule';
@@ -53,7 +55,9 @@ export default function AppointmentDetailModal({
   open,
   onClose,
   onUpdated,
+  timezone,
 }: AppointmentDetailModalProps) {
+  const tz = timezone || 'UTC';
   const t = useTranslations();
   const dateLocale = useDateLocale();
 
@@ -303,7 +307,7 @@ export default function AppointmentDetailModal({
                   <div className="min-w-0 flex-1">
                     <p className="text-xs text-neutral-500">{t.appointmentDetail.dateTime}</p>
                     <p className="text-sm font-medium text-neutral-900">
-                      {format(new Date(appointment.starts_at), "EEEE d 'de' MMMM, h:mm a", { locale: dateLocale })}
+                      {formatInTimeZone(appointment.starts_at, tz, "EEEE d 'de' MMMM, h:mm a", { locale: dateLocale })}
                     </p>
                   </div>
                 </div>
@@ -400,7 +404,7 @@ export default function AppointmentDetailModal({
                       ) : (
                         <div className="grid grid-cols-4 gap-2">
                           {rescheduleSlots.map((slot) => {
-                            const timeStr = format(new Date(slot.starts_at), 'h:mm a', { locale: dateLocale });
+                            const timeStr = formatInTimeZone(slot.starts_at, tz, 'h:mm a', { locale: dateLocale });
                             const isSelected = selectedSlot?.starts_at === slot.starts_at;
                             return (
                               <button
