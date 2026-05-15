@@ -20,6 +20,7 @@ type appointmentSvc struct {
 	waClient     domain.WAClient
 	notifRepo    domain.NotificationRepository
 	publisher    domain.MessagePublisher
+	events       domain.EventRepository
 }
 
 // NewAppointmentSvc crea el servicio de citas.
@@ -31,6 +32,7 @@ func NewAppointmentSvc(
 	waClient domain.WAClient,
 	notifRepo domain.NotificationRepository,
 	publisher domain.MessagePublisher,
+	events domain.EventRepository,
 ) domain.AppointmentSvc {
 	return &appointmentSvc{
 		apptRepo:     apptRepo,
@@ -40,6 +42,7 @@ func NewAppointmentSvc(
 		waClient:     waClient,
 		notifRepo:    notifRepo,
 		publisher:    publisher,
+		events:       events,
 	}
 }
 
@@ -201,6 +204,16 @@ func (s *appointmentSvc) publishRuleEvent(ctx context.Context, event domain.Rule
 	}
 }
 
+// persistEvent persiste un evento analítico de forma best-effort (nunca retorna error).
+func (s *appointmentSvc) persistEvent(ctx context.Context, event domain.Event) {
+	if s.events == nil {
+		return
+	}
+	if err := s.events.Insert(ctx, event); err != nil {
+		slog.Warn("appointmentSvc.persistEvent: failed", "event_type", event.EventType, "entity_id", event.EntityID, "error", err)
+	}
+}
+
 // emitAppointmentEvent emite un evento de cita para el motor de reglas.
 // El parámetro `trigger` puede ser un status real ("completed", "cancelled",
 // "no_show", "confirmed") o el pseudo-trigger "created" para la creación.
@@ -217,6 +230,8 @@ func (s *appointmentSvc) emitAppointmentEvent(ctx context.Context, tenantID, app
 		eventType = "appointment.cancelled"
 	case "no_show":
 		eventType = "appointment.no_show"
+	case "rescheduled":
+		eventType = "appointment.rescheduled"
 	default:
 		return
 	}
@@ -226,6 +241,36 @@ func (s *appointmentSvc) emitAppointmentEvent(ctx context.Context, tenantID, app
 		slog.Warn("appointmentSvc.emitAppointmentEvent: get error", "error", err)
 		return
 	}
+
+	// Persistir evento analítico (best-effort)
+	var actorType string
+	var actorID *uuid.UUID
+	switch trigger {
+	case "completed":
+		actorType = "professional"
+		actorID = &appt.ProfessionalID
+	case "no_show":
+		actorType = "system"
+		actorID = nil
+	default:
+		actorType = "customer"
+		actorID = &appt.CustomerID
+	}
+	s.persistEvent(ctx, domain.Event{
+		TenantID:   tenantID,
+		EventType:  eventType,
+		ActorType:  actorType,
+		ActorID:    actorID,
+		EntityType: "appointment",
+		EntityID:   apptID,
+		Payload: map[string]any{
+			"service_id":      appt.ServiceID.String(),
+			"professional_id": appt.ProfessionalID.String(),
+			"starts_at":       appt.StartsAt.Format(time.RFC3339),
+			"source":          appt.Source,
+		},
+		OccurredAt: time.Now(),
+	})
 
 	// Formatear fecha/hora en timezone del tenant para templates legibles
 	tenant, _ := s.authRepo.FindTenantByID(ctx, tenantID)

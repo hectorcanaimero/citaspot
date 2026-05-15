@@ -23,10 +23,20 @@ var validTreatmentTransitions = map[string][]string{
 type treatmentSvc struct {
 	repo      domain.TreatmentRepository
 	publisher domain.MessagePublisher
+	events    domain.EventRepository
 }
 
-func NewTreatmentSvc(repo domain.TreatmentRepository, publisher domain.MessagePublisher) domain.TreatmentSvc {
-	return &treatmentSvc{repo: repo, publisher: publisher}
+func NewTreatmentSvc(repo domain.TreatmentRepository, publisher domain.MessagePublisher, events domain.EventRepository) domain.TreatmentSvc {
+	return &treatmentSvc{repo: repo, publisher: publisher, events: events}
+}
+
+func (s *treatmentSvc) persistEvent(ctx context.Context, event domain.Event) {
+	if s.events == nil {
+		return
+	}
+	if err := s.events.Insert(ctx, event); err != nil {
+		slog.Warn("treatmentSvc.persistEvent: failed", "event_type", event.EventType, "entity_id", event.EntityID, "error", err)
+	}
 }
 
 func (s *treatmentSvc) Create(ctx context.Context, tenantID uuid.UUID, input *domain.TreatmentInput) (*domain.Treatment, error) {
@@ -158,6 +168,26 @@ func (s *treatmentSvc) emitTreatmentEvent(ctx context.Context, tenantID uuid.UUI
 	default:
 		return
 	}
+
+	// Persist analytics event — map "proposed" to "treatment.created" for analytics
+	analyticsType := eventType
+	if newStatus == "proposed" {
+		analyticsType = "treatment.created"
+	}
+	profID := t.ProfessionalID
+	s.persistEvent(ctx, domain.Event{
+		TenantID:   tenantID,
+		EventType:  analyticsType,
+		ActorType:  "professional",
+		ActorID:    &profID,
+		EntityType: "treatment",
+		EntityID:   t.ID,
+		Payload: map[string]any{
+			"customer_id": t.CustomerID.String(),
+			"plan_type":   t.TreatmentType,
+		},
+		OccurredAt: time.Now(),
+	})
 
 	previousStatus := t.Status
 	if previousStatus == newStatus {
