@@ -25,6 +25,7 @@ import {
 } from '@/lib/calendar-utils';
 import { useTranslations, useDateLocale } from '@/lib/i18n';
 import NewAppointmentModal from '@/components/dashboard/NewAppointmentModal';
+import AppointmentDetailModal from '@/components/dashboard/AppointmentDetailModal';
 import { ToggleSwitch } from '@/components/ui/toggle-switch';
 
 // ── Tipos ──────────────────────────────────────────────────────────────────────
@@ -55,7 +56,7 @@ const STATUS_CFG: Record<
 
 // ── Bloque de cita (en el grid de tiempo) ─────────────────────────────────────
 
-function ApptBlock({ appt, profColor }: { appt: ApptWithCol; profColor?: string }) {
+function ApptBlock({ appt, profColor, onClick }: { appt: ApptWithCol; profColor?: string; onClick?: () => void }) {
   const top    = topPx(appt.starts_at);
   const height = heightPx(appt.service_duration_min);
   const pct    = 100 / appt.span;
@@ -75,6 +76,7 @@ function ApptBlock({ appt, profColor }: { appt: ApptWithCol; profColor?: string 
         backgroundColor: `${color}14`,
       }}
       title={`${appt.customer_name} · ${appt.service_name} · ${appt.professional_name}`}
+      onClick={onClick}
     >
       <p className="font-semibold leading-tight truncate text-neutral-800">
         {format(new Date(appt.starts_at), 'HH:mm')} {appt.customer_name}
@@ -133,12 +135,14 @@ function DayColumn({
   slots,
   isLoadingDay,
   profColorMap = {},
+  onApptClick,
 }: {
   date: Date;
   appts: Appointment[];
   slots: TimeSlot[];
   isLoadingDay: boolean;
   profColorMap?: Record<string, string>;
+  onApptClick?: (appt: Appointment) => void;
 }) {
   const positioned = assignColumns(appts);
   const today      = isTodayFn(date);
@@ -174,7 +178,7 @@ function DayColumn({
       )}
 
       {slots.map((slot, i) => <SlotBlock key={i} slot={slot} />)}
-      {positioned.map(appt => <ApptBlock key={appt.id} appt={appt} profColor={profColorMap[appt.professional_id]} />)}
+      {positioned.map(appt => <ApptBlock key={appt.id} appt={appt} profColor={profColorMap[appt.professional_id]} onClick={onApptClick ? () => onApptClick(appt) : undefined} />)}
 
       {today && nowTop >= 0 && nowTop <= GRID_PX && (
         <div
@@ -196,11 +200,13 @@ function DayView({
   dayMap,
   slots,
   profColorMap = {},
+  onApptClick,
 }: {
   date: Date;
   dayMap: Record<string, DayState>;
   slots: TimeSlot[];
   profColorMap?: Record<string, string>;
+  onApptClick?: (appt: Appointment) => void;
 }) {
   const str     = toDateStr(date);
   const state   = dayMap[str];
@@ -210,7 +216,7 @@ function DayView({
   return (
     <div className="flex h-full overflow-y-auto">
       <TimeLabels />
-      <DayColumn date={date} appts={appts} slots={slots} isLoadingDay={loading} profColorMap={profColorMap} />
+      <DayColumn date={date} appts={appts} slots={slots} isLoadingDay={loading} profColorMap={profColorMap} onApptClick={onApptClick} />
     </div>
   );
 }
@@ -221,10 +227,12 @@ function WeekView({
   weekStart,
   dayMap,
   profColorMap = {},
+  onApptClick,
 }: {
   weekStart: Date;
   dayMap: Record<string, DayState>;
   profColorMap?: Record<string, string>;
+  onApptClick?: (appt: Appointment) => void;
 }) {
   const dateLocale = useDateLocale();
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -272,6 +280,7 @@ function WeekView({
               slots={[]}
               isLoadingDay={loading}
               profColorMap={profColorMap}
+              onApptClick={onApptClick}
             />
           );
         })}
@@ -427,6 +436,7 @@ export default function AgendaPage() {
   const [slots, setSlots]             = useState<TimeSlot[]>([]);
   const [loadingAvail, setLoadingAvail] = useState(false);
   const [showNewAppt, setShowNewAppt] = useState(false);
+  const [detailAppt, setDetailAppt] = useState<Appointment | null>(null);
   const [filterProfIds, setFilterProfIds] = useState<Set<string>>(new Set());
 
   // Mapa de color por profesional para el borde izquierdo de los bloques
@@ -508,6 +518,18 @@ export default function AgendaPage() {
       .catch(() => setSlots([]))
       .finally(() => setLoadingAvail(false));
   }, [showAvail, selProf, selSvc, currentDateStr, view]);
+
+  const refreshDays = useCallback((dateStrs: string[]) => {
+    dateStrs.forEach(str => {
+      dayMapRef.current[str] = undefined as unknown as DayState;
+    });
+    setDayMap(prev => {
+      const next = { ...prev };
+      dateStrs.forEach(s => delete next[s]);
+      return next;
+    });
+    dateStrs.forEach(str => ensureLoaded([new Date(str + 'T00:00:00')]));
+  }, [ensureLoaded]);
 
   function navigate(dir: 1 | -1) {
     setCurrentDate(prev => {
@@ -702,6 +724,7 @@ export default function AgendaPage() {
             dayMap={filteredDayMap}
             slots={slots}
             profColorMap={profColorMap}
+            onApptClick={setDetailAppt}
           />
         )}
         {view === 'week' && (
@@ -709,6 +732,7 @@ export default function AgendaPage() {
             weekStart={weekStart}
             dayMap={filteredDayMap}
             profColorMap={profColorMap}
+            onApptClick={setDetailAppt}
           />
         )}
         {view === 'month' && (
@@ -725,18 +749,15 @@ export default function AgendaPage() {
       <NewAppointmentModal
         open={showNewAppt}
         onClose={() => setShowNewAppt(false)}
-        onCreated={() => {
-          // Invalidar cache para recargar citas
-          const str = toDateStr(currentDate);
-          dayMapRef.current[str] = undefined as unknown as DayState;
-          setDayMap(prev => {
-            const next = { ...prev };
-            delete next[str];
-            return next;
-          });
-          ensureLoaded([currentDate]);
-        }}
+        onCreated={() => refreshDays([toDateStr(currentDate)])}
         defaultDate={toDateStr(currentDate)}
+      />
+
+      <AppointmentDetailModal
+        appointment={detailAppt}
+        open={detailAppt !== null}
+        onClose={() => setDetailAppt(null)}
+        onUpdated={refreshDays}
       />
     </div>
   );
