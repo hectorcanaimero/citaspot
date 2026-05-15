@@ -553,6 +553,7 @@ export default function CustomerProfilePage() {
   const [sessionModalTreatment, setSessionModalTreatment] = useState<string | null>(null);
   const [clinicalNoteList,       setClinicalNoteList]       = useState<ClinicalNoteWithDetails[]>([]);
   const [showClinicalNoteForm,   setShowClinicalNoteForm]   = useState(false);
+  const [activeTab,              setActiveTab]              = useState<'treatments' | 'tasks' | 'clinical'>('treatments');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -659,9 +660,15 @@ export default function CustomerProfilePage() {
     : null;
   const currentStage   = stages.find((s) => s.id === customer.stage_id);
 
+  const tabsConfig = [
+    { key: 'treatments' as const, label: t.clients.treatments, count: treatList.length },
+    { key: 'tasks' as const, label: t.clients.tasks, count: taskList.filter(tk => tk.status === 'pending' || tk.status === 'in_progress').length },
+    { key: 'clinical' as const, label: t.clients.clinicalHistory, count: clinicalNoteList.length },
+  ];
+
   return (
-    <div className="mx-auto max-w-3xl p-6">
-      {/* Botón volver */}
+    <div className="mx-auto max-w-7xl p-6">
+      {/* ── Top bar: Botón volver ──────────────────────────────────────────── */}
       <button
         type="button"
         onClick={() => router.push('/dashboard/clients')}
@@ -671,169 +678,240 @@ export default function CustomerProfilePage() {
         {t.clients.back}
       </button>
 
-      {/* ── Header ──────────────────────────────────────────────────────────── */}
-      <div className="mb-6 overflow-hidden rounded-xl border border-neutral-200 bg-white">
-        <div className="flex flex-col gap-4 p-6 sm:flex-row sm:items-start">
-          <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 text-2xl font-bold text-primary-700">
-            {customer.name.charAt(0).toUpperCase()}
+      {/* ── Two-column CRM layout ──────────────────────────────────────────── */}
+      <div className="lg:grid lg:grid-cols-[340px_1fr] lg:gap-6">
+
+        {/* ── LEFT COLUMN ────────────────────────────────────────────────────── */}
+        <div className="lg:sticky lg:top-6 lg:self-start space-y-4 mb-6 lg:mb-0">
+
+          {/* Profile card */}
+          <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white">
+            <div className="flex flex-col items-center p-6">
+              <div className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 text-3xl font-bold text-primary-700">
+                {customer.name.charAt(0).toUpperCase()}
+              </div>
+              <div className="mt-4 text-center">
+                <h1 className="text-lg font-semibold text-neutral-900">{customer.name}</h1>
+                {sourceLabel && <Badge variant="default" className="mt-1">{sourceLabel}</Badge>}
+              </div>
+              <div className="mt-4 flex flex-col gap-2 w-full">
+                {customer.phone && (
+                  <span className="flex items-center gap-2 text-sm text-neutral-600">
+                    <Phone className="h-4 w-4 text-neutral-400 flex-shrink-0" />
+                    {customer.phone}
+                  </span>
+                )}
+                {customer.email && (
+                  <span className="flex items-center gap-2 text-sm text-neutral-600">
+                    <Mail className="h-4 w-4 text-neutral-400 flex-shrink-0" />
+                    {customer.email}
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
 
-          <div className="flex-1 min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-lg font-semibold text-neutral-900">{customer.name}</h1>
-              {sourceLabel && <Badge variant="default">{sourceLabel}</Badge>}
-            </div>
-
-            <div className="mt-2 flex flex-col gap-1">
-              {customer.phone && (
-                <span className="flex items-center gap-1.5 text-sm text-neutral-600">
-                  <Phone className="h-3.5 w-3.5 text-neutral-400" />
-                  {customer.phone}
-                </span>
+          {/* KPIs — vertical list on desktop, horizontal on mobile */}
+          <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white">
+            {/* Mobile: horizontal row */}
+            <div className="flex flex-wrap divide-x divide-neutral-100 lg:hidden">
+              <div className="flex flex-1 flex-col items-center px-4 py-3">
+                <span className="text-xs text-neutral-500">{t.clients.totalVisits}</span>
+                <span className="mt-0.5 text-xl font-semibold text-neutral-900">{customer.total_visits}</span>
+              </div>
+              {customer.last_visit_at && (
+                <div className="flex flex-1 flex-col items-center px-4 py-3">
+                  <span className="text-xs text-neutral-500">{t.clients.lastVisit}</span>
+                  <span className="mt-0.5 flex items-center gap-1 text-sm font-medium text-neutral-700">
+                    <Calendar className="h-3.5 w-3.5 text-neutral-400" />
+                    {format(new Date(customer.last_visit_at), 'd MMM yyyy', { locale: dateLocale })}
+                  </span>
+                </div>
               )}
-              {customer.email && (
-                <span className="flex items-center gap-1.5 text-sm text-neutral-600">
-                  <Mail className="h-3.5 w-3.5 text-neutral-400" />
-                  {customer.email}
-                </span>
+              {customer.lifetime_value != null && customer.lifetime_value > 0 && (
+                <div className="flex flex-1 flex-col items-center px-4 py-3">
+                  <span className="text-xs text-neutral-500">{t.clients.lifetimeValue}</span>
+                  <span className="mt-0.5 flex items-center gap-0.5 text-sm font-medium text-neutral-700">
+                    <DollarSign className="h-3.5 w-3.5 text-neutral-400" />
+                    {customer.lifetime_value.toFixed(2)}
+                  </span>
+                </div>
+              )}
+            </div>
+            {/* Desktop: vertical list with icons */}
+            <div className="hidden lg:block divide-y divide-neutral-100">
+              <div className="flex items-center gap-3 px-4 py-3">
+                <Calendar className="h-4 w-4 text-neutral-400 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <span className="text-xs text-neutral-500">{t.clients.totalVisits}</span>
+                </div>
+                <span className="text-sm font-semibold text-neutral-900">{customer.total_visits}</span>
+              </div>
+              {customer.last_visit_at && (
+                <div className="flex items-center gap-3 px-4 py-3">
+                  <Calendar className="h-4 w-4 text-neutral-400 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <span className="text-xs text-neutral-500">{t.clients.lastVisit}</span>
+                  </div>
+                  <span className="text-sm font-medium text-neutral-700">
+                    {format(new Date(customer.last_visit_at), 'd MMM yyyy', { locale: dateLocale })}
+                  </span>
+                </div>
+              )}
+              {customer.lifetime_value != null && customer.lifetime_value > 0 && (
+                <div className="flex items-center gap-3 px-4 py-3">
+                  <DollarSign className="h-4 w-4 text-neutral-400 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <span className="text-xs text-neutral-500">{t.clients.lifetimeValue}</span>
+                  </div>
+                  <span className="text-sm font-medium text-neutral-700">
+                    ${customer.lifetime_value.toFixed(2)}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Pipeline Stage */}
+          {stages.length > 0 && (
+            <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white">
+              <div className="border-b border-neutral-100 px-4 py-3">
+                <h2 className="text-sm font-semibold text-neutral-700">{t.clients.pipelineStage}</h2>
+              </div>
+              <div className="flex items-center gap-3 px-4 py-3">
+                {currentStage && (
+                  <span className="h-3 w-3 rounded-full flex-shrink-0" style={{ backgroundColor: currentStage.color }} />
+                )}
+                <select
+                  value={customer.stage_id ?? ''}
+                  onChange={(e) => handleStageChange(e.target.value)}
+                  disabled={stageLoading}
+                  className="flex-1 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900 focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100 disabled:opacity-50"
+                >
+                  <option value="">{t.clients.noStage}</option>
+                  {stages.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+                {stageLoading && <Spinner size="sm" />}
+              </div>
+            </div>
+          )}
+
+          {/* Notas */}
+          <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white">
+            <div className="border-b border-neutral-100 px-4 py-3">
+              <h2 className="text-sm font-semibold text-neutral-700">{t.clients.notes}</h2>
+            </div>
+            <div className="px-4 py-4">
+              {customer.notes ? (
+                <p className="whitespace-pre-wrap text-sm text-neutral-700">{customer.notes}</p>
+              ) : (
+                <p className="text-sm text-neutral-400">{t.clients.noNotes}</p>
               )}
             </div>
           </div>
         </div>
 
-        {/* KPIs */}
-        <div className="flex flex-wrap divide-x divide-neutral-100 border-t border-neutral-100">
-          <div className="flex flex-1 flex-col items-center px-4 py-3">
-            <span className="text-xs text-neutral-500">{t.clients.totalVisits}</span>
-            <span className="mt-0.5 text-xl font-semibold text-neutral-900">{customer.total_visits}</span>
+        {/* ── RIGHT COLUMN ───────────────────────────────────────────────────── */}
+        <div>
+          {/* Tab bar */}
+          <div className="sticky top-0 z-10 bg-white rounded-t-xl border border-neutral-200 border-b-0">
+            <div className="flex items-center justify-between">
+              <div className="flex border-b border-neutral-200 flex-1">
+                {tabsConfig.map((tab) => (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => setActiveTab(tab.key)}
+                    className={`relative px-4 py-3 text-sm font-medium transition-colors ${
+                      activeTab === tab.key
+                        ? 'border-b-2 border-primary-600 text-primary-600 font-semibold'
+                        : 'text-neutral-500 hover:text-neutral-700'
+                    }`}
+                  >
+                    {tab.label}
+                    {tab.count > 0 && (
+                      <span className={`ml-1.5 inline-flex items-center justify-center rounded-full px-1.5 py-0.5 text-xs font-medium ${
+                        activeTab === tab.key
+                          ? 'bg-primary-100 text-primary-700'
+                          : 'bg-neutral-100 text-neutral-500'
+                      }`}>
+                        {tab.count}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+              {/* "+ New" button for the active tab */}
+              <div className="px-3 flex-shrink-0">
+                {activeTab === 'treatments' && (
+                  <button
+                    type="button"
+                    onClick={() => setShowTreatForm(true)}
+                    className="flex items-center gap-1 rounded-lg border border-neutral-200 px-2.5 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50 transition-colors"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    {t.clients.newTreatment}
+                  </button>
+                )}
+                {activeTab === 'tasks' && (
+                  <button
+                    type="button"
+                    onClick={() => setShowTaskForm(true)}
+                    className="flex items-center gap-1 rounded-lg border border-neutral-200 px-2.5 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50 transition-colors"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    {t.clients.newTask}
+                  </button>
+                )}
+                {activeTab === 'clinical' && (
+                  <button
+                    type="button"
+                    onClick={() => setShowClinicalNoteForm(true)}
+                    className="flex items-center gap-1 rounded-lg border border-neutral-200 px-2.5 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50 transition-colors"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    {t.clients.newClinicalNote}
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
 
-          {customer.last_visit_at && (
-            <div className="flex flex-1 flex-col items-center px-4 py-3">
-              <span className="text-xs text-neutral-500">{t.clients.lastVisit}</span>
-              <span className="mt-0.5 flex items-center gap-1 text-sm font-medium text-neutral-700">
-                <Calendar className="h-3.5 w-3.5 text-neutral-400" />
-                {format(new Date(customer.last_visit_at), 'd MMM yyyy', { locale: dateLocale })}
-              </span>
-            </div>
-          )}
-
-          {customer.lifetime_value != null && customer.lifetime_value > 0 && (
-            <div className="flex flex-1 flex-col items-center px-4 py-3">
-              <span className="text-xs text-neutral-500">{t.clients.lifetimeValue}</span>
-              <span className="mt-0.5 flex items-center gap-0.5 text-sm font-medium text-neutral-700">
-                <DollarSign className="h-3.5 w-3.5 text-neutral-400" />
-                {customer.lifetime_value.toFixed(2)}
-              </span>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* ── Pipeline Stage ───────────────────────────────────────────────────── */}
-      {stages.length > 0 && (
-        <div className="mb-4 overflow-hidden rounded-xl border border-neutral-200 bg-white">
-          <div className="border-b border-neutral-100 px-4 py-3">
-            <h2 className="text-sm font-semibold text-neutral-700">{t.clients.pipelineStage}</h2>
-          </div>
-          <div className="flex items-center gap-3 px-4 py-3">
-            {currentStage && (
-              <span className="h-3 w-3 rounded-full flex-shrink-0" style={{ backgroundColor: currentStage.color }} />
+          {/* Tab content */}
+          <div className="overflow-hidden rounded-b-xl border border-neutral-200 border-t-0 bg-white">
+            {activeTab === 'treatments' && (
+              <TreatmentsSection
+                items={treatList}
+                t={t}
+                dateLocale={dateLocale}
+                onStatusChange={handleTreatmentStatusChange}
+                sessionsByTreatment={sessionsByTreatment}
+                onNewSession={(treatmentId) => setSessionModalTreatment(treatmentId)}
+              />
             )}
-            <select
-              value={customer.stage_id ?? ''}
-              onChange={(e) => handleStageChange(e.target.value)}
-              disabled={stageLoading}
-              className="flex-1 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900 focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100 disabled:opacity-50"
-            >
-              <option value="">{t.clients.noStage}</option>
-              {stages.map((s) => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
-            </select>
-            {stageLoading && <Spinner size="sm" />}
+
+            {activeTab === 'tasks' && (
+              <TasksSection
+                items={taskList}
+                t={t}
+                dateLocale={dateLocale}
+                onComplete={handleTaskComplete}
+                onDismiss={handleTaskDismiss}
+              />
+            )}
+
+            {activeTab === 'clinical' && (
+              <ClinicalHistorySection
+                customerId={id}
+                professionalId={profList[0]?.id ?? ''}
+                profList={profList}
+                notes={clinicalNoteList}
+                onNotesChange={setClinicalNoteList}
+              />
+            )}
           </div>
-        </div>
-      )}
-
-      {/* ── Tratamientos ─────────────────────────────────────────────────────── */}
-      <div className="mb-4 overflow-hidden rounded-xl border border-neutral-200 bg-white">
-        <div className="flex items-center justify-between border-b border-neutral-100 px-4 py-3">
-          <h2 className="text-sm font-semibold text-neutral-700">{t.clients.treatments}</h2>
-          <button
-            type="button"
-            onClick={() => setShowTreatForm(true)}
-            className="flex items-center gap-1 rounded-lg border border-neutral-200 px-2.5 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50 transition-colors"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            {t.clients.newTreatment}
-          </button>
-        </div>
-        <TreatmentsSection
-          items={treatList}
-          t={t}
-          dateLocale={dateLocale}
-          onStatusChange={handleTreatmentStatusChange}
-          sessionsByTreatment={sessionsByTreatment}
-          onNewSession={(treatmentId) => setSessionModalTreatment(treatmentId)}
-        />
-      </div>
-
-      {/* ── Tareas ───────────────────────────────────────────────────────────── */}
-      <div className="mb-4 overflow-hidden rounded-xl border border-neutral-200 bg-white">
-        <div className="flex items-center justify-between border-b border-neutral-100 px-4 py-3">
-          <h2 className="text-sm font-semibold text-neutral-700">{t.clients.tasks}</h2>
-          <button
-            type="button"
-            onClick={() => setShowTaskForm(true)}
-            className="flex items-center gap-1 rounded-lg border border-neutral-200 px-2.5 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50 transition-colors"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            {t.clients.newTask}
-          </button>
-        </div>
-        <TasksSection
-          items={taskList}
-          t={t}
-          dateLocale={dateLocale}
-          onComplete={handleTaskComplete}
-          onDismiss={handleTaskDismiss}
-        />
-      </div>
-
-      {/* ── Historial Clínico ────────────────────────────────────────────────── */}
-      <div className="mb-4 overflow-hidden rounded-xl border border-neutral-200 bg-white">
-        <div className="flex items-center justify-between border-b border-neutral-100 px-4 py-3">
-          <h2 className="text-sm font-semibold text-neutral-700">{t.clients.clinicalHistory}</h2>
-          <button
-            type="button"
-            onClick={() => setShowClinicalNoteForm(true)}
-            className="flex items-center gap-1 rounded-lg border border-neutral-200 px-2.5 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50 transition-colors"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            {t.clients.newClinicalNote}
-          </button>
-        </div>
-        <ClinicalHistorySection
-          customerId={id}
-          professionalId={profList[0]?.id ?? ''}
-          profList={profList}
-          notes={clinicalNoteList}
-          onNotesChange={setClinicalNoteList}
-        />
-      </div>
-
-      {/* ── Notas ────────────────────────────────────────────────────────────── */}
-      <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white">
-        <div className="border-b border-neutral-100 px-4 py-3">
-          <h2 className="text-sm font-semibold text-neutral-700">{t.clients.notes}</h2>
-        </div>
-        <div className="px-4 py-4">
-          {customer.notes ? (
-            <p className="whitespace-pre-wrap text-sm text-neutral-700">{customer.notes}</p>
-          ) : (
-            <p className="text-sm text-neutral-400">{t.clients.noNotes}</p>
-          )}
         </div>
       </div>
 
