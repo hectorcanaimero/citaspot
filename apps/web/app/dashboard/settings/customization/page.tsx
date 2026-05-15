@@ -97,29 +97,15 @@ export default function CustomizationPage() {
         {/* ── Asistente IA ───────────────────────────────────────────────── */}
         <section className="space-y-4 border-t border-neutral-100 pt-6">
           <h2 className="text-base font-semibold text-neutral-900">Asistente IA por WhatsApp</h2>
-
-          <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-1">Nombre del asistente (bot)</label>
-            <input
-              type="text"
-              className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
-              placeholder="Ej: Luna, Asistente Virtual"
-              value={settings.bot_name}
-              onChange={e => setSettings({ ...settings, bot_name: e.target.value })}
-            />
-            <p className="text-xs text-neutral-500 mt-1">Nombre con el que se presentará el bot por WhatsApp</p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-1">Saludo inicial del bot</label>
-            <textarea
-              className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
-              rows={2}
-              placeholder="Mensaje de bienvenida personalizado"
-              value={settings.bot_greeting}
-              onChange={e => setSettings({ ...settings, bot_greeting: e.target.value })}
-            />
-          </div>
+          <p className="text-sm text-neutral-500">
+            La configuración del chatbot se trasladó a su propia sección.
+          </p>
+          <a
+            href="/dashboard/chatbot"
+            className="inline-flex items-center gap-1 text-sm font-medium text-primary-600 hover:underline"
+          >
+            Ir a Chatbot →
+          </a>
         </section>
 
         {/* ── Textos del flujo de reserva ────────────────────────────────── */}
