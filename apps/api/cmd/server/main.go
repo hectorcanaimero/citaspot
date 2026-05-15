@@ -136,25 +136,26 @@ func main() {
 	crmMetricsRepo := repository.NewCRMMetricsRepository(pool)
 	clinicalNoteRepo := repository.NewClinicalNoteRepository(pool)
 	clinicalFileRepo := repository.NewClinicalFileRepository(pool)
+	eventRepo        := repository.NewEventRepository(pool)
 
 	// ── Servicios ─────────────────────────────────────────────────────────────
 	authSvc    := service.NewAuthService(authRepo, cfg)
 	profSvc    := service.NewProfessionalService(profRepo, scheduleRepo)
 	serviceSvc := service.NewServiceSvc(serviceRepo)
 	availSvc   := service.NewAvailabilityService(scheduleRepo, serviceRepo)
-	apptSvc    := service.NewAppointmentSvc(apptRepo, serviceRepo, customerRepo, authRepo, waClient, notifRepo, publisher)
+	apptSvc    := service.NewAppointmentSvc(apptRepo, serviceRepo, customerRepo, authRepo, waClient, notifRepo, publisher, eventRepo)
 	publicSvc  := service.NewPublicSvc(authRepo, profRepo, serviceRepo, availSvc, apptSvc, customerRepo)
 
 	var waSvc domain.WhatsAppSvc
 	if publisher != nil {
-		waSvc = service.NewWhatsAppSvc(authRepo, convRepo, customerRepo, publisher)
+		waSvc = service.NewWhatsAppSvc(authRepo, convRepo, customerRepo, publisher, eventRepo)
 	}
 
 	// publisher puede ser nil si RabbitMQ no está disponible (modo degradado)
 	knowledgeSvc := service.NewKnowledgeSvc(knowledgeRepo, publisher)
 
 	pipelineSvc  := service.NewPipelineStageSvc(pipelineRepo)
-	treatmentSvc        := service.NewTreatmentSvc(treatmentRepo, publisher)
+	treatmentSvc        := service.NewTreatmentSvc(treatmentRepo, publisher, eventRepo)
 	treatmentSessionSvc := service.NewTreatmentSessionSvc(treatmentSessionRepo, treatmentRepo)
 	taskSvc             := service.NewTaskSvc(taskRepo)
 	ruleSvc      := service.NewRuleSvc(ruleRepo, ruleExecRepo)
