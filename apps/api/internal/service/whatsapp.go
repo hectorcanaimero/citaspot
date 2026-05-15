@@ -19,6 +19,7 @@ type whatsAppSvc struct {
 	convRepo     domain.ConversationRepository
 	customerRepo domain.CustomerRepository
 	publisher    domain.MessagePublisher
+	events       domain.EventRepository
 }
 
 // NewWhatsAppSvc crea el servicio de procesamiento de mensajes WA.
@@ -27,12 +28,23 @@ func NewWhatsAppSvc(
 	convRepo domain.ConversationRepository,
 	customerRepo domain.CustomerRepository,
 	publisher domain.MessagePublisher,
+	events domain.EventRepository,
 ) domain.WhatsAppSvc {
 	return &whatsAppSvc{
 		authRepo:     authRepo,
 		convRepo:     convRepo,
 		customerRepo: customerRepo,
 		publisher:    publisher,
+		events:       events,
+	}
+}
+
+func (s *whatsAppSvc) persistEvent(ctx context.Context, event domain.Event) {
+	if s.events == nil {
+		return
+	}
+	if err := s.events.Insert(ctx, event); err != nil {
+		slog.Warn("whatsAppSvc.persistEvent: failed", "event_type", event.EventType, "entity_id", event.EntityID, "error", err)
 	}
 }
 
@@ -119,6 +131,21 @@ func (s *whatsAppSvc) ProcessInbound(ctx context.Context, instanceName string, p
 
 	// Emitir evento customer.created si el cliente acaba de ser creado
 	if customer != nil && customer.TotalVisits == 0 && customer.CreatedAt.After(time.Now().Add(-5*time.Second)) {
+		custID := customer.ID
+		s.persistEvent(ctx, domain.Event{
+			TenantID:   tenant.ID,
+			EventType:  "customer.created",
+			ActorType:  "system",
+			ActorID:    nil,
+			EntityType: "customer",
+			EntityID:   customer.ID,
+			Payload: map[string]any{
+				"acquisition_source": "whatsapp",
+				"phone":              customer.Phone,
+			},
+			OccurredAt: time.Now(),
+		})
+		_ = custID // variable disponible si se necesita como ActorID en el futuro
 		s.publishRuleEvent(ctx, domain.RuleEvent{
 			TenantID:   tenant.ID,
 			EventType:  "customer.created",
@@ -147,6 +174,23 @@ func (s *whatsAppSvc) ProcessInbound(ctx context.Context, instanceName string, p
 		slog.Warn("whatsAppSvc.ProcessInbound: save message warning", "error", err)
 	}
 	_ = s.convRepo.UpdateConversationTimestamp(ctx, conv.ID)
+
+	// Persist message.inbound analytics event
+	if customer != nil {
+		actorID := customer.ID
+		s.persistEvent(ctx, domain.Event{
+			TenantID:   tenant.ID,
+			EventType:  "message.inbound",
+			ActorType:  "customer",
+			ActorID:    &actorID,
+			EntityType: "conversation",
+			EntityID:   conv.ID,
+			Payload: map[string]any{
+				"channel": "whatsapp",
+			},
+			OccurredAt: time.Now(),
+		})
+	}
 
 	// 7. Obtener historial reciente para contexto del AI Service (últimos 10)
 	recentMsgs, err := s.convRepo.GetRecentMessages(ctx, tenant.ID, conv.ID, 10)
