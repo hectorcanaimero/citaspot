@@ -61,4 +61,7 @@ var (
 
 	// ErrMaxFilesReached se retorna cuando se alcanzó el límite de archivos por nota.
 	ErrMaxFilesReached = errors.New("se alcanzó el límite máximo de archivos por nota")
+
+	// ErrRateLimited se retorna cuando se excede el límite de solicitudes.
+	ErrRateLimited = errors.New("demasiadas solicitudes, intentá de nuevo más tarde")
 )

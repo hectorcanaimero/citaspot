@@ -462,6 +462,58 @@ type KnowledgeVectorizePayload struct {
 	FileType   string `json:"file_type"`  // pdf | docx | xlsx (flujo upload)
 }
 
+// ── Chatbot Config ───────────────────────────────────────────────────────────
+
+// ChatbotConfig configuración del chatbot IA de un tenant.
+type ChatbotConfig struct {
+	ID                 uuid.UUID  `json:"id"`
+	TenantID           uuid.UUID  `json:"tenant_id"`
+	BotName            string     `json:"bot_name"`
+	BotGreeting        string     `json:"bot_greeting"`
+	Tone               string     `json:"tone"`
+	CustomInstructions string     `json:"custom_instructions"`
+	TemplateID         *string    `json:"template_id,omitempty"`
+	CreatedAt          time.Time  `json:"created_at"`
+	UpdatedAt          time.Time  `json:"updated_at"`
+}
+
+// UpdateChatbotConfigInput campos opcionales para PATCH del config.
+type UpdateChatbotConfigInput struct {
+	BotName            *string `json:"bot_name"             validate:"omitempty,max=30"`
+	BotGreeting        *string `json:"bot_greeting"         validate:"omitempty,max=500"`
+	Tone               *string `json:"tone"                 validate:"omitempty,oneof=friendly professional premium casual"`
+	CustomInstructions *string `json:"custom_instructions"  validate:"omitempty,max=1000"`
+	TemplateID         *string `json:"template_id"          validate:"omitempty,max=30"`
+}
+
+// ChatbotTestRequest mensaje de prueba para el chatbot.
+type ChatbotTestRequest struct {
+	Message string `json:"message" validate:"required,min=1,max=2000"`
+}
+
+// ChatbotTestResponse respuesta síncrona del chatbot en modo test.
+type ChatbotTestResponse struct {
+	Response         string   `json:"response"`
+	IntentDetected   string   `json:"intent_detected"`
+	RAGSourcesUsed   []string `json:"rag_sources_used"`
+	ProcessingTimeMs int64    `json:"processing_time_ms"`
+}
+
+// ChatbotValidateResponse resultado de la validación IA del chatbot.
+type ChatbotValidateResponse struct {
+	TotalQuestions int                       `json:"total_questions"`
+	Passed         int                       `json:"passed"`
+	Results        []ChatbotValidationResult `json:"results"`
+}
+
+// ChatbotValidationResult resultado de una pregunta de validación individual.
+type ChatbotValidationResult struct {
+	Question   string `json:"question"`
+	Response   string `json:"response"`
+	Passed     bool   `json:"passed"`
+	Suggestion string `json:"suggestion,omitempty"`
+}
+
 // ── Recordatorios ─────────────────────────────────────────────────────────────
 
 // ReminderJob representa una cita que necesita recordatorio.

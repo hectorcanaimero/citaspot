@@ -61,6 +61,8 @@ func handleServiceError(c *fiber.Ctx, err error) error {
 		return c.Status(http.StatusUnprocessableEntity).JSON(newError("file_type_not_allowed", err.Error()))
 	case errors.Is(err, domain.ErrMaxFilesReached):
 		return c.Status(http.StatusConflict).JSON(newError("max_files_reached", err.Error()))
+	case errors.Is(err, domain.ErrRateLimited):
+		return c.Status(http.StatusTooManyRequests).JSON(newError("rate_limited", err.Error()))
 	default:
 		// Error inesperado — loggear internamente, no exponer detalles al cliente
 		slog.Error("handler internal error",

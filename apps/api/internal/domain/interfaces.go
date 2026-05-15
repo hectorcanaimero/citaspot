@@ -245,6 +245,24 @@ type KnowledgeSvc interface {
 	Delete(ctx context.Context, tenantID, id uuid.UUID) error
 }
 
+// ── Chatbot Config ───────────────────────────────────────────────────────────
+
+// ChatbotConfigRepository operaciones DB para la configuración del chatbot.
+type ChatbotConfigRepository interface {
+	// GetByTenantID retorna la config del chatbot. Si no existe, crea una con defaults.
+	GetByTenantID(ctx context.Context, tenantID uuid.UUID) (*ChatbotConfig, error)
+	// Update actualiza campos parciales de la config (PATCH semantics).
+	Update(ctx context.Context, tenantID uuid.UUID, input *UpdateChatbotConfigInput) (*ChatbotConfig, error)
+}
+
+// ChatbotSvc lógica de negocio del chatbot (config, test, validación).
+type ChatbotSvc interface {
+	GetConfig(ctx context.Context, tenantID uuid.UUID) (*ChatbotConfig, error)
+	UpdateConfig(ctx context.Context, tenantID uuid.UUID, input *UpdateChatbotConfigInput) (*ChatbotConfig, error)
+	Test(ctx context.Context, tenantID uuid.UUID, tenantSlug string, req *ChatbotTestRequest) (*ChatbotTestResponse, error)
+	Validate(ctx context.Context, tenantID uuid.UUID, tenantSlug string) (*ChatbotValidateResponse, error)
+}
+
 // ── Pipeline Stages ──────────────────────────────────────────────────────────
 
 // PipelineStageRepository operaciones DB para etapas del pipeline.
