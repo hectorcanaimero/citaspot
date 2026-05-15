@@ -295,6 +295,13 @@ export const appointments = {
       body: JSON.stringify({ ...data, source: data.source ?? 'dashboard' }),
     });
   },
+
+  async reschedule(id: string, data: { starts_at: string; ends_at: string; professional_id?: string }): Promise<void> {
+    return request(`/api/v1/appointments/${id}/reschedule`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
 };
 
 // ── Professionals ──────────────────────────────────────────────────────────────
@@ -954,6 +961,48 @@ export const publicApi = {
   },
 };
 
+// ── Chatbot Config ──────────────────────────────────────────────────────────
+
+export interface ChatbotConfig {
+  id: string;
+  tenant_id: string;
+  bot_name: string;
+  bot_greeting: string;
+  tone: 'friendly' | 'professional' | 'premium' | 'casual';
+  custom_instructions: string;
+  template_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UpdateChatbotConfigInput {
+  bot_name?: string;
+  bot_greeting?: string;
+  tone?: 'friendly' | 'professional' | 'premium' | 'casual';
+  custom_instructions?: string;
+  template_id?: string;
+}
+
+export interface ChatbotTestResponse {
+  response: string;
+  intent_detected: string;
+  rag_sources_used: string[];
+  processing_time_ms: number;
+}
+
+export interface ChatbotValidationResult {
+  question: string;
+  response: string;
+  passed: boolean;
+  suggestion?: string;
+}
+
+export interface ChatbotValidateResponse {
+  total_questions: number;
+  passed: number;
+  results: ChatbotValidationResult[];
+}
+
 // ── Settings ──────────────────────────────────────────────────────────────────
 
 export const settingsApi = {
@@ -965,6 +1014,34 @@ export const settingsApi = {
     return request('/api/v1/settings', {
       method: 'PATCH',
       body: JSON.stringify(data),
+    });
+  },
+};
+
+// ── Chatbot ─────────────────────────────────────────────────────────────────
+
+export const chatbotApi = {
+  async config(): Promise<ChatbotConfig> {
+    return request('/api/v1/chatbot/config');
+  },
+
+  async updateConfig(data: UpdateChatbotConfigInput): Promise<ChatbotConfig> {
+    return request('/api/v1/chatbot/config', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async test(message: string): Promise<ChatbotTestResponse> {
+    return request('/api/v1/chatbot/test', {
+      method: 'POST',
+      body: JSON.stringify({ message }),
+    });
+  },
+
+  async validate(): Promise<ChatbotValidateResponse> {
+    return request('/api/v1/chatbot/validate', {
+      method: 'POST',
     });
   },
 };
