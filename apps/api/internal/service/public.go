@@ -84,13 +84,11 @@ func (s *publicSvc) GetAvailability(ctx context.Context, slug string, query *dom
 		return nil, err
 	}
 
-	// Usar el timezone del tenant para los cálculos de disponibilidad.
-	// Si el tenant no tiene timezone configurado, usar el del cliente (browser) como fallback.
-	clientTZ := query.Timezone
+	// Siempre usar el timezone del tenant para cálculos de disponibilidad.
+	// El timezone del cliente puede diferir del negocio y causar errores si el
+	// container no tiene tzdata (e.g. America/Sao_Paulo falla en Alpine).
+	// Si el tenant no tiene timezone, dejarlo vacío: el engine usa "UTC" como fallback.
 	query.Timezone = tenant.Timezone
-	if query.Timezone == "" {
-		query.Timezone = clientTZ
-	}
 
 	return s.availSvc.GetAvailableSlots(ctx, tenant.ID, query)
 }

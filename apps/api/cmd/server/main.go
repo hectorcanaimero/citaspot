@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+	_ "time/tzdata" // Embebe la base de datos de timezones en el binario (Alpine/scratch no la incluyen)
 
 	"github.com/google/uuid"
 	"github.com/gofiber/contrib/swagger"
