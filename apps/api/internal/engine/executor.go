@@ -42,8 +42,9 @@ func (e *RuleExecutor) ExecuteEventRules(ctx context.Context, event domain.RuleE
 		return
 	}
 
-	tenantSlug := e.resolveTenantSlug(ctx, event.TenantID)
+	tenantSlug, tenantName := e.resolveTenant(ctx, event.TenantID)
 	evalCtx := e.buildEventContext(event)
+	evalCtx["tenant_name"] = tenantName
 
 	slog.Info("RuleExecutor: evaluando reglas para evento",
 		"tenant_id", event.TenantID, "event", event.EventType, "rules_count", len(rules))
@@ -153,11 +154,17 @@ func (e *RuleExecutor) buildEventContext(event domain.RuleEvent) map[string]any 
 	return ctx
 }
 
-func (e *RuleExecutor) resolveTenantSlug(ctx context.Context, tenantID uuid.UUID) string {
+func (e *RuleExecutor) resolveTenant(ctx context.Context, tenantID uuid.UUID) (slug, name string) {
 	tenant, err := e.authRepo.FindTenantByID(ctx, tenantID)
 	if err != nil {
-		slog.Error("RuleExecutor: error resolviendo tenant slug", "tenant_id", tenantID, "error", err)
-		return ""
+		slog.Error("RuleExecutor: error resolviendo tenant", "tenant_id", tenantID, "error", err)
+		return "", ""
 	}
-	return tenant.Slug
+	return tenant.Slug, tenant.Name
+}
+
+// resolveTenantSlug mantiene compatibilidad con ExecuteTemporalRule
+func (e *RuleExecutor) resolveTenantSlug(ctx context.Context, tenantID uuid.UUID) string {
+	slug, _ := e.resolveTenant(ctx, tenantID)
+	return slug
 }

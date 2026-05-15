@@ -468,6 +468,12 @@ func main() {
 				if err := seed.SeedGenericRuleTemplates(bgCtx, pool); err != nil {
 					slog.Warn("onboarding: error seeding generic rule templates", "error", err)
 				}
+				// Copiar reglas de notificación de citas al tenant nuevo
+				if err := seed.SeedAppointmentRulesForTenant(bgCtx, pool, tenantID); err != nil {
+					slog.Warn("onboarding: error seeding appointment rules", "tenant_id", tenantID, "error", err)
+				} else {
+					slog.Info("onboarding: appointment notification rules seeded", "tenant_id", tenantID)
+				}
 				if bt == "dental" {
 					// Rule templates son globales (idempotent) — safe to call multiple times
 					if err := seed.SeedDentalRuleTemplates(bgCtx, pool); err != nil {

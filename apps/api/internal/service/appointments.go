@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"log/slog"
 	"time"
 
@@ -119,8 +118,7 @@ func (s *appointmentSvc) Create(ctx context.Context, tenantID uuid.UUID, req *do
 		return nil, fmt.Errorf("appointmentSvc.Create: %w", err)
 	}
 
-	// Best-effort: notificar al paciente que la cita está pendiente
-	s.notifyAppointmentStatus(ctx, tenantID, appt.ID, "pending")
+	// Emitir evento para el Rules Engine (único canal de notificaciones)
 	s.emitAppointmentEvent(ctx, tenantID, appt.ID, "created")
 
 	return appt, nil
@@ -132,7 +130,6 @@ func (s *appointmentSvc) Update(ctx context.Context, tenantID, id uuid.UUID, req
 		return err
 	}
 	if req.Status != "" {
-		s.notifyAppointmentStatus(ctx, tenantID, id, req.Status)
 		s.emitAppointmentEvent(ctx, tenantID, id, req.Status)
 	}
 	return nil
@@ -146,7 +143,6 @@ func (s *appointmentSvc) Cancel(ctx context.Context, tenantID, id uuid.UUID, rea
 	}); err != nil {
 		return err
 	}
-	s.notifyAppointmentStatus(ctx, tenantID, id, "cancelled")
 	s.emitAppointmentEvent(ctx, tenantID, id, "cancelled")
 	return nil
 }
@@ -186,92 +182,8 @@ func (s *appointmentSvc) Reschedule(ctx context.Context, tenantID, id uuid.UUID,
 		return fmt.Errorf("appointmentSvc.Reschedule: %w", err)
 	}
 
-	s.notifyAppointmentStatus(ctx, tenantID, id, "rescheduled")
+	s.emitAppointmentEvent(ctx, tenantID, id, "rescheduled")
 	return nil
-}
-
-// notifyAppointmentStatus envía una notificación WA al paciente sobre el estado de su cita.
-// Best-effort: si falla, loguea el error pero no retorna error.
-func (s *appointmentSvc) notifyAppointmentStatus(ctx context.Context, tenantID, apptID uuid.UUID, notifType string) {
-	if s.waClient == nil {
-		return
-	}
-
-	tenant, err := s.authRepo.FindTenantByID(ctx, tenantID)
-	if err != nil || tenant.WAStatus != "connected" {
-		return
-	}
-
-	appt, err := s.apptRepo.GetByID(ctx, tenantID, apptID)
-	if err != nil || appt.CustomerPhone == "" {
-		return
-	}
-
-	loc, _ := time.LoadLocation(tenant.Timezone)
-	if loc == nil {
-		loc = time.UTC
-	}
-	fecha := appt.StartsAt.In(loc).Format("02/01/2006")
-	hora := appt.StartsAt.In(loc).Format("3:04 PM")
-
-	var text string
-	switch notifType {
-	case "pending":
-		text = fmt.Sprintf(
-			"¡Hola %s! 📋 Tu cita para %s con %s el %s a las %s ha sido registrada y está *pendiente de aprobación*. Te avisaremos cuando sea confirmada.",
-			appt.CustomerName, appt.ServiceName, appt.ProfessionalName, fecha, hora,
-		)
-	case "confirmed":
-		text = fmt.Sprintf(
-			"¡Hola %s! ✅ Tu cita ha sido *confirmada*:\n\n"+
-				"📌 *%s*\n"+
-				"👩‍⚕️ %s\n"+
-				"📅 %s\n"+
-				"🕐 %s\n\n"+
-				"¡Te esperamos!",
-			appt.CustomerName, appt.ServiceName, appt.ProfessionalName, fecha, hora,
-		)
-	case "cancelled":
-		text = fmt.Sprintf(
-			"Hola %s, lamentamos informarte que tu cita de %s el %s a las %s ha sido *cancelada*. Puedes reservar nuevamente cuando lo desees.",
-			appt.CustomerName, appt.ServiceName, fecha, hora,
-		)
-	case "rescheduled":
-		text = fmt.Sprintf(
-			"¡Hola %s! 🔄 Tu cita ha sido *reagendada*:\n\n"+
-				"📌 *%s*\n"+
-				"👩‍⚕️ %s\n"+
-				"📅 %s\n"+
-				"🕐 %s\n\n"+
-				"¡Te esperamos!",
-			appt.CustomerName, appt.ServiceName, appt.ProfessionalName, fecha, hora,
-		)
-	default:
-		return
-	}
-
-	waMessageID, sendErr := s.waClient.SendText(ctx, tenant.Slug, appt.CustomerPhone, text)
-
-	aid := appt.ID
-	nl := &domain.NotificationLog{
-		ID:            uuid.New(),
-		TenantID:      tenantID,
-		AppointmentID: &aid,
-		Type:          notifType,
-		WAMessageID:   waMessageID,
-		Content:       text,
-		SentAt:        time.Now(),
-	}
-	if sendErr != nil {
-		nl.Status = "failed"
-		nl.ErrorMessage = sendErr.Error()
-		log.Printf("appointmentSvc.notify: failed to send %s notification: %v", notifType, sendErr)
-	} else {
-		nl.Status = "sent"
-	}
-	if err := s.notifRepo.LogNotification(ctx, nl); err != nil {
-		log.Printf("appointmentSvc.notify: log error: %v", err)
-	}
 }
 
 // publishRuleEvent publica un evento de dominio en la cola rules.events.
@@ -315,6 +227,16 @@ func (s *appointmentSvc) emitAppointmentEvent(ctx context.Context, tenantID, app
 		return
 	}
 
+	// Formatear fecha/hora en timezone del tenant para templates legibles
+	tenant, _ := s.authRepo.FindTenantByID(ctx, tenantID)
+	loc := time.UTC
+	if tenant != nil && tenant.Timezone != "" {
+		if l, err := time.LoadLocation(tenant.Timezone); err == nil {
+			loc = l
+		}
+	}
+	localTime := appt.StartsAt.In(loc)
+
 	s.publishRuleEvent(ctx, domain.RuleEvent{
 		TenantID:   tenantID,
 		EventType:  eventType,
@@ -322,15 +244,19 @@ func (s *appointmentSvc) emitAppointmentEvent(ctx context.Context, tenantID, app
 		EntityID:   apptID,
 		EntityType: "appointment",
 		Payload: map[string]any{
-			"appointment_id":  apptID.String(),
-			"customer_id":     appt.CustomerID.String(),
-			"professional_id": appt.ProfessionalID.String(),
-			"service_id":      appt.ServiceID.String(),
-			"status":          appt.Status,
-			"trigger":         trigger,
-			"starts_at":       appt.StartsAt.Format(time.RFC3339),
-			"customer_phone":  appt.CustomerPhone,
-			"customer_name":   appt.CustomerName,
+			"appointment_id":    apptID.String(),
+			"customer_id":       appt.CustomerID.String(),
+			"professional_id":   appt.ProfessionalID.String(),
+			"service_id":        appt.ServiceID.String(),
+			"status":            appt.Status,
+			"trigger":           trigger,
+			"starts_at":         localTime.Format("02/01/2006 3:04 PM"),
+			"appointment_date":  localTime.Format("02/01/2006"),
+			"appointment_time":  localTime.Format("3:04 PM"),
+			"customer_phone":    appt.CustomerPhone,
+			"customer_name":     appt.CustomerName,
+			"service_name":      appt.ServiceName,
+			"professional_name": appt.ProfessionalName,
 		},
 		Timestamp: time.Now(),
 	})
