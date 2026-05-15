@@ -10,7 +10,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
 from app.agent.actions import get_tenant_profile, rag_query
-from app.agent.intent import Intent, detect as detect_intent
+from app.agent.intent import detect as detect_intent
 from app.agent.orchestrator import _build_system_prompt
 from app.agent.state import reset_test_state
 from app.llm.router import chat
@@ -58,16 +58,14 @@ async def process_test(req: ProcessTestRequest) -> ProcessTestResponse:
     tone = profile.get("tone") if profile else None
     custom_instructions = profile.get("custom_instructions") if profile else None
 
-    # RAG search
-    rag_context = ""
+    # RAG search — siempre ejecutar para test/validación (alinea con flujo real de WA)
+    rag_context = await rag_query(req.tenant_id, req.message_text, min_similarity=0.50)
     rag_sources: list[str] = []
-    if intent in (Intent.QUERY, Intent.UNKNOWN):
-        rag_context = await rag_query(req.tenant_id, req.message_text)
-        if rag_context:
-            for line in rag_context.split("\n---\n"):
-                line = line.strip()
-                if line.startswith("[") and "]" in line:
-                    rag_sources.append(line[1:line.index("]")])
+    if rag_context:
+        for line in rag_context.split("\n---\n"):
+            line = line.strip()
+            if line.startswith("[") and "]" in line:
+                rag_sources.append(line[1:line.index("]")])
 
     # Generar respuesta
     system = _build_system_prompt(profile, rag_context, tone=tone, custom_instructions=custom_instructions)

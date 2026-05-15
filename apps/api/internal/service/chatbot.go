@@ -268,6 +268,16 @@ func (s *chatbotSvc) Validate(ctx context.Context, tenantID uuid.UUID, tenantSlu
 		}
 
 		ok := !isVagueResponse(testResp.Response)
+
+		// Si responde con confianza pero sin fuentes RAG en preguntas factuales,
+		// es probable alucinación — marcar como fallida.
+		cat := categoryForQuestion(q)
+		if ok && len(testResp.RAGSourcesUsed) == 0 {
+			if cat == "location" || cat == "team" || cat == "policies" {
+				ok = false
+			}
+		}
+
 		if ok {
 			passed++
 		}
@@ -278,7 +288,6 @@ func (s *chatbotSvc) Validate(ctx context.Context, tenantID uuid.UUID, tenantSlu
 			Passed:   ok,
 		}
 		if !ok {
-			cat := categoryForQuestion(q)
 			result.Suggestion = suggestionForCategory(cat)
 		}
 		results = append(results, result)

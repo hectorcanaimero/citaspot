@@ -94,15 +94,23 @@ async def book_appointment(
             return None
 
 
-async def rag_query(tenant_id: str, query: str) -> str:
+async def rag_query(tenant_id: str, query: str, min_similarity: float | None = None) -> str:
     """
     Busca en la base de conocimiento del tenant y retorna texto de contexto
     listo para incluir en el prompt del LLM.
 
+    Args:
+        tenant_id: UUID del tenant.
+        query: Texto de búsqueda.
+        min_similarity: Umbral mínimo de similitud (default: 0.70 del store).
+
     Returns:
         String con el contexto RAG o "" si no hay resultados.
     """
-    results = await rag_search(tenant_id, query)
+    kwargs: dict = {"tenant_id": tenant_id, "query": query}
+    if min_similarity is not None:
+        kwargs["min_similarity"] = min_similarity
+    results = await rag_search(**kwargs)
     if not results:
         return ""
 
