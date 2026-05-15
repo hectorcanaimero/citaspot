@@ -10,10 +10,9 @@ from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
 from app.agent.actions import get_tenant_profile, rag_query
-from app.agent.intent import Intent
-from app.agent.intent import detect as detect_intent
+from app.agent.intent import Intent, detect as detect_intent
 from app.agent.orchestrator import _build_system_prompt
-from app.agent.state import get_test_state, reset_test_state, ConvState
+from app.agent.state import reset_test_state
 from app.llm.router import chat
 
 log = structlog.get_logger(__name__)

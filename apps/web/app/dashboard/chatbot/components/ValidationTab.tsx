@@ -178,7 +178,7 @@ export function ValidationTab({ config, docs, chatTested }: Props) {
                       <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
                     )}
                     <div className="flex-1">
-                      <p className="text-sm text-neutral-700">"{result.question}"</p>
+                      <p className="text-sm text-neutral-700">&ldquo;{result.question}&rdquo;</p>
                       <p className="text-xs text-neutral-500 mt-1 line-clamp-2">
                         {result.response}
                       </p>
