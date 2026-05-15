@@ -198,7 +198,7 @@ export default function EditRulePage() {
           cooldown_hours: cooldownHours,
           is_active: isActive,
         });
-        router.push('/automations');
+        router.push('/dashboard/automations');
       } catch (err) {
         setError(err instanceof Error ? err.message : t.common.error);
       } finally {
@@ -229,7 +229,7 @@ export default function EditRulePage() {
         </p>
         <button
           type="button"
-          onClick={() => router.push('/automations')}
+          onClick={() => router.push('/dashboard/automations')}
           className="mt-4 text-sm text-neutral-500 underline"
         >
           {t.common.back}
@@ -244,7 +244,7 @@ export default function EditRulePage() {
       <div className="mb-6 flex items-center gap-3">
         <button
           type="button"
-          onClick={() => router.push('/automations')}
+          onClick={() => router.push('/dashboard/automations')}
           className="rounded-lg p-1.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -526,7 +526,7 @@ export default function EditRulePage() {
         <div className="flex justify-end gap-3">
           <button
             type="button"
-            onClick={() => router.push('/automations')}
+            onClick={() => router.push('/dashboard/automations')}
             className="rounded-lg border border-neutral-200 px-4 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-50"
           >
             {t.common.cancel}
