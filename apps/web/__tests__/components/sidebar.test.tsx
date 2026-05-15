@@ -67,7 +67,7 @@ describe('Sidebar', () => {
     expect(screen.getByText('Clientes')).toBeInTheDocument();
     expect(screen.getByText('Servicios')).toBeInTheDocument();
     expect(screen.getByText('Equipo')).toBeInTheDocument();
-    expect(screen.getByText('Conocimiento')).toBeInTheDocument();
+    expect(screen.getByText('Chatbot')).toBeInTheDocument();
     expect(screen.getByText('WhatsApp')).toBeInTheDocument();
     expect(screen.getByText('Analíticas')).toBeInTheDocument();
     expect(screen.getByText('Configuración')).toBeInTheDocument();
