@@ -137,6 +137,7 @@ func main() {
 	clinicalNoteRepo := repository.NewClinicalNoteRepository(pool)
 	clinicalFileRepo := repository.NewClinicalFileRepository(pool)
 	eventRepo        := repository.NewEventRepository(pool)
+	chatbotConfigRepo := repository.NewChatbotConfigRepository(pool)
 
 	// ── Servicios ─────────────────────────────────────────────────────────────
 	authSvc    := service.NewAuthService(authRepo, cfg)
@@ -153,6 +154,7 @@ func main() {
 
 	// publisher puede ser nil si RabbitMQ no está disponible (modo degradado)
 	knowledgeSvc := service.NewKnowledgeSvc(knowledgeRepo, publisher)
+	chatbotSvc   := service.NewChatbotSvc(chatbotConfigRepo, knowledgeRepo, authRepo, cfg.AIServiceURL, rdb)
 
 	pipelineSvc  := service.NewPipelineStageSvc(pipelineRepo)
 	treatmentSvc        := service.NewTreatmentSvc(treatmentRepo, publisher, eventRepo)
@@ -223,6 +225,7 @@ func main() {
 	brandingHandler := handler.NewBrandingHandler(brandingSvc)
 	clinicalNoteHandler := handler.NewClinicalNoteHandler(clinicalNoteSvc)
 	clinicalFileHandler := handler.NewClinicalFileHandler(clinicalFileSvc)
+	chatbotHandler      := handler.NewChatbotHandler(chatbotSvc)
 
 	// ── Workers background ────────────────────────────────────────────────────
 	reminderWorker := worker.NewReminderWorker(reminderRepo, notifRepo, waClient)
@@ -531,6 +534,12 @@ func main() {
 	knowledge.Get("/:id", knowledgeHandler.Get)
 	knowledge.Put("/:id", knowledgeHandler.Update)
 	knowledge.Delete("/:id", knowledgeHandler.Delete)
+
+	chatbot := protected.Group("/chatbot")
+	chatbot.Get("/config", chatbotHandler.GetConfig)
+	chatbot.Patch("/config", chatbotHandler.UpdateConfig)
+	chatbot.Post("/test", chatbotHandler.Test)
+	chatbot.Post("/validate", chatbotHandler.Validate)
 
 	customers := protected.Group("/customers")
 	customers.Get("/", customerHandler.List)
