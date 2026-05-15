@@ -61,3 +61,44 @@ async def reset_state(tenant_id: str, conversation_id: str) -> None:
     """Borra el estado de una conversación (después de completar o cancelar)."""
     r = get_redis()
     await r.delete(_key(tenant_id, conversation_id))
+
+
+# TTL para conversaciones de test: 30 minutos
+_TEST_TTL = 1_800  # segundos
+
+
+def _test_key(tenant_id: str) -> str:
+    return f"test:{tenant_id}"
+
+
+async def get_test_state(tenant_id: str) -> dict[str, Any]:
+    """Retorna el estado de la conversación de test desde Redis."""
+    r = get_redis()
+    raw = await r.get(_test_key(tenant_id))
+    if raw:
+        return json.loads(raw)
+    return {
+        "state": ConvState.IDLE,
+        "pending_slots": [],
+        "pending_service_id": None,
+        "pending_professional_id": None,
+        "pending_date": None,
+        "customer_name": None,
+        "customer_phone": None,
+    }
+
+
+async def save_test_state(tenant_id: str, data: dict[str, Any]) -> None:
+    """Persiste el estado de test en Redis con TTL de 30 min."""
+    r = get_redis()
+    await r.setex(
+        _test_key(tenant_id),
+        _TEST_TTL,
+        json.dumps(data, default=str),
+    )
+
+
+async def reset_test_state(tenant_id: str) -> None:
+    """Borra el estado de test de un tenant."""
+    r = get_redis()
+    await r.delete(_test_key(tenant_id))

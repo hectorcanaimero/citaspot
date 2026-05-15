@@ -128,7 +128,37 @@ async def _publish_reply(tenant_id: str, tenant_slug: str, wa_phone: str, text: 
     )
 
 
-def _build_system_prompt(profile: dict[str, Any] | None, rag_context: str) -> str:
+# Mapeo de tone a instrucciones de comunicación
+_TONE_INSTRUCTIONS: dict[str, dict[str, str]] = {
+    "friendly": {
+        "es": "Usá un tono amigable y cercano. Podés usar emojis con moderación. Tuteá al cliente.",
+        "en": "Use a friendly and warm tone. You can use emojis sparingly. Address the client informally.",
+        "pt": "Use um tom amigável e próximo. Pode usar emojis com moderação. Trate o cliente por você.",
+    },
+    "professional": {
+        "es": "Mantené un tono profesional y respetuoso. Evitá emojis. Usá usted.",
+        "en": "Maintain a professional and respectful tone. Avoid emojis. Use formal address.",
+        "pt": "Mantenha um tom profissional e respeitoso. Evite emojis. Trate o cliente por senhor(a).",
+    },
+    "premium": {
+        "es": "Usá un tono cálido pero elegante. Transmití exclusividad y cuidado personalizado.",
+        "en": "Use a warm but elegant tone. Convey exclusivity and personalized care.",
+        "pt": "Use um tom caloroso mas elegante. Transmita exclusividade e cuidado personalizado.",
+    },
+    "casual": {
+        "es": "Sé directo y relajado. Podés usar expresiones coloquiales. Tuteá al cliente.",
+        "en": "Be direct and relaxed. You can use colloquial expressions. Address the client casually.",
+        "pt": "Seja direto e descontraído. Pode usar expressões coloquiais. Trate o cliente por você.",
+    },
+}
+
+
+def _build_system_prompt(
+    profile: dict[str, Any] | None,
+    rag_context: str,
+    tone: str | None = None,
+    custom_instructions: str | None = None,
+) -> str:
     """Construye el system prompt del asistente con contexto del negocio."""
     msgs = get_messages(_LANG)
     business_name = profile.get("name", "el negocio") if profile else "el negocio"
@@ -149,7 +179,18 @@ def _build_system_prompt(profile: dict[str, Any] | None, rag_context: str) -> st
     intro = msgs["system_intro"].format(business_name=business_name, bot_name=bot_name)
     warning = msgs["system_warning"]
 
-    return f"{intro}{services_text}{rag_section}\n\n{warning}"
+    # Instrucciones de tono (desde chatbot_configs o default del system_intro)
+    tone_section = ""
+    if tone and tone in _TONE_INSTRUCTIONS:
+        lang = _LANG if _LANG in _TONE_INSTRUCTIONS[tone] else "es"
+        tone_section = f"\n\nEstilo de comunicación: {_TONE_INSTRUCTIONS[tone][lang]}"
+
+    # Instrucciones personalizadas del negocio
+    custom_section = ""
+    if custom_instructions and custom_instructions.strip():
+        custom_section = f"\n\nInstrucciones adicionales del negocio: {custom_instructions.strip()}"
+
+    return f"{intro}{tone_section}{custom_section}{services_text}{rag_section}\n\n{warning}"
 
 
 async def process_message(

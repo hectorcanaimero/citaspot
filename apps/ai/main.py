@@ -11,7 +11,7 @@ from app.core.database import close_pool
 from app.core.logging_config import configure_logging
 from app.core.rabbitmq import close as close_rabbitmq
 from app.core.redis import close_redis
-from app.routers import health, process, search, vectorize
+from app.routers import health, process, process_test, search, vectorize
 
 configure_logging(env=settings.app_env)
 log = structlog.get_logger(__name__)
@@ -24,6 +24,7 @@ app = FastAPI(
 # Registrar routers
 app.include_router(health.router)
 app.include_router(process.router)
+app.include_router(process_test.router)
 app.include_router(vectorize.router)
 app.include_router(search.router)
 
