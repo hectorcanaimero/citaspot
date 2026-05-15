@@ -6,6 +6,7 @@ import { formatInTimeZone } from 'date-fns-tz';
 import { CheckCircle2, Calendar, Clock, User, Phone } from 'lucide-react';
 import { Button }  from '@/components/ui/button';
 import { Input }   from '@/components/ui/input';
+import { PhoneInput, validatePhone, CountryCode, PHONE_COUNTRIES } from '@/components/ui/PhoneInput';
 import { Card }    from '@/components/ui/card';
 import { Badge }   from '@/components/ui/badge';
 import { Spinner } from '@/components/ui/spinner';
@@ -33,6 +34,8 @@ export default function BookingPage() {
 
   const [name,  setName]  = useState('');
   const [phone, setPhone] = useState('');
+  const [phoneCountry, setPhoneCountry] = useState<CountryCode>('DO');
+  const [phoneError, setPhoneError] = useState('');
   const [email, setEmail] = useState('');
   const [notes, setNotes] = useState('');
 
@@ -46,6 +49,13 @@ export default function BookingPage() {
       .catch(() => setProfileError(t.booking.notFound))
       .finally(() => setLoadingProfile(false));
   }, [slug, t]);
+
+  // Sincronizar el pais del tenant con el componente de telefono
+  useEffect(() => {
+    if (profile?.country && profile.country in PHONE_COUNTRIES) {
+      setPhoneCountry(profile.country as CountryCode);
+    }
+  }, [profile]);
 
   const loadSlots = useCallback(async () => {
     if (!selectedProfessional || !selectedService || !selectedDate) return;
@@ -349,15 +359,37 @@ export default function BookingPage() {
               <h2 className="text-base font-semibold text-neutral-900">{t.booking.contactData}</h2>
               <Input label={t.booking.fullNameLabel} placeholder={t.booking.fullNamePlaceholder}
                 value={name} onChange={(e) => setName(e.target.value)} required />
-              <Input label={t.booking.phoneLabel} type="tel" placeholder={t.booking.phonePlaceholder}
-                value={phone} onChange={(e) => setPhone(e.target.value)} required />
+              <PhoneInput
+                label={t.booking.phoneLabel}
+                defaultCountry={profile?.country}
+                value={phone}
+                onChange={(fullPhone) => { setPhone(fullPhone); setPhoneError(''); }}
+                error={phoneError}
+                required
+              />
               <Input label={t.booking.emailOptionalLabel} type="email" placeholder="tu@correo.com"
                 value={email} onChange={(e) => setEmail(e.target.value)} />
               <div className="flex gap-3">
                 <Button variant="ghost" size="sm" onClick={() => setStep('datetime')}>
                   {t.booking.backButton}
                 </Button>
-                <Button size="md" disabled={!name || !phone} onClick={() => setStep('confirm')} className="flex-1">
+                <Button size="md" disabled={!name || !phone} onClick={() => {
+                  // Detect current country from the phone prefix
+                  let detectedCountry: CountryCode = phoneCountry;
+                  for (const code of (Object.keys(PHONE_COUNTRIES) as CountryCode[])) {
+                    if (phone.startsWith(PHONE_COUNTRIES[code].prefix)) {
+                      detectedCountry = code;
+                      break;
+                    }
+                  }
+                  const localDigits = phone.slice(PHONE_COUNTRIES[detectedCountry].prefix.length);
+                  if (!validatePhone(detectedCountry, localDigits)) {
+                    setPhoneError(t.booking.phoneInvalid);
+                    return;
+                  }
+                  setPhoneError('');
+                  setStep('confirm');
+                }} className="flex-1">
                   {t.booking.reviewAppointment}
                 </Button>
               </div>
@@ -387,7 +419,7 @@ export default function BookingPage() {
                 </div>
                 <div className="flex items-center gap-2 text-neutral-700">
                   <Phone className="h-4 w-4 text-primary-500" />
-                  <span>{phone}</span>
+                  <span>+{phone}</span>
                 </div>
               </div>
               {bookError && (
