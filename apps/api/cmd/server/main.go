@@ -230,6 +230,10 @@ func main() {
 	go reminderWorker.Start(ctx)
 	go outboundWorker.Start(ctx)
 
+	// Worker de mantenimiento de eventos (particiones + limpieza)
+	eventsWorker := worker.NewEventsMaintenanceWorker(pool)
+	go eventsWorker.Start(ctx)
+
 	// Workers del motor de reglas
 	if cfg.RabbitMQURL != "" {
 		rulesEventWorker := worker.NewRulesEventWorker(cfg.RabbitMQURL, ruleExecutor)
