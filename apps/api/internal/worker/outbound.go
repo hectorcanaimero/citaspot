@@ -16,17 +16,19 @@ import (
 // OutboundWorker consume wa.messages.outbound y envía los mensajes vía WhatsApp.
 // El AI Service publica en esta cola cuando tiene una respuesta lista.
 type OutboundWorker struct {
-	amqpURL  string
-	waClient domain.WAClient
+	amqpURL   string
+	waClient  domain.WAClient
 	notifRepo domain.NotificationRepository
+	convRepo  domain.ConversationRepository
 }
 
 // NewOutboundWorker crea el worker de mensajes salientes.
-func NewOutboundWorker(amqpURL string, waClient domain.WAClient, notifRepo domain.NotificationRepository) *OutboundWorker {
+func NewOutboundWorker(amqpURL string, waClient domain.WAClient, notifRepo domain.NotificationRepository, convRepo domain.ConversationRepository) *OutboundWorker {
 	return &OutboundWorker{
 		amqpURL:   amqpURL,
 		waClient:  waClient,
 		notifRepo: notifRepo,
+		convRepo:  convRepo,
 	}
 }
 
@@ -152,6 +154,21 @@ func (w *OutboundWorker) processOutbound(ctx context.Context, msg amqp.Delivery)
 		nl.Status = "sent"
 		slog.Info("OutboundWorker: mensaje enviado", "phone", payload.WAPhone, "len", len(payload.Content))
 		msg.Ack(false)
+
+		// Persistir respuesta del bot en historial de conversación
+		if convID, parseErr := uuid.Parse(payload.ConversationID); parseErr == nil {
+			botMsg := &domain.Message{
+				ID:             uuid.New(),
+				ConversationID: convID,
+				TenantID:       tenantID,
+				Role:           "assistant",
+				Content:        payload.Content,
+				WAMessageID:    waMessageID,
+			}
+			if saveErr := w.convRepo.SaveMessage(ctx, botMsg); saveErr != nil {
+				slog.Warn("OutboundWorker: save assistant message error", "error", saveErr)
+			}
+		}
 	}
 
 	if err := w.notifRepo.LogNotification(ctx, nl); err != nil {

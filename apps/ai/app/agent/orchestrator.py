@@ -124,13 +124,16 @@ def _format_friendly_date(date_str: str) -> str:
         return date_str
 
 
-async def _publish_reply(tenant_id: str, tenant_slug: str, wa_phone: str, text: str) -> None:
+async def _publish_reply(
+    tenant_id: str, tenant_slug: str, conversation_id: str, wa_phone: str, text: str,
+) -> None:
     """Publica la respuesta en wa.messages.outbound."""
     await publish(
         "wa.messages.outbound",
         {
             "tenant_id": tenant_id,
             "tenant_slug": tenant_slug,
+            "conversation_id": conversation_id,
             "wa_phone": wa_phone,
             "content": text,
         },
@@ -282,7 +285,7 @@ async def process_message(
 
     # --- Timeout: avisar "Un momento..." si el procesamiento es lento ---
     slow_task = asyncio.create_task(
-        _send_slow_response(tenant_id, tenant_slug, wa_phone, _SLOW_RESPONSE_SECS)
+        _send_slow_response(tenant_id, tenant_slug, conversation_id, wa_phone, _SLOW_RESPONSE_SECS)
     )
 
     try:
@@ -300,13 +303,15 @@ async def process_message(
         slow_task.cancel()
 
     if response:
-        await _publish_reply(tenant_id, tenant_slug, wa_phone, response)
+        await _publish_reply(tenant_id, tenant_slug, conversation_id, wa_phone, response)
 
 
-async def _send_slow_response(tenant_id: str, tenant_slug: str, wa_phone: str, delay: float) -> None:
+async def _send_slow_response(
+    tenant_id: str, tenant_slug: str, conversation_id: str, wa_phone: str, delay: float,
+) -> None:
     """Envía el mensaje de espera si el procesamiento supera el timeout."""
     await asyncio.sleep(delay)
-    await _publish_reply(tenant_id, tenant_slug, wa_phone, _m("slow_response"))
+    await _publish_reply(tenant_id, tenant_slug, conversation_id, wa_phone, _m("slow_response"))
 
 
 async def _handle(

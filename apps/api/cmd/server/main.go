@@ -229,7 +229,7 @@ func main() {
 
 	// ── Workers background ────────────────────────────────────────────────────
 	reminderWorker := worker.NewReminderWorker(reminderRepo, notifRepo, waClient, publisher)
-	outboundWorker := worker.NewOutboundWorker(cfg.RabbitMQURL, waClient, notifRepo)
+	outboundWorker := worker.NewOutboundWorker(cfg.RabbitMQURL, waClient, notifRepo, convRepo)
 	go reminderWorker.Start(ctx)
 	go outboundWorker.Start(ctx)
 
