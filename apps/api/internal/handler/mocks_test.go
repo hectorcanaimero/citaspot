@@ -248,6 +248,10 @@ func (m *mockCustomerRepo) UpdateField(ctx context.Context, tenantID, customerID
 	return nil
 }
 
+func (m *mockCustomerRepo) IncrementVisits(ctx context.Context, tenantID, customerID uuid.UUID, delta int, lastVisit *time.Time) error {
+	return nil
+}
+
 // ── KnowledgeSvc ─────────────────────────────────────────────────────────────
 
 type mockKnowledgeSvc struct {

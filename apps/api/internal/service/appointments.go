@@ -89,7 +89,9 @@ func (s *appointmentSvc) Create(ctx context.Context, tenantID uuid.UUID, req *do
 		if req.CustomerPhone == "" {
 			return nil, fmt.Errorf("%w: customer_id o customer_phone son requeridos", domain.ErrValidation)
 		}
-		customer, err := s.customerRepo.FindOrCreateByPhone(ctx, tenantID, req.CustomerName, req.CustomerPhone)
+		// Normalizar telefono para evitar duplicados (ej: "4243148415" vs "+584243148415")
+		normalizedPhone := domain.NormalizePhone(req.CustomerPhone)
+		customer, err := s.customerRepo.FindOrCreateByPhone(ctx, tenantID, req.CustomerName, normalizedPhone)
 		if err != nil {
 			return nil, fmt.Errorf("appointmentSvc.Create: customer: %w", err)
 		}
@@ -129,13 +131,48 @@ func (s *appointmentSvc) Create(ctx context.Context, tenantID uuid.UUID, req *do
 
 // Update actualiza el estado y/o notas de una cita.
 func (s *appointmentSvc) Update(ctx context.Context, tenantID, id uuid.UUID, req *domain.UpdateAppointmentRequest) error {
+	// Obtener estado anterior para detectar transiciones de "completed"
+	var oldStatus string
+	var customerID uuid.UUID
+	if req.Status != "" {
+		appt, err := s.apptRepo.GetByID(ctx, tenantID, id)
+		if err != nil {
+			return fmt.Errorf("appointmentSvc.Update: get old status: %w", err)
+		}
+		oldStatus = appt.Status
+		customerID = appt.CustomerID
+	}
+
 	if err := s.apptRepo.UpdateStatus(ctx, tenantID, id, req); err != nil {
 		return err
 	}
+
+	// Actualizar total_visits del cliente cuando cambia a/desde "completed"
+	if req.Status != "" && req.Status != oldStatus {
+		s.syncCustomerVisits(ctx, tenantID, customerID, oldStatus, req.Status)
+	}
+
 	if req.Status != "" {
 		s.emitAppointmentEvent(ctx, tenantID, id, req.Status)
 	}
 	return nil
+}
+
+// syncCustomerVisits incrementa o decrementa total_visits al transicionar a/desde "completed".
+func (s *appointmentSvc) syncCustomerVisits(ctx context.Context, tenantID, customerID uuid.UUID, oldStatus, newStatus string) {
+	switch {
+	case newStatus == "completed" && oldStatus != "completed":
+		// Transición a completado: incrementar visitas y actualizar fecha
+		now := time.Now().UTC()
+		if err := s.customerRepo.IncrementVisits(ctx, tenantID, customerID, 1, &now); err != nil {
+			slog.Warn("appointmentSvc.syncCustomerVisits: increment failed", "customer_id", customerID, "error", err)
+		}
+	case oldStatus == "completed" && newStatus != "completed":
+		// Revertir completado: decrementar visitas (sin tocar last_visit_at)
+		if err := s.customerRepo.IncrementVisits(ctx, tenantID, customerID, -1, nil); err != nil {
+			slog.Warn("appointmentSvc.syncCustomerVisits: decrement failed", "customer_id", customerID, "error", err)
+		}
+	}
 }
 
 // Cancel cancela una cita con motivo opcional.

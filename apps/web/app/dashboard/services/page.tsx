@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Spinner } from '@/components/ui/spinner';
 import { Input } from '@/components/ui/input';
+import { AlertDialog } from '@/components/ui/alert-dialog';
 import { services, Service, ServiceInput } from '@/lib/api';
 import { useTranslations } from '@/lib/i18n';
 
@@ -30,6 +31,7 @@ export default function ServicesPage() {
   const [saving, setSaving]       = useState(false);
   const [error, setError]         = useState('');
   const [deleting, setDeleting]   = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Service | null>(null);
 
   async function load() {
     setLoading(true);
@@ -97,8 +99,7 @@ export default function ServicesPage() {
     } catch { /* ignorar */ }
   }
 
-  async function handleDelete(svc: Service) {
-    if (!confirm(t.services.confirmDelete)) return;
+  async function executeDelete(svc: Service) {
     setDeleting(svc.id);
     try {
       await services.delete(svc.id);
@@ -169,7 +170,7 @@ export default function ServicesPage() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => handleDelete(svc)}
+                  onClick={() => setDeleteTarget(svc)}
                   disabled={deleting === svc.id}
                   className="text-red-500 hover:text-red-700 hover:bg-red-50"
                 >
@@ -187,6 +188,19 @@ export default function ServicesPage() {
           ))}
         </div>
       )}
+
+      {/* Dialog confirmar eliminacion */}
+      <AlertDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        title={t.common.delete}
+        description={t.services.confirmDelete}
+        cancelLabel={t.common.cancel}
+        confirmLabel={t.common.delete}
+        onConfirm={() => {
+          if (deleteTarget) executeDelete(deleteTarget);
+        }}
+      />
 
       {/* Modal crear/editar */}
       {showModal && (

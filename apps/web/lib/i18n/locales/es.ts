@@ -907,7 +907,7 @@ export const es = {
       colorLabel: 'Color',
       confirmDelete: 'Esta etapa se eliminara. Los clientes en esta etapa no seran afectados.',
       position: 'Posicion',
-      autoRules: 'Reglas automaticas',
+      autoRules: 'Reglas automáticas',
       defaultStage: 'Etapa por defecto',
       stagesCount: '{n} etapas',
     // Kanban board
@@ -1013,7 +1013,7 @@ export const es = {
       title: 'Tareas',
       description: 'Bandeja de tareas pendientes y completadas.',
       noTasks: 'No hay tareas pendientes.',
-      noTasksDesc: 'Las tareas se crean manualmente o son generadas por las reglas de automatizacion.',
+      noTasksDesc: 'Las tareas se crean manualmente o son generadas por las reglas de automatización.',
       newTask: 'Nueva tarea',
       assignTo: 'Asignar a',
       dueAt: 'Vence',
@@ -1046,7 +1046,7 @@ export const es = {
     },
     automations: {
       title: 'Automatizaciones',
-      description: 'Reglas que ejecutan acciones automaticas cuando ocurren eventos.',
+      description: 'Reglas que ejecutan acciones automáticas cuando ocurren eventos.',
       noRules: 'No hay reglas configuradas.',
       noRulesDesc: 'Crea reglas para automatizar tareas, enviar mensajes y mas.',
       newRule: 'Nueva regla',

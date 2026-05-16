@@ -164,13 +164,60 @@ def _build_system_prompt(
     business_name = profile.get("name", "el negocio") if profile else "el negocio"
     bot_name = (profile.get("bot_name") or "el asistente virtual") if profile else "el asistente virtual"
 
+    # Servicios con descripción y moneda
     services_text = ""
     if profile and profile.get("services"):
         lines = []
         for s in profile["services"]:
-            price_str = f"${s['price']} USD" if s.get("price") else "consultar en cita"
-            lines.append(f"- {s['name']} ({price_str}, {s['duration_min']} min)")
+            currency = s.get("currency", "USD")
+            price_str = f"${s['price']} {currency}" if s.get("price") else "consultar en cita"
+            desc = f" — {s['description']}" if s.get("description") else ""
+            lines.append(f"- {s['name']} ({price_str}, {s['duration_min']} min){desc}")
         services_text = f"\n\n{msgs['system_services_header']}\n" + "\n".join(lines)
+
+    # Profesionales con especialidad y bio
+    professionals_text = ""
+    if profile and profile.get("professionals"):
+        prof_lines = []
+        for p in profile["professionals"]:
+            line = f"- {p['name']}"
+            if p.get("specialty"):
+                line += f" ({p['specialty']})"
+            if p.get("bio"):
+                line += f" — {p['bio']}"
+            prof_lines.append(line)
+        professionals_text = f"\n\n{msgs['system_professionals_header']}\n" + "\n".join(prof_lines)
+
+    # Mapeo servicio → profesionales
+    mapping_text = ""
+    if profile and profile.get("service_professionals") and profile.get("services") and profile.get("professionals"):
+        svc_map = {s["id"]: s["name"] for s in profile["services"]}
+        prof_map = {p["id"]: p["name"] for p in profile["professionals"]}
+        svc_to_profs: dict[str, list[str]] = {}
+        for link in profile["service_professionals"]:
+            svc_name = svc_map.get(link["service_id"], "")
+            prof_name = prof_map.get(link["professional_id"], "")
+            if svc_name and prof_name:
+                svc_to_profs.setdefault(svc_name, []).append(prof_name)
+        if svc_to_profs:
+            mapping_lines = [f"- {svc}: {', '.join(profs)}" for svc, profs in svc_to_profs.items()]
+            mapping_text = f"\n\n{msgs['system_mapping_header']}\n" + "\n".join(mapping_lines)
+
+    # Contexto del negocio
+    business_context = ""
+    if profile:
+        parts = []
+        if profile.get("business_type"):
+            parts.append(profile["business_type"])
+        if profile.get("city"):
+            loc = profile["city"]
+            if profile.get("country"):
+                loc += f", {profile['country']}"
+            parts.append(loc)
+        if profile.get("description"):
+            parts.append(profile["description"])
+        if parts:
+            business_context = f"\n\nSobre el negocio: {'. '.join(parts)}."
 
     rag_section = (
         f"\n\n{msgs['system_rag_header']}\n{rag_context}" if rag_context else ""
@@ -190,7 +237,7 @@ def _build_system_prompt(
     if custom_instructions and custom_instructions.strip():
         custom_section = f"\n\nInstrucciones adicionales del negocio: {custom_instructions.strip()}"
 
-    return f"{intro}{tone_section}{custom_section}{services_text}{rag_section}\n\n{warning}"
+    return f"{intro}{tone_section}{custom_section}{business_context}{services_text}{professionals_text}{mapping_text}{rag_section}\n\n{warning}"
 
 
 async def process_message(

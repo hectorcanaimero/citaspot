@@ -52,6 +52,8 @@ MESSAGES: dict[str, dict[str, str]] = {
             "- Si no puedes resolver algo: ofrece escalar con un humano"
         ),
         "system_services_header": "Servicios disponibles:",
+        "system_professionals_header": "Equipo profesional:",
+        "system_mapping_header": "Profesionales por servicio:",
         "system_rag_header": "Información adicional del negocio:",
         "system_warning": "IMPORTANTE: Nunca inventes información. Si no sabes algo, di que vas a verificarlo.",
     },
@@ -104,6 +106,8 @@ MESSAGES: dict[str, dict[str, str]] = {
             "- If you can't resolve something: offer to escalate to a human"
         ),
         "system_services_header": "Available services:",
+        "system_professionals_header": "Professional team:",
+        "system_mapping_header": "Professionals by service:",
         "system_rag_header": "Additional business information:",
         "system_warning": "IMPORTANT: Never make up information. If you don't know something, say you'll verify it.",
     },
@@ -156,6 +160,8 @@ MESSAGES: dict[str, dict[str, str]] = {
             "- Se não conseguir resolver algo: ofereça escalar para um humano"
         ),
         "system_services_header": "Serviços disponíveis:",
+        "system_professionals_header": "Equipe profissional:",
+        "system_mapping_header": "Profissionais por serviço:",
         "system_rag_header": "Informações adicionais do negócio:",
         "system_warning": "IMPORTANTE: Nunca invente informações. Se não souber algo, diga que vai verificar.",
     },

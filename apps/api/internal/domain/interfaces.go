@@ -134,6 +134,9 @@ type CustomerRepository interface {
 	List(ctx context.Context, tenantID uuid.UUID, search string, limit, offset int) ([]*Customer, error)
 	UpdateStage(ctx context.Context, tenantID, customerID uuid.UUID, stageID *uuid.UUID) error
 	UpdateField(ctx context.Context, tenantID, customerID uuid.UUID, field string, value any) error
+	// IncrementVisits suma delta a total_visits (delta puede ser negativo) y actualiza last_visit_at.
+	// Si lastVisit es nil, no se actualiza last_visit_at.
+	IncrementVisits(ctx context.Context, tenantID, customerID uuid.UUID, delta int, lastVisit *time.Time) error
 }
 
 // ── Appointments ──────────────────────────────────────────────────────────────

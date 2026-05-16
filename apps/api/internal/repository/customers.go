@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -187,6 +188,26 @@ func (r *customerRepository) UpdateField(ctx context.Context, tenantID, customer
 		tag, err := tx.Exec(ctx, query, tenantID, customerID, value)
 		if err != nil {
 			return fmt.Errorf("customerRepository.UpdateField: %w", err)
+		}
+		if tag.RowsAffected() == 0 {
+			return domain.ErrNotFound
+		}
+		return nil
+	})
+}
+
+// IncrementVisits suma delta a total_visits de forma atómica y opcionalmente actualiza last_visit_at.
+func (r *customerRepository) IncrementVisits(ctx context.Context, tenantID, customerID uuid.UUID, delta int, lastVisit *time.Time) error {
+	return withTenant(ctx, r.db, tenantID, func(tx pgx.Tx) error {
+		// Asegurar que total_visits nunca quede negativo
+		tag, err := tx.Exec(ctx, `
+			UPDATE customers
+			SET total_visits  = GREATEST(0, total_visits + $3),
+			    last_visit_at = COALESCE($4, last_visit_at)
+			WHERE tenant_id = $1 AND id = $2
+		`, tenantID, customerID, delta, lastVisit)
+		if err != nil {
+			return fmt.Errorf("customerRepository.IncrementVisits: %w", err)
 		}
 		if tag.RowsAffected() == 0 {
 			return domain.ErrNotFound

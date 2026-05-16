@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Spinner } from '@/components/ui/spinner';
+import { AlertDialog } from '@/components/ui/alert-dialog';
 import { ToggleSwitch } from '@/components/ui/toggle-switch';
 import { rules as rulesApi, Rule, RuleExecution } from '@/lib/api';
 import { format } from 'date-fns';
@@ -24,6 +25,7 @@ export default function AutomationsPage() {
   const [expandedId, setExpandedId]     = useState<string | null>(null);
   const [executions, setExecutions]     = useState<RuleExecution[]>([]);
   const [loadingExec, setLoadingExec]   = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -48,8 +50,7 @@ export default function AutomationsPage() {
     } catch { /* silencioso */ }
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm(t.crm.automations.confirmDelete)) return;
+  async function executeDelete(id: string) {
     try {
       await rulesApi.remove(id);
       await load();
@@ -179,7 +180,7 @@ export default function AutomationsPage() {
                       <Pencil className="h-4 w-4" />
                     </button>
                     <button
-                      onClick={() => handleDelete(rule.id)}
+                      onClick={() => setDeleteTarget(rule.id)}
                       className="rounded p-1 text-neutral-400 hover:bg-red-50 hover:text-red-500"
                       title={t.crm.automations.deleteRule}
                     >
@@ -239,6 +240,19 @@ export default function AutomationsPage() {
           })}
         </div>
       )}
+
+      {/* Dialog confirmar eliminacion */}
+      <AlertDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        title={t.crm.automations.deleteRule}
+        description={t.crm.automations.confirmDelete}
+        cancelLabel={t.common.cancel}
+        confirmLabel={t.common.delete}
+        onConfirm={() => {
+          if (deleteTarget) executeDelete(deleteTarget);
+        }}
+      />
     </div>
   );
 }

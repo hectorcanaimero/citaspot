@@ -95,7 +95,7 @@ func (s *whatsAppSvc) ProcessInbound(ctx context.Context, instanceName string, p
 	waMessageID, _ := key["id"].(string)
 	remoteJid, _ := key["remoteJid"].(string)
 	// Normalizar teléfono: "18091234567@s.whatsapp.net" → "+18091234567"
-	phone := normalizeWAPhone(remoteJid)
+	phone := domain.NormalizePhone(normalizeWAPhone(remoteJid))
 	if phone == "" {
 		return nil
 	}
