@@ -228,7 +228,7 @@ func main() {
 	chatbotHandler      := handler.NewChatbotHandler(chatbotSvc)
 
 	// ── Workers background ────────────────────────────────────────────────────
-	reminderWorker := worker.NewReminderWorker(reminderRepo, notifRepo, waClient)
+	reminderWorker := worker.NewReminderWorker(reminderRepo, notifRepo, waClient, publisher)
 	outboundWorker := worker.NewOutboundWorker(cfg.RabbitMQURL, waClient, notifRepo)
 	go reminderWorker.Start(ctx)
 	go outboundWorker.Start(ctx)

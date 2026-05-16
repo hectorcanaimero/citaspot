@@ -3,6 +3,7 @@ package worker
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"time"
@@ -17,6 +18,7 @@ type ReminderWorker struct {
 	reminderRepo  domain.ReminderRepository
 	notifRepo     domain.NotificationRepository
 	waClient      domain.WAClient
+	publisher     domain.MessagePublisher
 	interval      time.Duration
 }
 
@@ -25,11 +27,13 @@ func NewReminderWorker(
 	reminderRepo domain.ReminderRepository,
 	notifRepo domain.NotificationRepository,
 	waClient domain.WAClient,
+	publisher domain.MessagePublisher,
 ) *ReminderWorker {
 	return &ReminderWorker{
 		reminderRepo: reminderRepo,
 		notifRepo:    notifRepo,
 		waClient:     waClient,
+		publisher:    publisher,
 		interval:     5 * time.Minute,
 	}
 }
@@ -134,6 +138,22 @@ func (w *ReminderWorker) send(ctx context.Context, job *domain.ReminderJob, minu
 	if sendErr != nil {
 		nl.Status = "failed"
 		nl.ErrorMessage = sendErr.Error()
+
+		w.publishRuleEvent(ctx, domain.RuleEvent{
+			TenantID:   job.TenantID,
+			EventType:  "notification.failed",
+			CustomerID: job.CustomerID,
+			EntityID:   job.AppointmentID,
+			EntityType: "notification",
+			Payload: map[string]any{
+				"type":           fmt.Sprintf("reminder_%d", minutesBefore),
+				"channel":        "whatsapp",
+				"error":          sendErr.Error(),
+				"appointment_id": job.AppointmentID.String(),
+				"customer_id":    job.CustomerID.String(),
+			},
+			Timestamp: time.Now(),
+		})
 	} else {
 		nl.Status = "sent"
 	}
@@ -143,4 +163,18 @@ func (w *ReminderWorker) send(ctx context.Context, job *domain.ReminderJob, minu
 	}
 
 	return sendErr
+}
+
+func (w *ReminderWorker) publishRuleEvent(ctx context.Context, event domain.RuleEvent) {
+	if w.publisher == nil {
+		return
+	}
+	body, err := json.Marshal(event)
+	if err != nil {
+		slog.Warn("ReminderWorker.publishRuleEvent: marshal error", "error", err)
+		return
+	}
+	if err := w.publisher.Publish(ctx, "rules.events", body); err != nil {
+		slog.Warn("ReminderWorker.publishRuleEvent: publish error", "event", event.EventType, "error", err)
+	}
 }
