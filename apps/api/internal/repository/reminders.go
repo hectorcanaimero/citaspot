@@ -19,7 +19,7 @@ func NewReminderRepository(db *pgxpool.Pool) domain.ReminderRepository {
 }
 
 const reminderColumns = `
-	a.id, a.tenant_id,
+	a.id, a.tenant_id, c.id,
 	t.slug, t.timezone,
 	c.name, c.phone,
 	p.name, s.name,
@@ -94,7 +94,7 @@ func scanReminderJobs(rows interface {
 	for rows.Next() {
 		j := &domain.ReminderJob{Type: reminderType}
 		if err := rows.Scan(
-			&j.AppointmentID, &j.TenantID,
+			&j.AppointmentID, &j.TenantID, &j.CustomerID,
 			&j.TenantSlug, &j.TenantTimezone,
 			&j.CustomerName, &j.CustomerPhone,
 			&j.ProfessionalName, &j.ServiceName,

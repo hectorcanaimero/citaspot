@@ -543,6 +543,7 @@ type ChatbotValidationResult struct {
 type ReminderJob struct {
 	AppointmentID    uuid.UUID `json:"appointment_id"`
 	TenantID         uuid.UUID `json:"tenant_id"`
+	CustomerID       uuid.UUID `json:"customer_id"`
 	TenantSlug       string    `json:"tenant_slug"`
 	TenantTimezone   string    `json:"tenant_timezone"`
 	CustomerName     string    `json:"customer_name"`
