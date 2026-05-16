@@ -35,6 +35,12 @@ const TRIGGER_EVENTS = [
   'treatment.accepted',
   'treatment.completed',
   'treatment.abandoned',
+  'message.inbound',
+  'notification.failed',
+  'professional.created',
+  'professional.archived',
+  'service.created',
+  'service.updated',
 ] as const;
 
 const REFERENCE_FIELDS = ['last_visit_at', 'next_recall_at', 'created_at'] as const;
