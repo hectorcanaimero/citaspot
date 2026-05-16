@@ -96,3 +96,80 @@ func (h *PublicHandler) Book(c *fiber.Ctx) error {
 	}
 	return c.Status(http.StatusCreated).JSON(appt)
 }
+
+// ListMyAppointments GET /public/:slug/my-appointments?phone=+58412...
+// Retorna citas futuras de un cliente identificado por teléfono.
+func (h *PublicHandler) ListMyAppointments(c *fiber.Ctx) error {
+	slug := c.Params("slug")
+	if slug == "" {
+		return c.Status(http.StatusBadRequest).JSON(errorResponse{Error: "Slug requerido"})
+	}
+
+	phone := c.Query("phone")
+	if phone == "" {
+		return c.Status(http.StatusBadRequest).JSON(errorResponse{Error: "El parámetro 'phone' es requerido"})
+	}
+
+	appts, err := h.svc.ListMyAppointments(c.Context(), slug, phone)
+	if err != nil {
+		return handleServiceError(c, err)
+	}
+	return c.JSON(fiber.Map{"data": appts})
+}
+
+// CancelAppointment POST /public/:slug/appointments/:id/cancel
+// Cancela una cita verificando propiedad por teléfono.
+func (h *PublicHandler) CancelAppointment(c *fiber.Ctx) error {
+	slug := c.Params("slug")
+	if slug == "" {
+		return c.Status(http.StatusBadRequest).JSON(errorResponse{Error: "Slug requerido"})
+	}
+
+	apptID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(http.StatusBadRequest).JSON(errorResponse{Error: "ID de cita inválido"})
+	}
+
+	var req domain.PublicCancelRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(http.StatusBadRequest).JSON(errorResponse{Error: "JSON inválido"})
+	}
+	if req.Phone == "" {
+		return c.Status(http.StatusBadRequest).JSON(errorResponse{Error: "El campo 'phone' es requerido"})
+	}
+
+	if err := h.svc.CancelAppointment(c.Context(), slug, apptID, req.Phone); err != nil {
+		return handleServiceError(c, err)
+	}
+	return c.SendStatus(http.StatusNoContent)
+}
+
+// RescheduleAppointment POST /public/:slug/appointments/:id/reschedule
+// Reagenda una cita verificando propiedad por teléfono.
+func (h *PublicHandler) RescheduleAppointment(c *fiber.Ctx) error {
+	slug := c.Params("slug")
+	if slug == "" {
+		return c.Status(http.StatusBadRequest).JSON(errorResponse{Error: "Slug requerido"})
+	}
+
+	apptID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(http.StatusBadRequest).JSON(errorResponse{Error: "ID de cita inválido"})
+	}
+
+	var req domain.PublicRescheduleRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(http.StatusBadRequest).JSON(errorResponse{Error: "JSON inválido"})
+	}
+	if req.Phone == "" {
+		return c.Status(http.StatusBadRequest).JSON(errorResponse{Error: "El campo 'phone' es requerido"})
+	}
+	if req.StartsAt.IsZero() {
+		return c.Status(http.StatusBadRequest).JSON(errorResponse{Error: "El campo 'starts_at' es requerido"})
+	}
+
+	if err := h.svc.RescheduleAppointment(c.Context(), slug, apptID, req.Phone, req.StartsAt); err != nil {
+		return handleServiceError(c, err)
+	}
+	return c.SendStatus(http.StatusNoContent)
+}

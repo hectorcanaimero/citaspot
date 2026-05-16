@@ -1,8 +1,12 @@
 package handler
 
 import (
+	"context"
+	"encoding/json"
+	"log/slog"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -13,12 +17,13 @@ import (
 
 // CustomerHandler maneja los endpoints de clientes.
 type CustomerHandler struct {
-	repo domain.CustomerRepository
+	repo      domain.CustomerRepository
+	publisher domain.MessagePublisher
 }
 
 // NewCustomerHandler crea el handler de clientes.
-func NewCustomerHandler(repo domain.CustomerRepository) *CustomerHandler {
-	return &CustomerHandler{repo: repo}
+func NewCustomerHandler(repo domain.CustomerRepository, publisher domain.MessagePublisher) *CustomerHandler {
+	return &CustomerHandler{repo: repo, publisher: publisher}
 }
 
 // List GET /api/v1/customers
@@ -99,9 +104,42 @@ func (h *CustomerHandler) UpdateStage(c *fiber.Ctx) error {
 		return handleServiceError(c, err)
 	}
 
+	// Emitir customer.stage_changed para el motor de reglas (best-effort).
+	h.publishStageChanged(c.Context(), tenantID, id, stageID)
+
 	customer, err := h.repo.GetByID(c.Context(), tenantID, id)
 	if err != nil {
 		return handleServiceError(c, err)
 	}
 	return c.JSON(customer)
+}
+
+// publishStageChanged publica customer.stage_changed en la cola rules.events.
+// Best effort — un fallo aquí no debe afectar la respuesta HTTP.
+func (h *CustomerHandler) publishStageChanged(ctx context.Context, tenantID, customerID uuid.UUID, stageID *uuid.UUID) {
+	if h.publisher == nil {
+		return
+	}
+	payload := map[string]any{
+		"customer_id": customerID.String(),
+	}
+	if stageID != nil {
+		payload["stage_id"] = stageID.String()
+	}
+	body, err := json.Marshal(domain.RuleEvent{
+		TenantID:   tenantID,
+		EventType:  "customer.stage_changed",
+		CustomerID: customerID,
+		EntityID:   customerID,
+		EntityType: "customer",
+		Payload:    payload,
+		Timestamp:  time.Now(),
+	})
+	if err != nil {
+		slog.Warn("CustomerHandler.publishStageChanged: marshal error", "error", err)
+		return
+	}
+	if err := h.publisher.Publish(ctx, "rules.events", body); err != nil {
+		slog.Warn("CustomerHandler.publishStageChanged: publish error", "error", err)
+	}
 }

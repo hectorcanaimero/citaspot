@@ -56,6 +56,25 @@ MESSAGES: dict[str, dict[str, str]] = {
         "system_mapping_header": "Profesionales por servicio:",
         "system_rag_header": "Información adicional del negocio:",
         "system_warning": "IMPORTANTE: Nunca inventes información. Si no sabes algo, di que vas a verificarlo.",
+        # Consulta de citas
+        "no_appointments": "No encontré citas agendadas a tu nombre. ¿Te gustaría agendar una? 😊",
+        "my_appointments_header": "Tus próximas citas:",
+        "appointment_line": "{idx}. *{service}* — {datetime} con {professional}",
+        # Flujo de cancelación
+        "cancel_which": "¿Cuál cita querés cancelar?",
+        "cancel_confirm": "¿Confirmas que querés cancelar tu cita de *{service}* el {datetime}?",
+        "cancel_success": "Tu cita ha sido cancelada. ¿Puedo ayudarte con algo más?",
+        "cancel_failed": "No pude cancelar la cita. Por favor intenta de nuevo o escríbenos.",
+        "no_appointments_cancel": "No encontré citas pendientes para cancelar.",
+        # Flujo de reagendamiento
+        "reschedule_which": "¿Cuál cita querés reagendar?",
+        "reschedule_date": "¿Para qué fecha querés mover tu *{service}*? Dime día y mes (ej: 23-05).",
+        "reschedule_confirm": "¿Confirmas mover tu *{service}* al {datetime}?",
+        "reschedule_success": "¡Listo! Tu cita fue movida al {datetime}. ¡Nos vemos! 🙌",
+        "reschedule_failed": "No pude reagendar la cita. Por favor intenta de nuevo.",
+        "no_appointments_reschedule": "No encontré citas pendientes para reagendar.",
+        # Smart booking link
+        "booking_link": "Tenemos varias opciones disponibles. Te comparto este link para que elijas cómodamente:\n{url}",
     },
     "en": {
         "slow_response": "One moment, I'm looking that up... ⏳",
@@ -110,6 +129,25 @@ MESSAGES: dict[str, dict[str, str]] = {
         "system_mapping_header": "Professionals by service:",
         "system_rag_header": "Additional business information:",
         "system_warning": "IMPORTANT: Never make up information. If you don't know something, say you'll verify it.",
+        # Appointment queries
+        "no_appointments": "I didn't find any upcoming appointments for you. Would you like to book one? 😊",
+        "my_appointments_header": "Your upcoming appointments:",
+        "appointment_line": "{idx}. *{service}* — {datetime} with {professional}",
+        # Cancel flow
+        "cancel_which": "Which appointment would you like to cancel?",
+        "cancel_confirm": "Are you sure you want to cancel your *{service}* appointment on {datetime}?",
+        "cancel_success": "Your appointment has been cancelled. Can I help you with anything else?",
+        "cancel_failed": "I couldn't cancel the appointment. Please try again or contact us.",
+        "no_appointments_cancel": "I didn't find any pending appointments to cancel.",
+        # Reschedule flow
+        "reschedule_which": "Which appointment would you like to reschedule?",
+        "reschedule_date": "What date would you like to move your *{service}* to? Tell me the day and month (e.g., 23-05).",
+        "reschedule_confirm": "Confirm moving your *{service}* to {datetime}?",
+        "reschedule_success": "Done! Your appointment has been moved to {datetime}. See you then! 🙌",
+        "reschedule_failed": "I couldn't reschedule the appointment. Please try again.",
+        "no_appointments_reschedule": "I didn't find any pending appointments to reschedule.",
+        # Smart booking link
+        "booking_link": "We have several options available. Here's a link so you can choose at your convenience:\n{url}",
     },
     "pt": {
         "slow_response": "Um momento, estou consultando isso... ⏳",
@@ -164,6 +202,25 @@ MESSAGES: dict[str, dict[str, str]] = {
         "system_mapping_header": "Profissionais por serviço:",
         "system_rag_header": "Informações adicionais do negócio:",
         "system_warning": "IMPORTANTE: Nunca invente informações. Se não souber algo, diga que vai verificar.",
+        # Consulta de consultas
+        "no_appointments": "Não encontrei consultas agendadas no seu nome. Gostaria de agendar uma? 😊",
+        "my_appointments_header": "Suas próximas consultas:",
+        "appointment_line": "{idx}. *{service}* — {datetime} com {professional}",
+        # Fluxo de cancelamento
+        "cancel_which": "Qual consulta você quer cancelar?",
+        "cancel_confirm": "Confirma que quer cancelar sua consulta de *{service}* em {datetime}?",
+        "cancel_success": "Sua consulta foi cancelada. Posso ajudar com mais alguma coisa?",
+        "cancel_failed": "Não consegui cancelar a consulta. Tente novamente ou entre em contato.",
+        "no_appointments_cancel": "Não encontrei consultas pendentes para cancelar.",
+        # Fluxo de reagendamento
+        "reschedule_which": "Qual consulta você quer reagendar?",
+        "reschedule_date": "Para que data quer mover sua *{service}*? Me diga o dia e mês (ex: 23-05).",
+        "reschedule_confirm": "Confirma mover sua *{service}* para {datetime}?",
+        "reschedule_success": "Pronto! Sua consulta foi movida para {datetime}. Até lá! 🙌",
+        "reschedule_failed": "Não consegui reagendar a consulta. Tente novamente.",
+        "no_appointments_reschedule": "Não encontrei consultas pendentes para reagendar.",
+        # Smart booking link
+        "booking_link": "Temos várias opções disponíveis. Compartilho este link para que escolha com calma:\n{url}",
     },
 }
 

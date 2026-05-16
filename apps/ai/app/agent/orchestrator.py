@@ -10,11 +10,20 @@ from zoneinfo import ZoneInfo
 
 import structlog
 
-from app.agent.actions import book_appointment, get_availability, get_tenant_profile, rag_query
+from app.agent.actions import (
+    book_appointment,
+    cancel_appointment,
+    get_availability,
+    get_my_appointments,
+    get_tenant_profile,
+    rag_query,
+    reschedule_appointment,
+)
 from app.agent.intent import Intent
 from app.agent.intent import detect as detect_intent
 from app.agent.messages import get_messages
 from app.agent.state import ConvState, get_state, reset_state, save_state
+from app.core.config import settings
 from app.core.rabbitmq import publish
 from app.llm.router import chat
 
@@ -320,6 +329,23 @@ async def _handle(
     intent = await detect_intent(message_text, history)
     log.info("orchestrator: intent detectado", intent=str(intent), state=str(current_state), text_len=len(message_text))
 
+    # --- Escape hatch: HANDOFF y CANCEL desde cualquier estado de selección ---
+    _SELECTION_STATES = {
+        ConvState.AWAITING_CANCEL_SELECT,
+        ConvState.AWAITING_RESCHEDULE_SELECT,
+        ConvState.AWAITING_RESCHEDULE_DATE,
+        ConvState.AWAITING_RESCHEDULE_SLOT,
+    }
+    if current_state in _SELECTION_STATES:
+        if intent == Intent.HANDOFF:
+            await reset_state(tenant_id, conversation_id)
+            state["state"] = ConvState.HANDED_OFF
+            await save_state(tenant_id, conversation_id, state)
+            return _m("handoff")
+        if intent == Intent.CANCEL:
+            await reset_state(tenant_id, conversation_id)
+            return _m("booking_cancelled")
+
     # === AWAITING_CONFIRM: el usuario está confirmando o cancelando la reserva ===
     if current_state == ConvState.AWAITING_CONFIRM:
         if intent == Intent.CONFIRM:
@@ -346,6 +372,48 @@ async def _handle(
             message_text, tenant_id, tenant_slug, conversation_id, state, wa_phone
         )
 
+    # === AWAITING_CANCEL_SELECT: eligiendo qué cita cancelar ===
+    if current_state == ConvState.AWAITING_CANCEL_SELECT:
+        return await _handle_cancel_select(message_text, tenant_id, conversation_id, state)
+
+    # === AWAITING_CANCEL_CONFIRM: confirmando cancelación ===
+    if current_state == ConvState.AWAITING_CANCEL_CONFIRM:
+        if intent == Intent.CONFIRM:
+            return await _execute_cancel(tenant_id, tenant_slug, conversation_id, state, wa_phone)
+        if intent in (Intent.CANCEL, Intent.HANDOFF):
+            await reset_state(tenant_id, conversation_id)
+            if intent == Intent.HANDOFF:
+                state["state"] = ConvState.HANDED_OFF
+                await save_state(tenant_id, conversation_id, state)
+                return _m("handoff")
+            return _m("booking_cancelled")
+        return _m("cancel_confirm", service=state.get("pending_cancel_service", ""), datetime=state.get("pending_cancel_datetime", ""))
+
+    # === AWAITING_RESCHEDULE_SELECT: eligiendo qué cita reagendar ===
+    if current_state == ConvState.AWAITING_RESCHEDULE_SELECT:
+        return await _handle_reschedule_select(message_text, tenant_id, conversation_id, state)
+
+    # === AWAITING_RESCHEDULE_DATE: ingresando nueva fecha ===
+    if current_state == ConvState.AWAITING_RESCHEDULE_DATE:
+        return await _handle_reschedule_date(message_text, tenant_id, tenant_slug, conversation_id, state)
+
+    # === AWAITING_RESCHEDULE_SLOT: eligiendo nuevo horario ===
+    if current_state == ConvState.AWAITING_RESCHEDULE_SLOT:
+        return await _handle_reschedule_slot(message_text, tenant_id, conversation_id, state)
+
+    # === AWAITING_RESCHEDULE_CONFIRM: confirmando reagendamiento ===
+    if current_state == ConvState.AWAITING_RESCHEDULE_CONFIRM:
+        if intent == Intent.CONFIRM:
+            return await _execute_reschedule(tenant_id, tenant_slug, conversation_id, state, wa_phone)
+        if intent in (Intent.CANCEL, Intent.HANDOFF):
+            await reset_state(tenant_id, conversation_id)
+            if intent == Intent.HANDOFF:
+                state["state"] = ConvState.HANDED_OFF
+                await save_state(tenant_id, conversation_id, state)
+                return _m("handoff")
+            return _m("booking_cancelled")
+        return _m("reschedule_confirm", service=state.get("pending_reschedule_service", ""), datetime=state.get("pending_reschedule_datetime", ""))
+
     # === IDLE: flujos nuevos ===
     if intent == Intent.HANDOFF:
         state["state"] = ConvState.HANDED_OFF
@@ -357,11 +425,17 @@ async def _handle(
             tenant_id, tenant_slug, conversation_id, state, wa_phone
         )
 
-    if intent == Intent.QUERY:
-        return await _handle_query(tenant_id, tenant_slug, message_text, history)
+    if intent == Intent.MY_APPOINTMENTS:
+        return await _handle_my_appointments(tenant_slug, wa_phone, state)
+
+    if intent == Intent.RESCHEDULE:
+        return await _start_reschedule_flow(tenant_id, tenant_slug, conversation_id, state, wa_phone)
 
     if intent == Intent.CANCEL:
-        return _m("cancel_cta")
+        return await _start_cancel_flow(tenant_id, tenant_slug, conversation_id, state, wa_phone)
+
+    if intent == Intent.QUERY:
+        return await _handle_query(tenant_id, tenant_slug, message_text, history)
 
     # UNKNOWN — respuesta general con RAG
     return await _handle_query(tenant_id, tenant_slug, message_text, history)
@@ -380,6 +454,13 @@ async def _start_booking_flow(
         return _m("no_services")
 
     services = profile["services"]
+
+    # Smart booking link: si hay muchas opciones, compartir link
+    professionals = profile.get("professionals", [])
+    booking_url = f"{settings.booking_base_url.rstrip('/')}/book/{tenant_slug}"
+    if len(services) > 4 and len(professionals) > 3:
+        return _m("booking_link", url=booking_url)
+
     lines = [f"{i+1}. {s['name']} — ${s['price']} USD ({s['duration_min']} min)"
              for i, s in enumerate(services)]
 
@@ -603,3 +684,262 @@ async def _handle_query(
     messages.append({"role": "user", "content": message_text})
 
     return await chat(messages, temperature=0.3)
+
+
+# ---------------------------------------------------------------------------
+# Helpers para appointment lifecycle
+# ---------------------------------------------------------------------------
+
+
+def _format_appointment_line(idx: int, appt: dict[str, Any], tz: str) -> str:
+    """Formatea una línea de cita para mostrar al usuario."""
+    service = appt.get("service_name", "Servicio")
+    professional = appt.get("professional_name", "")
+    try:
+        t = _utc_to_local(appt["starts_at"], tz)
+        friendly = _format_friendly_date(t.strftime("%Y-%m-%d"))
+        datetime_str = f"{friendly} a las {t.strftime('%I:%M %p')}"
+    except Exception:
+        datetime_str = appt.get("starts_at", "")
+    return _m("appointment_line", idx=idx, service=service, datetime=datetime_str, professional=professional)
+
+
+async def _fetch_appointments_with_profile(
+    tenant_slug: str, wa_phone: str, state: dict[str, Any]
+) -> tuple[list[dict[str, Any]], str]:
+    """Obtiene citas y timezone del perfil. Retorna (appointments, timezone)."""
+    profile = state.get("profile") or await get_tenant_profile(tenant_slug)
+    tz = (profile or {}).get("timezone", "UTC")
+    appointments = await get_my_appointments(tenant_slug, wa_phone)
+    return appointments, tz
+
+
+async def _handle_my_appointments(
+    tenant_slug: str, wa_phone: str, state: dict[str, Any]
+) -> str:
+    """Muestra las próximas citas del cliente."""
+    appointments, tz = await _fetch_appointments_with_profile(tenant_slug, wa_phone, state)
+    if not appointments:
+        return _m("no_appointments")
+    lines = [_format_appointment_line(i + 1, a, tz) for i, a in enumerate(appointments)]
+    return _m("my_appointments_header") + "\n\n" + "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Flujo de cancelación
+# ---------------------------------------------------------------------------
+
+
+async def _start_cancel_flow(
+    tenant_id: str, tenant_slug: str, conversation_id: str,
+    state: dict[str, Any], wa_phone: str,
+) -> str:
+    """Inicia flujo de cancelación: busca citas y pide selección."""
+    appointments, tz = await _fetch_appointments_with_profile(tenant_slug, wa_phone, state)
+    if not appointments:
+        return _m("no_appointments_cancel")
+
+    state["pending_appointments"] = appointments
+    state["profile_tz"] = tz
+
+    if len(appointments) == 1:
+        # Auto-seleccionar la única cita
+        appt = appointments[0]
+        try:
+            t = _utc_to_local(appt["starts_at"], tz)
+            friendly = _format_friendly_date(t.strftime("%Y-%m-%d"))
+            dt_str = f"{friendly} a las {t.strftime('%I:%M %p')}"
+        except Exception:
+            dt_str = appt.get("starts_at", "")
+        state["pending_cancel_id"] = appt["id"]
+        state["pending_cancel_service"] = appt.get("service_name", "")
+        state["pending_cancel_datetime"] = dt_str
+        state["state"] = ConvState.AWAITING_CANCEL_CONFIRM
+        await save_state(tenant_id, conversation_id, state)
+        return _m("cancel_confirm", service=appt.get("service_name", ""), datetime=dt_str)
+
+    # Múltiples citas: mostrar lista
+    lines = [_format_appointment_line(i + 1, a, tz) for i, a in enumerate(appointments)]
+    state["state"] = ConvState.AWAITING_CANCEL_SELECT
+    await save_state(tenant_id, conversation_id, state)
+    return _m("cancel_which") + "\n\n" + "\n".join(lines)
+
+
+async def _handle_cancel_select(
+    message_text: str, tenant_id: str, conversation_id: str, state: dict[str, Any]
+) -> str:
+    """Usuario selecciona qué cita cancelar."""
+    appointments = state.get("pending_appointments", [])
+    tz = state.get("profile_tz", "UTC")
+    try:
+        idx = int(message_text.strip()) - 1
+        appt = appointments[idx]
+    except (ValueError, IndexError):
+        return _m("invalid_option") + "\n" + "\n".join(
+            _format_appointment_line(i + 1, a, tz) for i, a in enumerate(appointments)
+        )
+
+    try:
+        t = _utc_to_local(appt["starts_at"], tz)
+        friendly = _format_friendly_date(t.strftime("%Y-%m-%d"))
+        dt_str = f"{friendly} a las {t.strftime('%I:%M %p')}"
+    except Exception:
+        dt_str = appt.get("starts_at", "")
+
+    state["pending_cancel_id"] = appt["id"]
+    state["pending_cancel_service"] = appt.get("service_name", "")
+    state["pending_cancel_datetime"] = dt_str
+    state["state"] = ConvState.AWAITING_CANCEL_CONFIRM
+    await save_state(tenant_id, conversation_id, state)
+    return _m("cancel_confirm", service=appt.get("service_name", ""), datetime=dt_str)
+
+
+async def _execute_cancel(
+    tenant_id: str, tenant_slug: str, conversation_id: str,
+    state: dict[str, Any], wa_phone: str,
+) -> str:
+    """Ejecuta la cancelación de la cita seleccionada."""
+    appt_id = state.get("pending_cancel_id")
+    ok = await cancel_appointment(tenant_slug, appt_id, wa_phone)
+    if ok:
+        await reset_state(tenant_id, conversation_id)
+        return _m("cancel_success")
+    return _m("cancel_failed")
+
+
+# ---------------------------------------------------------------------------
+# Flujo de reagendamiento
+# ---------------------------------------------------------------------------
+
+
+async def _start_reschedule_flow(
+    tenant_id: str, tenant_slug: str, conversation_id: str,
+    state: dict[str, Any], wa_phone: str,
+) -> str:
+    """Inicia flujo de reagendamiento: busca citas y pide selección."""
+    appointments, tz = await _fetch_appointments_with_profile(tenant_slug, wa_phone, state)
+    if not appointments:
+        return _m("no_appointments_reschedule")
+
+    profile = state.get("profile") or await get_tenant_profile(tenant_slug)
+    state["pending_appointments"] = appointments
+    state["profile_tz"] = tz
+    state["profile"] = profile
+
+    if len(appointments) == 1:
+        appt = appointments[0]
+        state["pending_reschedule_id"] = appt["id"]
+        state["pending_reschedule_service"] = appt.get("service_name", "")
+        state["pending_reschedule_professional_id"] = appt.get("professional_id", "")
+        state["pending_reschedule_service_id"] = appt.get("service_id", "")
+        state["state"] = ConvState.AWAITING_RESCHEDULE_DATE
+        await save_state(tenant_id, conversation_id, state)
+        return _m("reschedule_date", service=appt.get("service_name", ""))
+
+    lines = [_format_appointment_line(i + 1, a, tz) for i, a in enumerate(appointments)]
+    state["state"] = ConvState.AWAITING_RESCHEDULE_SELECT
+    await save_state(tenant_id, conversation_id, state)
+    return _m("reschedule_which") + "\n\n" + "\n".join(lines)
+
+
+async def _handle_reschedule_select(
+    message_text: str, tenant_id: str, conversation_id: str, state: dict[str, Any]
+) -> str:
+    """Usuario selecciona qué cita reagendar."""
+    appointments = state.get("pending_appointments", [])
+    tz = state.get("profile_tz", "UTC")
+    try:
+        idx = int(message_text.strip()) - 1
+        appt = appointments[idx]
+    except (ValueError, IndexError):
+        return _m("invalid_option") + "\n" + "\n".join(
+            _format_appointment_line(i + 1, a, tz) for i, a in enumerate(appointments)
+        )
+
+    state["pending_reschedule_id"] = appt["id"]
+    state["pending_reschedule_service"] = appt.get("service_name", "")
+    state["pending_reschedule_professional_id"] = appt.get("professional_id", "")
+    state["pending_reschedule_service_id"] = appt.get("service_id", "")
+    state["state"] = ConvState.AWAITING_RESCHEDULE_DATE
+    await save_state(tenant_id, conversation_id, state)
+    return _m("reschedule_date", service=appt.get("service_name", ""))
+
+
+async def _handle_reschedule_date(
+    message_text: str, tenant_id: str, tenant_slug: str,
+    conversation_id: str, state: dict[str, Any]
+) -> str:
+    """Usuario ingresa nueva fecha para reagendamiento."""
+    date_str = _parse_flexible_date(message_text)
+    if not date_str:
+        return _m("invalid_date_format")
+
+    tz = state.get("profile_tz", "UTC")
+    prof_id = state.get("pending_reschedule_professional_id", "")
+    svc_id = state.get("pending_reschedule_service_id", "")
+
+    slots = await get_availability(tenant_slug, prof_id, svc_id, date_str, timezone=tz)
+    if not slots:
+        return _m("no_slots", date=_format_friendly_date(date_str))
+
+    state["pending_reschedule_date"] = date_str
+    state["pending_reschedule_slots"] = slots
+    state["state"] = ConvState.AWAITING_RESCHEDULE_SLOT
+    await save_state(tenant_id, conversation_id, state)
+
+    friendly_date = _format_friendly_date(date_str)
+    lines = []
+    for i, s in enumerate(slots):
+        try:
+            t = _utc_to_local(s["starts_at"], tz)
+            lines.append(f"{i+1}. {t.strftime('%I:%M %p')}")
+        except Exception:
+            lines.append(f"{i+1}. {s['starts_at']}")
+
+    return (
+        _m("available_slots_header", date=friendly_date) + "\n\n"
+        + "\n".join(lines)
+        + "\n\n" + _m("available_slots_footer")
+    )
+
+
+async def _handle_reschedule_slot(
+    message_text: str, tenant_id: str, conversation_id: str, state: dict[str, Any]
+) -> str:
+    """Usuario elige nuevo horario para reagendamiento."""
+    slots = state.get("pending_reschedule_slots", [])
+    tz = state.get("profile_tz", "UTC")
+    try:
+        idx = int(message_text.strip()) - 1
+        slot = slots[idx]
+    except (ValueError, IndexError):
+        return _m("invalid_slot", max=len(slots))
+
+    try:
+        t = _utc_to_local(slot["starts_at"], tz)
+        friendly = _format_friendly_date(t.strftime("%Y-%m-%d"))
+        dt_str = f"{friendly} a las {t.strftime('%I:%M %p')}"
+    except Exception:
+        dt_str = slot.get("starts_at", "")
+
+    state["pending_reschedule_slot"] = slot
+    state["pending_reschedule_datetime"] = dt_str
+    state["state"] = ConvState.AWAITING_RESCHEDULE_CONFIRM
+    await save_state(tenant_id, conversation_id, state)
+    return _m("reschedule_confirm", service=state.get("pending_reschedule_service", ""), datetime=dt_str)
+
+
+async def _execute_reschedule(
+    tenant_id: str, tenant_slug: str, conversation_id: str,
+    state: dict[str, Any], wa_phone: str,
+) -> str:
+    """Ejecuta el reagendamiento de la cita."""
+    appt_id = state.get("pending_reschedule_id")
+    slot = state.get("pending_reschedule_slot", {})
+    dt_str = state.get("pending_reschedule_datetime", "")
+
+    ok = await reschedule_appointment(tenant_slug, appt_id, wa_phone, slot["starts_at"])
+    if ok:
+        await reset_state(tenant_id, conversation_id)
+        return _m("reschedule_success", datetime=dt_str)
+    return _m("reschedule_failed")

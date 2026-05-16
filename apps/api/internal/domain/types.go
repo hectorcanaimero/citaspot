@@ -372,6 +372,29 @@ type PublicProfile struct {
 	Description        string `json:"description,omitempty"`
 }
 
+// PublicAppointment vista simplificada de una cita para endpoints públicos.
+type PublicAppointment struct {
+	ID               uuid.UUID `json:"id"`
+	ServiceID        uuid.UUID `json:"service_id"`
+	ServiceName      string    `json:"service_name"`
+	ProfessionalID   uuid.UUID `json:"professional_id"`
+	ProfessionalName string    `json:"professional_name"`
+	StartsAt         time.Time `json:"starts_at"`
+	EndsAt           time.Time `json:"ends_at"`
+	Status           string    `json:"status"`
+}
+
+// PublicCancelRequest cuerpo del request para cancelar una cita pública.
+type PublicCancelRequest struct {
+	Phone string `json:"phone" validate:"required"`
+}
+
+// PublicRescheduleRequest cuerpo del request para reagendar una cita pública.
+type PublicRescheduleRequest struct {
+	Phone    string    `json:"phone" validate:"required"`
+	StartsAt time.Time `json:"starts_at" validate:"required"`
+}
+
 // ── WhatsApp / Conversaciones ─────────────────────────────────────────────────
 
 // Conversation es una sesión de chat vía WhatsApp con un cliente.

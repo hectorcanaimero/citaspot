@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     openai_api_key: str = ""
     deepseek_api_key: str = ""
+    booking_base_url: str = "https://citaspot.com"
 
     model_config = {"env_file": ".env", "case_sensitive": False}
 

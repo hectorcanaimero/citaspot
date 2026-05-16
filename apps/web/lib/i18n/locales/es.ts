@@ -1086,6 +1086,7 @@ export const es = {
         'appointment.confirmed': 'Cita confirmada',
         'appointment.completed': 'Cita completada',
         'appointment.cancelled': 'Cita cancelada',
+        'appointment.rescheduled': 'Cita reagendada',
         'appointment.no_show': 'Cliente no asistio',
         'customer.created': 'Cliente nuevo',
         'customer.stage_changed': 'Cliente cambio de etapa',

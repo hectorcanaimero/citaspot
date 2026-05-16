@@ -211,7 +211,7 @@ func main() {
 	pubHandler       := handler.NewPublicHandler(publicSvc)
 	waHandler        := handler.NewWhatsAppHandler(waSvc, waClient, cfg.WebhookSecret)
 	knowledgeHandler := handler.NewKnowledgeHandler(knowledgeSvc)
-	customerHandler  := handler.NewCustomerHandler(customerRepo)
+	customerHandler  := handler.NewCustomerHandler(customerRepo, publisher)
 	settingsHandler  := handler.NewSettingsHandler(authRepo)
 	blockHandler     := handler.NewScheduleBlockHandler(scheduleRepo)
 	billingHandler   := handler.NewBillingHandler(authRepo, rdb, cfg.StripeSecretKey, cfg.StripeWebhookSecret, cfg.StripePriceStarter, cfg.StripePricePro)
@@ -420,6 +420,9 @@ func main() {
 	pub.Get("/:slug", pubHandler.GetProfile)
 	pub.Get("/:slug/availability", pubHandler.GetAvailability)
 	pub.Post("/:slug/book", pubHandler.Book)
+	pub.Get("/:slug/my-appointments", pubHandler.ListMyAppointments)
+	pub.Post("/:slug/appointments/:id/cancel", pubHandler.CancelAppointment)
+	pub.Post("/:slug/appointments/:id/reschedule", pubHandler.RescheduleAppointment)
 
 	// ── Rutas protegidas (JWT + tenant + plan check) ───────────────────────────
 	// Rate limit general: 120 req/min por IP en todas las rutas autenticadas

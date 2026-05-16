@@ -165,6 +165,8 @@ func (s *treatmentSvc) emitTreatmentEvent(ctx context.Context, tenantID uuid.UUI
 		eventType = "treatment.accepted"
 	case "completed":
 		eventType = "treatment.completed"
+	case "abandoned":
+		eventType = "treatment.abandoned"
 	default:
 		return
 	}

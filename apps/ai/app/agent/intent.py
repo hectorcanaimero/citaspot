@@ -10,12 +10,14 @@ log = logging.getLogger(__name__)
 
 
 class Intent(str, Enum):
-    BOOKING = "BOOKING"        # reservar cita
-    QUERY = "QUERY"            # pregunta sobre servicios/precios/etc.
-    CONFIRM = "CONFIRM"        # confirmar selección (sí, acepto, ok, etc.)
-    CANCEL = "CANCEL"          # cancelar cita o salir del flujo
-    HANDOFF = "HANDOFF"        # solicitar hablar con humano
-    UNKNOWN = "UNKNOWN"        # no se entiende la intención
+    BOOKING = "BOOKING"                # reservar cita
+    QUERY = "QUERY"                    # pregunta sobre servicios/precios/etc.
+    CONFIRM = "CONFIRM"                # confirmar selección (sí, acepto, ok, etc.)
+    CANCEL = "CANCEL"                  # cancelar cita o salir del flujo
+    MY_APPOINTMENTS = "MY_APPOINTMENTS"  # consultar citas existentes
+    RESCHEDULE = "RESCHEDULE"          # reagendar cita existente
+    HANDOFF = "HANDOFF"                # solicitar hablar con humano
+    UNKNOWN = "UNKNOWN"                # no se entiende la intención
 
 
 _SYSTEM_PROMPT = """Eres un clasificador de intenciones para un asistente de agenda.
@@ -24,10 +26,12 @@ Debes clasificar el mensaje del usuario en una de estas categorías:
 - QUERY: pregunta sobre servicios, precios, horarios, ubicación, equipo, políticas
 - CONFIRM: confirma algo (sí, ok, perfecto, acepto, ese horario, la primera opción, etc.)
 - CANCEL: quiere cancelar una cita existente o cancelar el flujo actual (no, cancelar, no gracias, etc.)
+- MY_APPOINTMENTS: quiere consultar, ver o saber sobre sus citas existentes (¿cuándo es mi cita?, mis citas, qué tengo agendado, tengo algo agendado)
+- RESCHEDULE: quiere cambiar fecha/hora de una cita existente (reagendar, mover, cambiar la cita, cambiar el horario)
 - HANDOFF: quiere hablar con un humano (agente, persona, asesor, etc.)
 - UNKNOWN: no puedes determinar la intención
 
-Responde ÚNICAMENTE con una de las palabras clave: BOOKING, QUERY, CONFIRM, CANCEL, HANDOFF, UNKNOWN.
+Responde ÚNICAMENTE con una de las palabras clave: BOOKING, QUERY, CONFIRM, CANCEL, MY_APPOINTMENTS, RESCHEDULE, HANDOFF, UNKNOWN.
 No incluyas explicaciones ni puntuación."""
 
 

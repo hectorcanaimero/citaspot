@@ -27,12 +27,14 @@ const TRIGGER_EVENTS = [
   'appointment.confirmed',
   'appointment.completed',
   'appointment.cancelled',
+  'appointment.rescheduled',
   'appointment.no_show',
   'customer.created',
   'customer.stage_changed',
   'treatment.proposed',
   'treatment.accepted',
   'treatment.completed',
+  'treatment.abandoned',
 ] as const;
 
 const REFERENCE_FIELDS = ['last_visit_at', 'next_recall_at', 'created_at'] as const;

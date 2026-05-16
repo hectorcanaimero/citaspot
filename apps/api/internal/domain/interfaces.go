@@ -130,6 +130,8 @@ type AvailabilityService interface {
 // CustomerRepository operaciones DB para clientes.
 type CustomerRepository interface {
 	FindOrCreateByPhone(ctx context.Context, tenantID uuid.UUID, name, phone string) (*Customer, error)
+	// FindByPhone busca un cliente por teléfono sin crearlo. Retorna nil, nil si no existe.
+	FindByPhone(ctx context.Context, tenantID uuid.UUID, phone string) (*Customer, error)
 	GetByID(ctx context.Context, tenantID, id uuid.UUID) (*Customer, error)
 	List(ctx context.Context, tenantID uuid.UUID, search string, limit, offset int) ([]*Customer, error)
 	UpdateStage(ctx context.Context, tenantID, customerID uuid.UUID, stageID *uuid.UUID) error
@@ -147,6 +149,8 @@ type AppointmentRepository interface {
 	GetByID(ctx context.Context, tenantID, id uuid.UUID) (*AppointmentWithDetails, error)
 	ListByDate(ctx context.Context, tenantID uuid.UUID, date, timezone string) ([]*AppointmentWithDetails, error)
 	ListFiltered(ctx context.Context, tenantID uuid.UUID, q *AppointmentListQuery) (*PaginatedAppointments, error)
+	// ListUpcomingByCustomer retorna citas futuras (pending/confirmed) de un cliente, ordenadas por starts_at ASC.
+	ListUpcomingByCustomer(ctx context.Context, tenantID, customerID uuid.UUID) ([]*AppointmentWithDetails, error)
 	UpdateStatus(ctx context.Context, tenantID, id uuid.UUID, req *UpdateAppointmentRequest) error
 	CheckConflict(ctx context.Context, tenantID, professionalID uuid.UUID, startsAt, endsAt time.Time, excludeID *uuid.UUID) (bool, error)
 	Reschedule(ctx context.Context, tenantID, id, professionalID uuid.UUID, startsAt, endsAt time.Time) error
@@ -156,6 +160,8 @@ type AppointmentRepository interface {
 type AppointmentSvc interface {
 	List(ctx context.Context, tenantID uuid.UUID, date, timezone string) ([]*AppointmentWithDetails, error)
 	ListFiltered(ctx context.Context, tenantID uuid.UUID, q *AppointmentListQuery) (*PaginatedAppointments, error)
+	// ListUpcomingByCustomer retorna citas futuras (pending/confirmed) de un cliente.
+	ListUpcomingByCustomer(ctx context.Context, tenantID, customerID uuid.UUID) ([]*AppointmentWithDetails, error)
 	GetByID(ctx context.Context, tenantID, id uuid.UUID) (*AppointmentWithDetails, error)
 	Create(ctx context.Context, tenantID uuid.UUID, req *CreateAppointmentRequest) (*Appointment, error)
 	Update(ctx context.Context, tenantID, id uuid.UUID, req *UpdateAppointmentRequest) error
@@ -170,6 +176,12 @@ type PublicSvc interface {
 	GetProfile(ctx context.Context, slug string) (*PublicProfile, error)
 	GetAvailability(ctx context.Context, slug string, query *AvailabilityQuery) ([]*TimeSlot, error)
 	Book(ctx context.Context, slug string, req *CreateAppointmentRequest) (*Appointment, error)
+	// ListMyAppointments retorna citas futuras de un cliente identificado por teléfono.
+	ListMyAppointments(ctx context.Context, slug, phone string) ([]*PublicAppointment, error)
+	// CancelAppointment cancela una cita verificando propiedad por teléfono.
+	CancelAppointment(ctx context.Context, slug string, appointmentID uuid.UUID, phone string) error
+	// RescheduleAppointment reagenda una cita verificando propiedad por teléfono.
+	RescheduleAppointment(ctx context.Context, slug string, appointmentID uuid.UUID, phone string, startsAt time.Time) error
 }
 
 // ── WhatsApp / Conversaciones ─────────────────────────────────────────────────

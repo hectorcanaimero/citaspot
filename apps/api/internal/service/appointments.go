@@ -56,6 +56,11 @@ func (s *appointmentSvc) ListFiltered(ctx context.Context, tenantID uuid.UUID, q
 	return s.apptRepo.ListFiltered(ctx, tenantID, q)
 }
 
+// ListUpcomingByCustomer retorna citas futuras (pending/confirmed) de un cliente.
+func (s *appointmentSvc) ListUpcomingByCustomer(ctx context.Context, tenantID, customerID uuid.UUID) ([]*domain.AppointmentWithDetails, error) {
+	return s.apptRepo.ListUpcomingByCustomer(ctx, tenantID, customerID)
+}
+
 // GetByID retorna una cita por ID con detalles del cliente/profesional/servicio.
 func (s *appointmentSvc) GetByID(ctx context.Context, tenantID, id uuid.UUID) (*domain.AppointmentWithDetails, error) {
 	return s.apptRepo.GetByID(ctx, tenantID, id)

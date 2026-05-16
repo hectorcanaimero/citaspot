@@ -194,6 +194,10 @@ func (m *mockAppointmentSvc) ListFiltered(ctx context.Context, tenantID uuid.UUI
 	return &domain.PaginatedAppointments{Data: []*domain.AppointmentWithDetails{}}, nil
 }
 
+func (m *mockAppointmentSvc) ListUpcomingByCustomer(ctx context.Context, tenantID, customerID uuid.UUID) ([]*domain.AppointmentWithDetails, error) {
+	return []*domain.AppointmentWithDetails{}, nil
+}
+
 func (m *mockAppointmentSvc) Reschedule(ctx context.Context, tenantID, id uuid.UUID, req *domain.RescheduleRequest) error {
 	return nil
 }
@@ -215,6 +219,7 @@ func (m *mockAvailabilitySvc) GetAvailableSlots(ctx context.Context, tenantID uu
 
 type mockCustomerRepo struct {
 	findOrCreateByPhoneFn func(context.Context, uuid.UUID, string, string) (*domain.Customer, error)
+	findByPhoneFn         func(context.Context, uuid.UUID, string) (*domain.Customer, error)
 	getByIDFn             func(context.Context, uuid.UUID, uuid.UUID) (*domain.Customer, error)
 	listFn                func(context.Context, uuid.UUID, string, int, int) ([]*domain.Customer, error)
 }
@@ -224,6 +229,13 @@ func (m *mockCustomerRepo) FindOrCreateByPhone(ctx context.Context, tenantID uui
 		return m.findOrCreateByPhoneFn(ctx, tenantID, name, phone)
 	}
 	return &domain.Customer{ID: uuid.New(), Name: name}, nil
+}
+
+func (m *mockCustomerRepo) FindByPhone(ctx context.Context, tenantID uuid.UUID, phone string) (*domain.Customer, error) {
+	if m.findByPhoneFn != nil {
+		return m.findByPhoneFn(ctx, tenantID, phone)
+	}
+	return nil, nil
 }
 
 func (m *mockCustomerRepo) GetByID(ctx context.Context, tenantID, id uuid.UUID) (*domain.Customer, error) {
@@ -499,9 +511,12 @@ func (m *mockAuthRepo) UpdateUserProfile(ctx context.Context, userID, tenantID u
 // ── PublicSvc ─────────────────────────────────────────────────────────────────
 
 type mockPublicSvc struct {
-	getProfileFn      func(context.Context, string) (*domain.PublicProfile, error)
-	getAvailabilityFn func(context.Context, string, *domain.AvailabilityQuery) ([]*domain.TimeSlot, error)
-	bookFn            func(context.Context, string, *domain.CreateAppointmentRequest) (*domain.Appointment, error)
+	getProfileFn           func(context.Context, string) (*domain.PublicProfile, error)
+	getAvailabilityFn      func(context.Context, string, *domain.AvailabilityQuery) ([]*domain.TimeSlot, error)
+	bookFn                 func(context.Context, string, *domain.CreateAppointmentRequest) (*domain.Appointment, error)
+	listMyAppointmentsFn   func(context.Context, string, string) ([]*domain.PublicAppointment, error)
+	cancelAppointmentFn    func(context.Context, string, uuid.UUID, string) error
+	rescheduleAppointmentFn func(context.Context, string, uuid.UUID, string, time.Time) error
 }
 
 func (m *mockPublicSvc) GetProfile(ctx context.Context, slug string) (*domain.PublicProfile, error) {
@@ -523,6 +538,27 @@ func (m *mockPublicSvc) Book(ctx context.Context, slug string, req *domain.Creat
 		return m.bookFn(ctx, slug, req)
 	}
 	return &domain.Appointment{ID: uuid.New()}, nil
+}
+
+func (m *mockPublicSvc) ListMyAppointments(ctx context.Context, slug, phone string) ([]*domain.PublicAppointment, error) {
+	if m.listMyAppointmentsFn != nil {
+		return m.listMyAppointmentsFn(ctx, slug, phone)
+	}
+	return []*domain.PublicAppointment{}, nil
+}
+
+func (m *mockPublicSvc) CancelAppointment(ctx context.Context, slug string, appointmentID uuid.UUID, phone string) error {
+	if m.cancelAppointmentFn != nil {
+		return m.cancelAppointmentFn(ctx, slug, appointmentID, phone)
+	}
+	return nil
+}
+
+func (m *mockPublicSvc) RescheduleAppointment(ctx context.Context, slug string, appointmentID uuid.UUID, phone string, startsAt time.Time) error {
+	if m.rescheduleAppointmentFn != nil {
+		return m.rescheduleAppointmentFn(ctx, slug, appointmentID, phone, startsAt)
+	}
+	return nil
 }
 
 // ── PipelineStageSvc ─────────────────────────────────────────────────────────

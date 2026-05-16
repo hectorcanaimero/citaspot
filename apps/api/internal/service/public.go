@@ -3,6 +3,9 @@ package service
 import (
 	"context"
 	"fmt"
+	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/citaspot/api/internal/domain"
 )
@@ -105,4 +108,109 @@ func (s *publicSvc) Book(ctx context.Context, slug string, req *domain.CreateApp
 	}
 
 	return s.apptSvc.Create(ctx, tenant.ID, req)
+}
+
+// ListMyAppointments retorna citas futuras de un cliente identificado por teléfono.
+// Si el cliente no existe, retorna lista vacía (no es un error).
+func (s *publicSvc) ListMyAppointments(ctx context.Context, slug, phone string) ([]*domain.PublicAppointment, error) {
+	tenant, err := s.authRepo.FindTenantBySlug(ctx, slug)
+	if err != nil {
+		return nil, err
+	}
+
+	phone = domain.NormalizePhone(phone)
+
+	customer, err := s.customerRepo.FindByPhone(ctx, tenant.ID, phone)
+	if err != nil {
+		return nil, fmt.Errorf("publicSvc.ListMyAppointments: find customer: %w", err)
+	}
+	if customer == nil {
+		return []*domain.PublicAppointment{}, nil
+	}
+
+	appts, err := s.apptSvc.ListUpcomingByCustomer(ctx, tenant.ID, customer.ID)
+	if err != nil {
+		return nil, fmt.Errorf("publicSvc.ListMyAppointments: list: %w", err)
+	}
+
+	result := make([]*domain.PublicAppointment, len(appts))
+	for i, a := range appts {
+		result[i] = &domain.PublicAppointment{
+			ID:               a.ID,
+			ServiceID:        a.ServiceID,
+			ServiceName:      a.ServiceName,
+			ProfessionalID:   a.ProfessionalID,
+			ProfessionalName: a.ProfessionalName,
+			StartsAt:         a.StartsAt,
+			EndsAt:           a.EndsAt,
+			Status:           a.Status,
+		}
+	}
+	return result, nil
+}
+
+// CancelAppointment cancela una cita verificando propiedad por teléfono.
+func (s *publicSvc) CancelAppointment(ctx context.Context, slug string, appointmentID uuid.UUID, phone string) error {
+	tenant, err := s.authRepo.FindTenantBySlug(ctx, slug)
+	if err != nil {
+		return err
+	}
+
+	phone = domain.NormalizePhone(phone)
+
+	// Obtener la cita
+	appt, err := s.apptSvc.GetByID(ctx, tenant.ID, appointmentID)
+	if err != nil {
+		return err
+	}
+
+	// Verificar propiedad por teléfono
+	customer, err := s.customerRepo.FindByPhone(ctx, tenant.ID, phone)
+	if err != nil {
+		return fmt.Errorf("publicSvc.CancelAppointment: find customer: %w", err)
+	}
+	if customer == nil || customer.ID != appt.CustomerID {
+		return domain.ErrForbidden
+	}
+
+	// Verificar estado válido para cancelar
+	if appt.Status != "pending" && appt.Status != "confirmed" {
+		return fmt.Errorf("solo se pueden cancelar citas pendientes o confirmadas: %w", domain.ErrValidation)
+	}
+
+	return s.apptSvc.Cancel(ctx, tenant.ID, appointmentID, "cancelado por el cliente")
+}
+
+// RescheduleAppointment reagenda una cita verificando propiedad por teléfono.
+func (s *publicSvc) RescheduleAppointment(ctx context.Context, slug string, appointmentID uuid.UUID, phone string, startsAt time.Time) error {
+	tenant, err := s.authRepo.FindTenantBySlug(ctx, slug)
+	if err != nil {
+		return err
+	}
+
+	phone = domain.NormalizePhone(phone)
+
+	// Obtener la cita con detalles (necesitamos el service_duration para calcular ends_at)
+	appt, err := s.apptSvc.GetByID(ctx, tenant.ID, appointmentID)
+	if err != nil {
+		return err
+	}
+
+	// Verificar propiedad por teléfono
+	customer, err := s.customerRepo.FindByPhone(ctx, tenant.ID, phone)
+	if err != nil {
+		return fmt.Errorf("publicSvc.RescheduleAppointment: find customer: %w", err)
+	}
+	if customer == nil || customer.ID != appt.CustomerID {
+		return domain.ErrForbidden
+	}
+
+	// Verificar estado válido para reagendar
+	if appt.Status != "pending" && appt.Status != "confirmed" {
+		return fmt.Errorf("solo se pueden reagendar citas pendientes o confirmadas: %w", domain.ErrValidation)
+	}
+
+	return s.apptSvc.Reschedule(ctx, tenant.ID, appointmentID, &domain.RescheduleRequest{
+		StartsAt: startsAt,
+	})
 }

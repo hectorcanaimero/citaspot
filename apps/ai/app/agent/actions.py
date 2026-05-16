@@ -94,6 +94,45 @@ async def book_appointment(
             return None
 
 
+async def get_my_appointments(slug: str, phone: str) -> list[dict[str, Any]]:
+    """Obtiene citas futuras del cliente por teléfono."""
+    params = {"phone": phone}
+    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+        try:
+            r = await client.get(_core_url(f"/public/{slug}/my-appointments"), params=params)
+            r.raise_for_status()
+            return r.json().get("data", [])
+        except Exception as e:
+            log.error("actions.get_my_appointments: %s", e)
+            return []
+
+
+async def cancel_appointment(slug: str, appointment_id: str, phone: str) -> bool:
+    """Cancela una cita existente. Retorna True si éxito."""
+    body = {"phone": phone}
+    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+        try:
+            r = await client.post(_core_url(f"/public/{slug}/appointments/{appointment_id}/cancel"), json=body)
+            r.raise_for_status()
+            return True
+        except Exception as e:
+            log.error("actions.cancel_appointment: %s", e)
+            return False
+
+
+async def reschedule_appointment(slug: str, appointment_id: str, phone: str, starts_at: str) -> bool:
+    """Reagenda una cita existente. Retorna True si éxito."""
+    body = {"phone": phone, "starts_at": starts_at}
+    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+        try:
+            r = await client.post(_core_url(f"/public/{slug}/appointments/{appointment_id}/reschedule"), json=body)
+            r.raise_for_status()
+            return True
+        except Exception as e:
+            log.error("actions.reschedule_appointment: %s", e)
+            return False
+
+
 async def rag_query(tenant_id: str, query: str, min_similarity: float | None = None) -> str:
     """
     Busca en la base de conocimiento del tenant y retorna texto de contexto

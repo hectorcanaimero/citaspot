@@ -65,7 +65,7 @@ func TestCustomerHandler_List(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			h := handler.NewCustomerHandler(&mockCustomerRepo{listFn: tc.mockFn})
+			h := handler.NewCustomerHandler(&mockCustomerRepo{listFn: tc.mockFn}, nil)
 			app := newProtectedApp()
 			app.Get("/customers", h.List)
 

@@ -87,6 +87,33 @@ func (r *customerRepository) FindOrCreateByPhone(ctx context.Context, tenantID u
 	return c, nil
 }
 
+// FindByPhone busca un cliente por teléfono sin crearlo. Retorna nil, nil si no existe.
+func (r *customerRepository) FindByPhone(ctx context.Context, tenantID uuid.UUID, phone string) (*domain.Customer, error) {
+	var c *domain.Customer
+	err := withTenant(ctx, r.db, tenantID, func(tx pgx.Tx) error {
+		c = &domain.Customer{}
+		err := scanCustomer(tx.QueryRow(ctx, `
+			SELECT id, tenant_id, name, phone, email, notes, tags, wa_opt_in, total_visits,
+				       stage_id, last_visit_at, next_recall_at, lifetime_value, acquisition_source,
+				       created_at
+			FROM customers
+			WHERE tenant_id = $1 AND phone = $2
+		`, tenantID, phone), c)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				c = nil
+				return nil
+			}
+			return fmt.Errorf("customerRepository.FindByPhone: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return c, nil
+}
+
 // GetByID retorna un cliente por ID.
 func (r *customerRepository) GetByID(ctx context.Context, tenantID, id uuid.UUID) (*domain.Customer, error) {
 	var c *domain.Customer

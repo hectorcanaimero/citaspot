@@ -1091,6 +1091,7 @@ export const pt = {
         'appointment.confirmed': 'Consulta confirmada',
         'appointment.completed': 'Consulta concluida',
         'appointment.cancelled': 'Consulta cancelada',
+        'appointment.rescheduled': 'Consulta reagendada',
         'appointment.no_show': 'Cliente nao compareceu',
         'customer.created': 'Novo cliente',
         'customer.stage_changed': 'Cliente mudou de etapa',

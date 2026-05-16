@@ -1091,6 +1091,7 @@ export const en = {
         'appointment.confirmed': 'Appointment confirmed',
         'appointment.completed': 'Appointment completed',
         'appointment.cancelled': 'Appointment cancelled',
+        'appointment.rescheduled': 'Appointment rescheduled',
         'appointment.no_show': 'Customer no-show',
         'customer.created': 'New customer',
         'customer.stage_changed': 'Customer stage changed',
