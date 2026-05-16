@@ -192,6 +192,28 @@ func (s *whatsAppSvc) ProcessInbound(ctx context.Context, instanceName string, p
 		})
 	}
 
+	// Publish message.inbound to rules engine
+	if customer != nil {
+		preview := content
+		if len(preview) > 50 {
+			preview = preview[:50]
+		}
+		s.publishRuleEvent(ctx, domain.RuleEvent{
+			TenantID:   tenant.ID,
+			EventType:  "message.inbound",
+			CustomerID: customer.ID,
+			EntityID:   conv.ID,
+			EntityType: "conversation",
+			Payload: map[string]any{
+				"channel":         "whatsapp",
+				"customer_id":     customer.ID.String(),
+				"customer_name":   customer.Name,
+				"message_preview": preview,
+			},
+			Timestamp: time.Now(),
+		})
+	}
+
 	// 7. Obtener historial reciente para contexto del AI Service (últimos 10)
 	recentMsgs, err := s.convRepo.GetRecentMessages(ctx, tenant.ID, conv.ID, 10)
 	if err != nil {
