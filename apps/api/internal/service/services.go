@@ -2,7 +2,10 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"log/slog"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -10,12 +13,13 @@ import (
 )
 
 type serviceSvc struct {
-	repo domain.ServiceRepository
+	repo      domain.ServiceRepository
+	publisher domain.MessagePublisher
 }
 
 // NewServiceSvc crea el servicio de servicios del negocio.
-func NewServiceSvc(repo domain.ServiceRepository) domain.ServiceSvc {
-	return &serviceSvc{repo: repo}
+func NewServiceSvc(repo domain.ServiceRepository, publisher domain.MessagePublisher) domain.ServiceSvc {
+	return &serviceSvc{repo: repo, publisher: publisher}
 }
 
 // List retorna todos los servicios del tenant.
@@ -50,6 +54,22 @@ func (s *serviceSvc) Create(ctx context.Context, tenantID uuid.UUID, input *doma
 	if err := s.repo.Create(ctx, svc); err != nil {
 		return nil, fmt.Errorf("serviceSvc.Create: %w", err)
 	}
+
+	s.publishRuleEvent(ctx, domain.RuleEvent{
+		TenantID:   tenantID,
+		EventType:  "service.created",
+		CustomerID: uuid.Nil,
+		EntityID:   svc.ID,
+		EntityType: "service",
+		Payload: map[string]any{
+			"service_id":       svc.ID.String(),
+			"name":             svc.Name,
+			"price":            svc.Price,
+			"duration_minutes": svc.DurationMin,
+		},
+		Timestamp: time.Now(),
+	})
+
 	return svc, nil
 }
 
@@ -99,5 +119,36 @@ func (s *serviceSvc) Update(ctx context.Context, tenantID, id uuid.UUID, input *
 	if err := s.repo.Update(ctx, svc); err != nil {
 		return nil, fmt.Errorf("serviceSvc.Update: %w", err)
 	}
+
+	s.publishRuleEvent(ctx, domain.RuleEvent{
+		TenantID:   tenantID,
+		EventType:  "service.updated",
+		CustomerID: uuid.Nil,
+		EntityID:   svc.ID,
+		EntityType: "service",
+		Payload: map[string]any{
+			"service_id":       svc.ID.String(),
+			"name":             svc.Name,
+			"price":            svc.Price,
+			"duration_minutes": svc.DurationMin,
+		},
+		Timestamp: time.Now(),
+	})
+
 	return svc, nil
+}
+
+// publishRuleEvent publica eventos de reglas a la cola rules.events.
+func (s *serviceSvc) publishRuleEvent(ctx context.Context, event domain.RuleEvent) {
+	if s.publisher == nil {
+		return
+	}
+	body, err := json.Marshal(event)
+	if err != nil {
+		slog.Warn("serviceSvc.publishRuleEvent: marshal error", "error", err)
+		return
+	}
+	if err := s.publisher.Publish(ctx, "rules.events", body); err != nil {
+		slog.Warn("serviceSvc.publishRuleEvent: publish error", "event", event.EventType, "error", err)
+	}
 }
