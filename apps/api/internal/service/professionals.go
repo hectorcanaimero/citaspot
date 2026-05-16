@@ -2,7 +2,10 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"log/slog"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -12,13 +15,15 @@ import (
 type professionalService struct {
 	profRepo     domain.ProfessionalRepository
 	scheduleRepo domain.ScheduleRepository
+	publisher    domain.MessagePublisher
 }
 
 // NewProfessionalService crea el servicio de profesionales.
-func NewProfessionalService(profRepo domain.ProfessionalRepository, scheduleRepo domain.ScheduleRepository) domain.ProfessionalSvc {
+func NewProfessionalService(profRepo domain.ProfessionalRepository, scheduleRepo domain.ScheduleRepository, publisher domain.MessagePublisher) domain.ProfessionalSvc {
 	return &professionalService{
 		profRepo:     profRepo,
 		scheduleRepo: scheduleRepo,
+		publisher:    publisher,
 	}
 }
 
@@ -52,6 +57,21 @@ func (s *professionalService) Create(ctx context.Context, tenantID uuid.UUID, in
 	if err := s.profRepo.Create(ctx, p); err != nil {
 		return nil, fmt.Errorf("professionalService.Create: %w", err)
 	}
+
+	s.publishRuleEvent(ctx, domain.RuleEvent{
+		TenantID:   tenantID,
+		EventType:  "professional.created",
+		CustomerID: uuid.Nil,
+		EntityID:   p.ID,
+		EntityType: "professional",
+		Payload: map[string]any{
+			"professional_id": p.ID.String(),
+			"name":            p.Name,
+			"specialty":       p.Specialty,
+		},
+		Timestamp: time.Now(),
+	})
+
 	return p, nil
 }
 
@@ -66,6 +86,8 @@ func (s *professionalService) Update(ctx context.Context, tenantID, id uuid.UUID
 	if err != nil {
 		return nil, err
 	}
+
+	wasArchived := p.IsArchived
 
 	if input.Name != "" {
 		p.Name = input.Name
@@ -92,6 +114,22 @@ func (s *professionalService) Update(ctx context.Context, tenantID, id uuid.UUID
 	if err := s.profRepo.Update(ctx, p); err != nil {
 		return nil, fmt.Errorf("professionalService.Update: %w", err)
 	}
+
+	if !wasArchived && p.IsArchived {
+		s.publishRuleEvent(ctx, domain.RuleEvent{
+			TenantID:   tenantID,
+			EventType:  "professional.archived",
+			CustomerID: uuid.Nil,
+			EntityID:   p.ID,
+			EntityType: "professional",
+			Payload: map[string]any{
+				"professional_id": p.ID.String(),
+				"name":            p.Name,
+			},
+			Timestamp: time.Now(),
+		})
+	}
+
 	return p, nil
 }
 
@@ -146,4 +184,19 @@ func (s *professionalService) SetSchedule(ctx context.Context, tenantID, profess
 	}
 
 	return s.scheduleRepo.UpsertSchedules(ctx, tenantID, professionalID, schedules)
+}
+
+// publishRuleEvent publica un evento de regla a RabbitMQ.
+func (s *professionalService) publishRuleEvent(ctx context.Context, event domain.RuleEvent) {
+	if s.publisher == nil {
+		return
+	}
+	body, err := json.Marshal(event)
+	if err != nil {
+		slog.Warn("professionalService.publishRuleEvent: marshal error", "error", err)
+		return
+	}
+	if err := s.publisher.Publish(ctx, "rules.events", body); err != nil {
+		slog.Warn("professionalService.publishRuleEvent: publish error", "event", event.EventType, "error", err)
+	}
 }
