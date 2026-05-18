@@ -96,6 +96,7 @@ export interface TenantDTO {
   name: string;
   business_type: string;
   timezone: string;
+  city?: string;
   country?: string;
   plan: string;
   plan_status: string;
@@ -129,6 +130,7 @@ export interface Professional {
   id: string;
   name: string;
   specialty?: string;
+  phone?: string;
   color: string;
   is_active: boolean;
   is_archived: boolean;
@@ -319,6 +321,7 @@ export interface ProfessionalInput {
   name: string;
   specialty?: string;
   bio?: string;
+  phone?: string;
   color?: string;
   is_active?: boolean;
   is_archived?: boolean;

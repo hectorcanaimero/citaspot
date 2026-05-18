@@ -50,6 +50,7 @@ func (s *professionalService) Create(ctx context.Context, tenantID uuid.UUID, in
 		Specialty: input.Specialty,
 		Bio:       input.Bio,
 		AvatarURL: input.AvatarURL,
+		Phone:     input.Phone,
 		Color:     color,
 		IsActive:  isActive,
 	}
@@ -100,6 +101,9 @@ func (s *professionalService) Update(ctx context.Context, tenantID, id uuid.UUID
 	}
 	if input.AvatarURL != "" {
 		p.AvatarURL = input.AvatarURL
+	}
+	if input.Phone != "" {
+		p.Phone = input.Phone
 	}
 	if input.Color != "" {
 		p.Color = input.Color

@@ -9,8 +9,9 @@ import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge }   from '@/components/ui/badge';
 import { Spinner } from '@/components/ui/spinner';
 import { ToggleSwitch } from '@/components/ui/toggle-switch';
-import { professionals as profsApi, services as servicesApi, Professional, Service, Schedule, ProfessionalInput, APIError } from '@/lib/api';
+import { professionals as profsApi, services as servicesApi, auth, Professional, Service, Schedule, ProfessionalInput, APIError } from '@/lib/api';
 import { useTranslations } from '@/lib/i18n';
+import { PhoneInput, validatePhone, CountryCode, PHONE_COUNTRIES } from '@/components/ui/PhoneInput';
 
 // Días de la semana — solo el dow, las etiquetas vienen de t.team.days
 const DAYS_DOW = [1, 2, 3, 4, 5, 6, 0];
@@ -200,12 +201,14 @@ function ServicesEditor({ profId }: { profId: string }) {
 
 // ── Componente de profesional ─────────────────────────────────────────────────
 
-function ProfCard({ prof, onUpdated }: { prof: Professional; onUpdated: (p: Professional) => void; }) {
+function ProfCard({ prof, onUpdated, tenantCountry }: { prof: Professional; onUpdated: (p: Professional) => void; tenantCountry?: string }) {
   const t = useTranslations();
   const [expanded,   setExpanded]  = useState(false);
   const [editing,    setEditing]   = useState(false);
   const [editName,   setEditName]  = useState(prof.name);
   const [editSpec,   setEditSpec]  = useState(prof.specialty ?? '');
+  const [editPhone,  setEditPhone] = useState(prof.phone ?? '');
+  const [phoneError, setPhoneError] = useState('');
   const [saving,     setSaving]    = useState(false);
   const [archiving,  setArchiving] = useState(false);
   const [schedules,  setSchedules] = useState<DayMap | null>(null);
@@ -230,9 +233,27 @@ function ProfCard({ prof, onUpdated }: { prof: Professional; onUpdated: (p: Prof
   }
 
   async function saveEdit() {
+    // Teléfono es opcional — solo validar si tiene contenido.
+    if (editPhone) {
+      let detected: CountryCode = 'DO';
+      for (const code of Object.keys(PHONE_COUNTRIES) as CountryCode[]) {
+        if (editPhone.startsWith(PHONE_COUNTRIES[code].prefix)) { detected = code; break; }
+      }
+      const local = editPhone.slice(PHONE_COUNTRIES[detected].prefix.length);
+      if (!validatePhone(detected, local)) {
+        setPhoneError(t.booking.phoneInvalid);
+        return;
+      }
+    }
+    setPhoneError('');
+
     setSaving(true);
     try {
-      const updated = await profsApi.update(prof.id, { name: editName.trim(), specialty: editSpec.trim() });
+      const updated = await profsApi.update(prof.id, {
+        name: editName.trim(),
+        specialty: editSpec.trim(),
+        phone: editPhone || undefined,
+      });
       onUpdated(updated);
       setEditing(false);
     } catch { /* ignorar */ }
@@ -277,11 +298,18 @@ function ProfCard({ prof, onUpdated }: { prof: Professional; onUpdated: (p: Prof
               onChange={(e) => setEditSpec(e.target.value)}
               className="h-8 text-sm"
             />
+            <PhoneInput
+              defaultCountry={tenantCountry}
+              value={editPhone}
+              onChange={(full) => { setEditPhone(full); setPhoneError(''); }}
+              error={phoneError}
+            />
           </div>
         ) : (
           <div className="flex-1">
             <p className="text-sm font-medium text-neutral-900">{prof.name}</p>
             {prof.specialty && <p className="text-xs text-neutral-500">{prof.specialty}</p>}
+            {prof.phone && <p className="text-xs text-neutral-500">+{prof.phone}</p>}
           </div>
         )}
 
@@ -360,10 +388,12 @@ function ProfCard({ prof, onUpdated }: { prof: Professional; onUpdated: (p: Prof
 
 // ── Formulario de nuevo profesional ──────────────────────────────────────────
 
-function NewProfForm({ onCreated }: { onCreated: (p: Professional) => void }) {
+function NewProfForm({ onCreated, tenantCountry }: { onCreated: (p: Professional) => void; tenantCountry?: string }) {
   const t = useTranslations();
   const [name,   setName]   = useState('');
   const [spec,   setSpec]   = useState('');
+  const [phone,  setPhone]  = useState('');
+  const [phoneError, setPhoneError] = useState('');
   const [color,  setColor]  = useState(COLORS[0]);
   const [saving, setSaving] = useState(false);
   const [error,  setError]  = useState('');
@@ -371,13 +401,34 @@ function NewProfForm({ onCreated }: { onCreated: (p: Professional) => void }) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
+
+    // Teléfono es opcional — solo validar si el usuario ingresó algo.
+    if (phone) {
+      let detected: CountryCode = 'DO';
+      for (const code of Object.keys(PHONE_COUNTRIES) as CountryCode[]) {
+        if (phone.startsWith(PHONE_COUNTRIES[code].prefix)) { detected = code; break; }
+      }
+      const local = phone.slice(PHONE_COUNTRIES[detected].prefix.length);
+      if (!validatePhone(detected, local)) {
+        setPhoneError(t.booking.phoneInvalid);
+        return;
+      }
+    }
+    setPhoneError('');
+
     setSaving(true);
     setError('');
     try {
-      const input: ProfessionalInput = { name: name.trim(), specialty: spec.trim(), color, is_active: true };
+      const input: ProfessionalInput = {
+        name: name.trim(),
+        specialty: spec.trim(),
+        phone: phone || undefined,
+        color,
+        is_active: true,
+      };
       const prof = await profsApi.create(input);
       onCreated(prof);
-      setName(''); setSpec(''); setColor(COLORS[0]);
+      setName(''); setSpec(''); setPhone(''); setColor(COLORS[0]);
     } catch (err) {
       setError(err instanceof APIError ? err.message : t.team.addProfError);
     } finally {
@@ -391,6 +442,13 @@ function NewProfForm({ onCreated }: { onCreated: (p: Professional) => void }) {
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
         <Input label={t.team.nameLabel} placeholder={t.team.namePlaceholder} value={name} onChange={(e) => setName(e.target.value)} required />
         <Input label={t.team.specialtyLabel} placeholder={t.team.specialtyPlaceholder} value={spec} onChange={(e) => setSpec(e.target.value)} />
+        <PhoneInput
+          label={t.team.phoneLabel}
+          defaultCountry={tenantCountry}
+          value={phone}
+          onChange={(full) => { setPhone(full); setPhoneError(''); }}
+          error={phoneError}
+        />
         <div className="flex flex-col gap-1.5">
           <span className="text-sm font-medium text-neutral-700">{t.team.colorLabel}</span>
           <div className="flex gap-2">
@@ -420,6 +478,7 @@ export default function TeamPage() {
   const [loading,      setLoading]      = useState(true);
   const [showForm,     setShowForm]     = useState(false);
   const [showArchived, setShowArchived] = useState(false);
+  const [tenantCountry, setTenantCountry] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     setLoading(true);
@@ -428,6 +487,10 @@ export default function TeamPage() {
       .catch(() => { /* ignorar */ })
       .finally(() => setLoading(false));
   }, [showArchived]);
+
+  useEffect(() => {
+    auth.me().then(({ tenant }) => setTenantCountry(tenant.country)).catch(() => {});
+  }, []);
 
   function handleCreated(p: Professional) {
     setProfs((prev) => [p, ...prev]);
@@ -463,7 +526,7 @@ export default function TeamPage() {
       </div>
 
       <div className="flex max-w-2xl flex-col gap-4">
-        {showForm && <NewProfForm onCreated={handleCreated} />}
+        {showForm && <NewProfForm onCreated={handleCreated} tenantCountry={tenantCountry} />}
 
         {loading ? (
           <div className="flex justify-center py-16"><Spinner size="lg" /></div>
@@ -478,7 +541,7 @@ export default function TeamPage() {
           </div>
         ) : (
           profs.map((p) => (
-            <ProfCard key={p.id} prof={p} onUpdated={handleUpdated} />
+            <ProfCard key={p.id} prof={p} onUpdated={handleUpdated} tenantCountry={tenantCountry} />
           ))
         )}
       </div>

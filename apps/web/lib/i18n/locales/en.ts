@@ -183,6 +183,7 @@ export const en = {
     namePlaceholder: 'Jane Smith',
     specialtyLabel: 'Specialty (optional)',
     specialtyPlaceholder: 'Stylist',
+    phoneLabel: 'Phone (optional)',
     colorLabel: 'Color',
     weeklySchedule: 'Weekly schedule',
     saveSchedule: 'Save schedule',

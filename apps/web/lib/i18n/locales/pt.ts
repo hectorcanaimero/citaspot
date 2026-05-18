@@ -183,6 +183,7 @@ export const pt = {
     namePlaceholder: 'Maria Silva',
     specialtyLabel: 'Especialidade (opcional)',
     specialtyPlaceholder: 'Cabeleireiro(a)',
+    phoneLabel: 'Telefone (opcional)',
     colorLabel: 'Cor',
     weeklySchedule: 'Horários semanais',
     saveSchedule: 'Salvar horário',

@@ -178,6 +178,7 @@ export const es = {
     namePlaceholder: 'María García',
     specialtyLabel: 'Especialidad (opcional)',
     specialtyPlaceholder: 'Estilista',
+    phoneLabel: 'Teléfono (opcional)',
     colorLabel: 'Color',
     weeklySchedule: 'Horarios semanales',
     saveSchedule: 'Guardar horario',
