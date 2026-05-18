@@ -628,6 +628,7 @@ export const pt = {
     countries: {
       DO: 'República Dominicana',
       VE: 'Venezuela',
+      BR: 'Brasil',
       MX: 'México',
       CO: 'Colômbia',
       AR: 'Argentina',
@@ -1231,8 +1232,8 @@ export const pt = {
     selectService: 'Selecionar servico',
     selectDate: 'Data',
     selectTime: 'Selecionar horario',
-    customerName: 'Nome do cliente (opcional)',
-    customerPhone: 'Telefone (opcional)',
+    customerName: 'Nome do cliente',
+    customerPhone: 'Telefone',
     notes: 'Notas (opcional)',
     noSlots: 'Nenhum horario disponivel',
     create: 'Criar consulta',

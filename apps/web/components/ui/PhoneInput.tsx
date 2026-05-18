@@ -7,7 +7,7 @@ import { ChevronDown } from 'lucide-react';
 
 // ── Country Config ────────────────────────────────────────────────────────────
 
-export type CountryCode = 'VE' | 'BR' | 'DO';
+export type CountryCode = 'DO' | 'VE' | 'BR' | 'MX' | 'CO' | 'AR' | 'PE';
 
 interface CountryConfig {
   prefix: string;
@@ -17,9 +17,13 @@ interface CountryConfig {
 }
 
 export const PHONE_COUNTRIES: Record<CountryCode, CountryConfig> = {
-  VE: { prefix: '58', flag: '\u{1F1FB}\u{1F1EA}', name: 'Venezuela', digits: [10] },
-  BR: { prefix: '55', flag: '\u{1F1E7}\u{1F1F7}', name: 'Brasil', digits: [10, 11] },
   DO: { prefix: '1',  flag: '\u{1F1E9}\u{1F1F4}', name: 'Rep. Dominicana', digits: [10] },
+  VE: { prefix: '58', flag: '\u{1F1FB}\u{1F1EA}', name: 'Venezuela',       digits: [10] },
+  BR: { prefix: '55', flag: '\u{1F1E7}\u{1F1F7}', name: 'Brasil',          digits: [10, 11] },
+  MX: { prefix: '52', flag: '\u{1F1F2}\u{1F1FD}', name: 'México',          digits: [10] },
+  CO: { prefix: '57', flag: '\u{1F1E8}\u{1F1F4}', name: 'Colombia',        digits: [10] },
+  AR: { prefix: '54', flag: '\u{1F1E6}\u{1F1F7}', name: 'Argentina',       digits: [10, 11] },
+  PE: { prefix: '51', flag: '\u{1F1F5}\u{1F1EA}', name: 'Perú',            digits: [9] },
 };
 
 const COUNTRY_CODES = Object.keys(PHONE_COUNTRIES) as CountryCode[];
@@ -37,6 +41,14 @@ export function normalizePhone(country: CountryCode, localNumber: string): strin
   const config = PHONE_COUNTRIES[country];
   const digitsOnly = localNumber.replace(/\D/g, '');
   return `${config.prefix}${digitsOnly}`;
+}
+
+// Venezuela escribe 0424... pero el formato internacional es +58 424...
+function stripTrunkZero(country: CountryCode, digits: string): string {
+  if (country === 'VE' && digits.startsWith('0')) {
+    return digits.slice(1);
+  }
+  return digits;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -107,7 +119,8 @@ export const PhoneInput = forwardRef<HTMLInputElement, PhoneInputProps>(
     }, [dropdownOpen]);
 
     function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
-      const digits = e.target.value.replace(/\D/g, '').slice(0, maxDigits);
+      const raw = e.target.value.replace(/\D/g, '');
+      const digits = stripTrunkZero(country, raw).slice(0, maxDigits);
       setLocalNumber(digits);
       onChange?.(normalizePhone(country, digits));
     }
@@ -115,7 +128,9 @@ export const PhoneInput = forwardRef<HTMLInputElement, PhoneInputProps>(
     function handleCountrySelect(code: CountryCode) {
       setCountry(code);
       setDropdownOpen(false);
-      onChange?.(normalizePhone(code, localNumber));
+      const digits = stripTrunkZero(code, localNumber);
+      if (digits !== localNumber) setLocalNumber(digits);
+      onChange?.(normalizePhone(code, digits));
     }
 
     return (

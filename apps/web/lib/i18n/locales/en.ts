@@ -628,6 +628,7 @@ export const en = {
     countries: {
       DO: 'Dominican Republic',
       VE: 'Venezuela',
+      BR: 'Brazil',
       MX: 'Mexico',
       CO: 'Colombia',
       AR: 'Argentina',
@@ -1231,8 +1232,8 @@ export const en = {
     selectService: 'Select service',
     selectDate: 'Date',
     selectTime: 'Select time slot',
-    customerName: 'Client name (optional)',
-    customerPhone: 'Phone (optional)',
+    customerName: 'Client name',
+    customerPhone: 'Phone',
     notes: 'Notes (optional)',
     noSlots: 'No available time slots',
     create: 'Create appointment',

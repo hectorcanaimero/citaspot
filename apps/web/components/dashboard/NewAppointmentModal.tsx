@@ -10,6 +10,7 @@ import {
   appointments,
   professionals,
   services,
+  auth,
   Professional,
   Service,
   TimeSlot,
@@ -17,6 +18,12 @@ import {
 } from '@/lib/api';
 import { useTranslations, useDateLocale } from '@/lib/i18n';
 import { Spinner } from '@/components/ui/spinner';
+import {
+  PhoneInput,
+  validatePhone,
+  CountryCode,
+  PHONE_COUNTRIES,
+} from '@/components/ui/PhoneInput';
 
 interface NewAppointmentModalProps {
   open: boolean;
@@ -52,10 +59,14 @@ export default function NewAppointmentModal({
   const [slots, setSlots] = useState<TimeSlot[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
 
-  // Datos opcionales del cliente
+  // Datos del cliente (nombre y teléfono obligatorios)
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
+  const [phoneError, setPhoneError] = useState('');
   const [notes, setNotes] = useState('');
+
+  // País del tenant para preseleccionar prefijo en PhoneInput
+  const [tenantCountry, setTenantCountry] = useState<string | undefined>(undefined);
 
   // Estado de submit
   const [submitting, setSubmitting] = useState(false);
@@ -73,6 +84,8 @@ export default function NewAppointmentModal({
       })
       .catch(() => {})
       .finally(() => setLoadingData(false));
+    // Resolver el país del tenant para el PhoneInput (no bloquea la UI)
+    auth.me().then(({ tenant }) => setTenantCountry(tenant.country)).catch(() => {});
   }, [open]);
 
   // Reset al cerrar
@@ -86,6 +99,7 @@ export default function NewAppointmentModal({
       setSlots([]);
       setCustomerName('');
       setCustomerPhone('');
+      setPhoneError('');
       setNotes('');
       setError('');
       setSuccess(false);
@@ -123,6 +137,22 @@ export default function NewAppointmentModal({
   // Submit
   async function handleSubmit() {
     if (!selectedProf || !selectedSvc || !selectedSlot) return;
+
+    // Validar teléfono: detectar país por prefijo y verificar cantidad de dígitos
+    let detectedCountry: CountryCode = 'DO';
+    for (const code of Object.keys(PHONE_COUNTRIES) as CountryCode[]) {
+      if (customerPhone.startsWith(PHONE_COUNTRIES[code].prefix)) {
+        detectedCountry = code;
+        break;
+      }
+    }
+    const localDigits = customerPhone.slice(PHONE_COUNTRIES[detectedCountry].prefix.length);
+    if (!validatePhone(detectedCountry, localDigits)) {
+      setPhoneError(t.booking.phoneInvalid);
+      return;
+    }
+    setPhoneError('');
+
     setSubmitting(true);
     setError('');
     try {
@@ -130,8 +160,8 @@ export default function NewAppointmentModal({
         professional_id: selectedProf.id,
         service_id: selectedSvc.id,
         starts_at: selectedSlot.starts_at,
-        customer_name: customerName || undefined,
-        customer_phone: customerPhone || undefined,
+        customer_name: customerName.trim(),
+        customer_phone: customerPhone,
         notes: notes || undefined,
         source: 'dashboard',
       });
@@ -390,19 +420,22 @@ export default function NewAppointmentModal({
                       type="text"
                       value={customerName}
                       onChange={(e) => setCustomerName(e.target.value)}
+                      required
                       className="w-full rounded-lg border border-neutral-300 px-3 py-2.5 text-sm text-neutral-900 focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100"
                     />
                   </div>
 
                   <div>
-                    <label className="mb-1 block text-xs font-medium text-neutral-600">
-                      {t.newAppointmentModal.customerPhone}
-                    </label>
-                    <input
-                      type="tel"
+                    <PhoneInput
+                      label={t.newAppointmentModal.customerPhone}
+                      defaultCountry={tenantCountry}
                       value={customerPhone}
-                      onChange={(e) => setCustomerPhone(e.target.value)}
-                      className="w-full rounded-lg border border-neutral-300 px-3 py-2.5 text-sm text-neutral-900 focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100"
+                      onChange={(fullPhone) => {
+                        setCustomerPhone(fullPhone);
+                        setPhoneError('');
+                      }}
+                      error={phoneError}
+                      required
                     />
                   </div>
 
@@ -466,7 +499,7 @@ export default function NewAppointmentModal({
             {step === 'details' && (
               <button
                 onClick={handleSubmit}
-                disabled={submitting}
+                disabled={submitting || !customerName.trim() || !customerPhone}
                 className="flex items-center gap-2 rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-500 disabled:opacity-50"
               >
                 {submitting && <Spinner size="sm" className="text-white" />}

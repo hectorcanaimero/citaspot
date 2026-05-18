@@ -96,6 +96,7 @@ export interface TenantDTO {
   name: string;
   business_type: string;
   timezone: string;
+  country?: string;
   plan: string;
   plan_status: string;
   onboarding_done: boolean;

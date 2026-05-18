@@ -623,6 +623,7 @@ export const es = {
     countries: {
       DO: 'República Dominicana',
       VE: 'Venezuela',
+      BR: 'Brasil',
       MX: 'México',
       CO: 'Colombia',
       AR: 'Argentina',
@@ -1226,8 +1227,8 @@ export const es = {
     selectService: 'Seleccionar servicio',
     selectDate: 'Fecha',
     selectTime: 'Seleccionar horario',
-    customerName: 'Nombre del cliente (opcional)',
-    customerPhone: 'Telefono (opcional)',
+    customerName: 'Nombre del cliente',
+    customerPhone: 'Teléfono',
     notes: 'Notas (opcional)',
     noSlots: 'No hay horarios disponibles',
     create: 'Crear cita',
