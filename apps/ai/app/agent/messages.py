@@ -88,6 +88,16 @@ MESSAGES: dict[str, dict[str, str]] = {
         "no_appointments_reschedule": "No encontré citas pendientes para reagendar.",
         # Smart booking link
         "booking_link": "Tenemos varias opciones disponibles. Te comparto este link para que elijas cómodamente:\n{url}",
+        # Saludo determinista de primer turno
+        "first_turn_greeting": (
+            "¡Hola! Soy el asistente de *{business_name}*. 👋\n\n"
+            "Estos son nuestros servicios:\n{services_list}\n\n"
+            "Decime el servicio que querés agendar, o si preferís te mando el link para reservar online."
+        ),
+        # Oferta suave del link (cuando el flujo se estanca o fallan las tools)
+        "booking_link_soft": "Si te resulta más cómodo, también podés agendar desde la web:\n{url}",
+        # Respuesta a pedido explícito del link
+        "booking_link_explicit": "¡Claro! Acá tenés el link para reservar:\n{url}",
     },
     "en": {
         "slow_response": "One moment, I'm looking that up... ⏳",
@@ -174,6 +184,16 @@ MESSAGES: dict[str, dict[str, str]] = {
         "no_appointments_reschedule": "I didn't find any pending appointments to reschedule.",
         # Smart booking link
         "booking_link": "We have several options available. Here's a link so you can choose at your convenience:\n{url}",
+        # Deterministic first-turn greeting
+        "first_turn_greeting": (
+            "Hi! I'm the assistant for *{business_name}*. 👋\n\n"
+            "Here are our services:\n{services_list}\n\n"
+            "Tell me which service you'd like to book, or if you prefer I can send you the link to book online."
+        ),
+        # Soft link offer (when flow stalls or tools fail)
+        "booking_link_soft": "If it's easier for you, you can also book from the web:\n{url}",
+        # Reply to explicit link request
+        "booking_link_explicit": "Of course! Here's the link to book:\n{url}",
     },
     "pt": {
         "slow_response": "Um momento, estou consultando isso... ⏳",
@@ -260,6 +280,16 @@ MESSAGES: dict[str, dict[str, str]] = {
         "no_appointments_reschedule": "Não encontrei consultas pendentes para reagendar.",
         # Smart booking link
         "booking_link": "Temos várias opções disponíveis. Compartilho este link para que escolha com calma:\n{url}",
+        # Saudação determinística de primeiro turno
+        "first_turn_greeting": (
+            "Olá! Sou o assistente de *{business_name}*. 👋\n\n"
+            "Estes são nossos serviços:\n{services_list}\n\n"
+            "Me diga qual serviço você quer agendar, ou se preferir eu te mando o link para reservar online."
+        ),
+        # Oferta suave do link (quando o fluxo trava ou as tools falham)
+        "booking_link_soft": "Se for mais cômodo, você também pode agendar pela web:\n{url}",
+        # Resposta a pedido explícito do link
+        "booking_link_explicit": "Claro! Aqui está o link para reservar:\n{url}",
     },
 }
 

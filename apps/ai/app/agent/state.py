@@ -49,6 +49,7 @@ async def get_state(tenant_id: str, conversation_id: str) -> dict[str, Any]:
         "pending_date": None,
         "customer_name": None,
         "customer_phone": None,
+        "booking_turns_without_service": 0,  # contador para oferta suave del link
     }
 
 
@@ -91,6 +92,7 @@ async def get_test_state(tenant_id: str) -> dict[str, Any]:
         "pending_date": None,
         "customer_name": None,
         "customer_phone": None,
+        "booking_turns_without_service": 0,
     }
 
 

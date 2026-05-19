@@ -49,6 +49,57 @@ def _m(key: str, **kwargs: Any) -> str:
     return msg.format(**kwargs) if kwargs else msg
 
 
+def _booking_url(tenant_slug: str) -> str:
+    """Construye la URL pública de reserva del tenant."""
+    return f"{settings.booking_base_url.rstrip('/')}/book/{tenant_slug}"
+
+
+def _should_offer_link_proactively(
+    profile: dict[str, Any] | None,
+    state: dict[str, Any],
+) -> tuple[bool, str]:
+    """Decide si proactivamente conviene ofrecer el link de reserva.
+
+    Centraliza dos triggers:
+      - Regla B: el flujo lleva >=3 turnos sin que el usuario elija servicio.
+      - Regla C: muchas opciones (>4 servicios y >3 profesionales).
+
+    Returns:
+        (offer, reason) donde reason ∈ {"many_options", "stalled_3_turns", ""}.
+    """
+    if not profile:
+        return False, ""
+    services = profile.get("services", [])
+    professionals = profile.get("professionals", [])
+    if len(services) > 4 and len(professionals) > 3:
+        return True, "many_options"
+    if state.get("booking_turns_without_service", 0) >= 3:
+        return True, "stalled_3_turns"
+    return False, ""
+
+
+def _first_turn_greeting(profile: dict[str, Any]) -> str:
+    """Construye el saludo determinista del primer turno con lista de servicios.
+
+    Trunca la lista a 5 servicios máximo para respetar el límite de 400 chars
+    de WhatsApp. Formato: '1. {name} — ${price} ({duration_min} min)'.
+    """
+    business_name = profile.get("bot_name") or profile.get("name") or "el negocio"
+    services = profile.get("services", [])[:5]
+    lines = []
+    for i, s in enumerate(services):
+        currency = s.get("currency", "USD")
+        price = s.get("price")
+        price_str = f"${price} {currency}" if price else ""
+        duration = s.get("duration_min", 0)
+        if price_str:
+            lines.append(f"{i+1}. {s['name']} — {price_str} ({duration} min)")
+        else:
+            lines.append(f"{i+1}. {s['name']} ({duration} min)")
+    services_list = "\n".join(lines)
+    return _m("first_turn_greeting", business_name=business_name, services_list=services_list)
+
+
 def _parse_flexible_date(text: str) -> str | None:
     """Parsea fechas en formatos naturales y retorna YYYY-MM-DD o None.
 
@@ -487,10 +538,26 @@ async def _handle(
         return _m("reschedule_confirm", service=state.get("pending_reschedule_service", ""), datetime=state.get("pending_reschedule_datetime", ""))
 
     # === IDLE: flujos nuevos ===
+
+    # Saludo determinista del primer turno (sin LLM) — predecible y barato.
+    if (
+        current_state == ConvState.IDLE
+        and not history
+        and intent in (Intent.UNKNOWN, Intent.QUERY)
+    ):
+        profile = await get_tenant_profile(tenant_slug)
+        if profile and profile.get("services"):
+            return _first_turn_greeting(profile)
+
     if intent == Intent.HANDOFF:
         state["state"] = ConvState.HANDED_OFF
         await save_state(tenant_id, conversation_id, state)
         return _m("handoff")
+
+    # Regla A: el usuario pide el link explícitamente.
+    if intent == Intent.SEND_BOOKING_LINK:
+        log.info("orchestrator: link offered", reason="explicit_request", tenant=tenant_id)
+        return _m("booking_link_explicit", url=_booking_url(tenant_slug))
 
     if intent == Intent.BOOKING:
         return await _start_booking_flow(
@@ -527,11 +594,11 @@ async def _start_booking_flow(
 
     services = profile["services"]
 
-    # Smart booking link: si hay muchas opciones, compartir link
-    professionals = profile.get("professionals", [])
-    booking_url = f"{settings.booking_base_url.rstrip('/')}/book/{tenant_slug}"
-    if len(services) > 4 and len(professionals) > 3:
-        return _m("booking_link", url=booking_url)
+    # Smart booking link: si hay muchas opciones, compartir link directo (Regla C).
+    offer, reason = _should_offer_link_proactively(profile, state)
+    if offer and reason == "many_options":
+        log.info("orchestrator: link offered", reason=reason, tenant=tenant_id)
+        return _m("booking_link", url=_booking_url(tenant_slug))
 
     lines = [f"{i+1}. {s['name']} — ${s['price']} USD ({s['duration_min']} min)"
              for i, s in enumerate(services)]
@@ -539,6 +606,7 @@ async def _start_booking_flow(
     state["state"] = ConvState.AWAITING_SLOT
     state["profile"] = profile
     state["pending_date"] = None
+    state["booking_turns_without_service"] = 0
     await save_state(tenant_id, conversation_id, state)
 
     return (
@@ -561,6 +629,10 @@ async def _handle_slot_selection(
 
     # Si no hay servicio seleccionado aún, el usuario está eligiendo servicio
     if not state.get("pending_service_id"):
+        # Contar turnos sin elegir servicio para Regla B (oferta suave del link).
+        state["booking_turns_without_service"] = (
+            state.get("booking_turns_without_service", 0) + 1
+        )
         try:
             idx = int(message_text.strip()) - 1
             if idx < 0 or idx >= len(services):
@@ -568,10 +640,17 @@ async def _handle_slot_selection(
             service = services[idx]
         except (ValueError, IndexError):
             lines = [f"{i+1}. {s['name']}" for i, s in enumerate(services)]
-            return _m("invalid_option") + "\n" + "\n".join(lines)
+            reply = _m("invalid_option") + "\n" + "\n".join(lines)
+            offer, reason = _should_offer_link_proactively(profile, state)
+            if offer and reason == "stalled_3_turns":
+                log.info("orchestrator: link offered", reason=reason)
+                reply += "\n\n" + _m("booking_link_soft", url=_booking_url(profile.get("slug", "")))
+            await save_state(tenant_id, conversation_id, state)
+            return reply
 
         state["pending_service_id"] = service["id"]
         state["pending_service_name"] = service["name"]
+        state["booking_turns_without_service"] = 0
 
         # Si hay más de un profesional, preguntar
         professionals = profile.get("professionals", [])
@@ -834,7 +913,7 @@ async def _handle_query(
     messages.append({"role": "user", "content": message_text})
 
     try:
-        return await chat_with_tools(
+        result = await chat_with_tools(
             messages=messages,
             tools=OPENAI_TOOLS,
             ctx={"tenant_slug": tenant_slug, "tenant_id": tenant_id},
@@ -842,9 +921,14 @@ async def _handle_query(
             max_tokens=800,
             max_iterations=3,
         )
+        # Si el LLM devuelve respuesta vacía o muy corta, ofrecer el link como fallback.
+        if not result or len(result.strip()) < 5:
+            log.info("orchestrator: link offered", reason="empty_tool_response", tenant=tenant_id)
+            return _m("booking_link_soft", url=_booking_url(tenant_slug))
+        return result
     except Exception as e:
         log.error("orchestrator._handle_query: tool-calling falló", error=str(e))
-        return _m("slow_response")
+        return _m("booking_link_soft", url=_booking_url(tenant_slug))
 
 
 # ---------------------------------------------------------------------------

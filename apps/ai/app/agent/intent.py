@@ -22,6 +22,7 @@ class Intent(str, Enum):
     MY_APPOINTMENTS = "MY_APPOINTMENTS"  # consultar citas existentes
     RESCHEDULE = "RESCHEDULE"          # reagendar cita existente
     HANDOFF = "HANDOFF"                # solicitar hablar con humano
+    SEND_BOOKING_LINK = "SEND_BOOKING_LINK"  # pide explícitamente el link de reserva web
     UNKNOWN = "UNKNOWN"                # no se entiende la intención
 
 
@@ -34,9 +35,10 @@ Debes clasificar el mensaje del usuario en una de estas categorías:
 - MY_APPOINTMENTS: quiere consultar, ver o saber sobre sus citas existentes (¿cuándo es mi cita?, mis citas, qué tengo agendado, tengo algo agendado)
 - RESCHEDULE: quiere cambiar fecha/hora de una cita existente (reagendar, mover, cambiar la cita, cambiar el horario)
 - HANDOFF: quiere hablar con un humano (agente, persona, asesor, etc.)
+- SEND_BOOKING_LINK: pide explícitamente el link de reserva por la web (mándame el link, pásame el link, mejor por la página, send me the booking link, etc.)
 - UNKNOWN: no puedes determinar la intención
 
-Responde ÚNICAMENTE con una de las palabras clave: BOOKING, QUERY, CONFIRM, CANCEL, MY_APPOINTMENTS, RESCHEDULE, HANDOFF, UNKNOWN.
+Responde ÚNICAMENTE con una de las palabras clave: BOOKING, QUERY, CONFIRM, CANCEL, MY_APPOINTMENTS, RESCHEDULE, HANDOFF, SEND_BOOKING_LINK, UNKNOWN.
 No incluyas explicaciones ni puntuación."""
 
 
@@ -69,6 +71,15 @@ _NEGATIVE_PATTERN = re.compile(
     re.IGNORECASE | re.UNICODE,
 )
 
+# Pedido explícito del link de reserva web (es/en/pt).
+_LINK_PATTERN = re.compile(
+    r"\b(?:m[aá]ndame\s+el\s+link|p[aá]same\s+el\s+link|link\s+de\s+reserva|"
+    r"por\s+(?:la\s+)?(?:p[aá]gina|web)|mejor\s+por\s+(?:la\s+)?web|"
+    r"send\s+(?:me\s+)?the\s+link|booking\s+link|"
+    r"me\s+manda\s+o\s+link|pela\s+(?:p[aá]gina|web)|link\s+de\s+agendamento)\b",
+    re.IGNORECASE | re.UNICODE,
+)
+
 
 def _pattern_match(message: str, conv_state: "ConvState | None") -> Intent | None:
     """
@@ -96,6 +107,9 @@ def _pattern_match(message: str, conv_state: "ConvState | None") -> Intent | Non
 
     if _NEGATIVE_PATTERN.match(message):
         return Intent.CANCEL
+
+    if _LINK_PATTERN.search(message):
+        return Intent.SEND_BOOKING_LINK
 
     return None
 
