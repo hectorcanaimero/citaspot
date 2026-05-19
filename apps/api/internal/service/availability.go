@@ -87,8 +87,12 @@ func (s *availabilityService) GetAvailableSlots(ctx context.Context, tenantID uu
 		return []*domain.TimeSlot{}, nil
 	}
 
-	// Rango del día completo para buscar conflictos
-	dayStart := time.Date(day.Year(), day.Month(), day.Day(), 0, 0, 0, 0, loc).UTC()
+	// Rango del día completo para buscar conflictos.
+	// Mantenemos los time.Time en la location del tenant; al serializar a JSON Go
+	// usa el offset explícito (-04:00) en lugar de Z. Las comparaciones internas
+	// siguen siendo correctas porque dos time.Time con distinta Location pero
+	// mismo instante son iguales con Before/After/Equal.
+	dayStart := time.Date(day.Year(), day.Month(), day.Day(), 0, 0, 0, 0, loc)
 	dayEnd := dayStart.Add(24 * time.Hour)
 
 	// 4. Cargar citas existentes y bloqueos en ese rango
@@ -102,7 +106,8 @@ func (s *availabilityService) GetAvailableSlots(ctx context.Context, tenantID uu
 	}
 
 	// 5. Generar y filtrar slots
-	now := time.Now().UTC()
+	// now en la location del tenant para comparar contra slots construidos en loc.
+	now := time.Now().In(loc)
 	var slots []*domain.TimeSlot
 
 	slotStart := workStart
@@ -113,15 +118,18 @@ func (s *availabilityService) GetAvailableSlots(ctx context.Context, tenantID uu
 		}
 
 		// No mostrar slots en el pasado
-		if slotStart.UTC().Before(now) {
+		if slotStart.Before(now) {
 			slotStart = slotStart.Add(totalDuration)
 			continue
 		}
 
 		if !overlapsAny(slotStart, slotEnd, existingAppts, blocks) {
+			// Retornamos slotStart/slotEnd en la location del tenant.
+			// El JSON quedará como "2026-05-19T08:00:00-04:00" con offset explícito,
+			// no como "...Z" (que perdería el contexto local en el frontend).
 			slots = append(slots, &domain.TimeSlot{
-				StartsAt: slotStart.UTC(),
-				EndsAt:   slotStart.UTC().Add(time.Duration(svc.DurationMin) * time.Minute),
+				StartsAt: slotStart,
+				EndsAt:   slotStart.Add(time.Duration(svc.DurationMin) * time.Minute),
 			})
 		}
 

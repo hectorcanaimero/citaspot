@@ -23,7 +23,7 @@ import {
 } from '@/lib/api';
 import {
   START_HOUR, END_HOUR, HOUR_PX, TOTAL_HOURS, GRID_PX,
-  toDateStr, topPx, heightPx, assignColumns,
+  toDateStr, topPx, heightPx, assignColumns, nowPx,
 } from '@/lib/calendar-utils';
 import { useTranslations, useDateLocale } from '@/lib/i18n';
 import NewAppointmentModal from '@/components/dashboard/NewAppointmentModal';
@@ -59,7 +59,7 @@ const STATUS_CFG: Record<
 // ── Bloque de cita (en el grid de tiempo) ─────────────────────────────────────
 
 function ApptBlock({ appt, profColor, onClick, tz }: { appt: ApptWithCol; profColor?: string; onClick?: () => void; tz: string }) {
-  const top    = topPx(appt.starts_at);
+  const top    = topPx(appt.starts_at, tz);
   const height = heightPx(appt.service_duration_min);
   const pct    = 100 / appt.span;
   const color  = profColor ?? '#6b7280';
@@ -97,8 +97,8 @@ function ApptBlock({ appt, profColor, onClick, tz }: { appt: ApptWithCol; profCo
 
 // ── Franja de disponibilidad ──────────────────────────────────────────────────
 
-function SlotBlock({ slot }: { slot: TimeSlot }) {
-  const top    = topPx(slot.starts_at);
+function SlotBlock({ slot, tz }: { slot: TimeSlot; tz: string }) {
+  const top    = topPx(slot.starts_at, tz);
   const dur    = (new Date(slot.ends_at).getTime() - new Date(slot.starts_at).getTime()) / 60000;
   const height = Math.max(dur * (HOUR_PX / 60), 8);
   return (
@@ -150,10 +150,7 @@ function DayColumn({
 }) {
   const positioned = assignColumns(appts);
   const today      = isTodayFn(date);
-  const now        = new Date();
-  const nowTop     = today
-    ? (now.getHours() - START_HOUR) * HOUR_PX + now.getMinutes() * (HOUR_PX / 60)
-    : -1;
+  const nowTop     = today ? nowPx(new Date(), tz) : -1;
 
   return (
     <div
@@ -181,7 +178,7 @@ function DayColumn({
         </div>
       )}
 
-      {slots.map((slot, i) => <SlotBlock key={i} slot={slot} />)}
+      {slots.map((slot, i) => <SlotBlock key={i} slot={slot} tz={tz} />)}
       {positioned.map(appt => <ApptBlock key={appt.id} appt={appt} profColor={profColorMap[appt.professional_id]} onClick={onApptClick ? () => onApptClick(appt) : undefined} tz={tz} />)}
 
       {today && nowTop >= 0 && nowTop <= GRID_PX && (
@@ -449,7 +446,13 @@ export default function AgendaPage() {
   const [showNewAppt, setShowNewAppt] = useState(false);
   const [detailAppt, setDetailAppt] = useState<Appointment | null>(null);
   const [filterProfIds, setFilterProfIds] = useState<Set<string>>(new Set());
-  const [tenantTz, setTenantTz] = useState('UTC');
+  // Fallback al timezone del browser ANTES de cargar tenant.timezone desde la API.
+  // Evita el "1er render con UTC" que mostraba citas con offset incorrecto.
+  // Una vez carga auth.me(), si tenant.timezone existe, lo sobreescribe.
+  const [tenantTz, setTenantTz] = useState(() => {
+    if (typeof window === 'undefined') return 'UTC';
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  });
 
   // Mapa de color por profesional para el borde izquierdo de los bloques
   const profColorMap = useMemo(() => {

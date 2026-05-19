@@ -57,7 +57,10 @@ export default function AppointmentDetailModal({
   onUpdated,
   timezone,
 }: AppointmentDetailModalProps) {
-  const tz = timezone || 'UTC';
+  // Fallback al timezone del browser si el caller no provee tenant.timezone.
+  // Evita renderizar UTC literal cuando el tenant aún no cargó.
+  const tz = timezone
+    || (typeof window !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'UTC');
   const t = useTranslations();
   const dateLocale = useDateLocale();
 

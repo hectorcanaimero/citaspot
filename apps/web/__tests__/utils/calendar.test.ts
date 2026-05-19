@@ -74,45 +74,31 @@ describe('getGreeting', () => {
 // ── topPx ─────────────────────────────────────────────────────────────────────
 
 describe('topPx', () => {
-  it('retorna 0 para las 06:00 (inicio del grid)', () => {
-    // Usamos una fecha UTC fija para asegurar que getHours() devuelva 6
-    // Nota: getHours() usa la zona horaria local; el test asume UTC o ajusta
-    const iso = '2026-03-07T06:00:00';
-    const d = new Date(iso);
-    const h = d.getHours();
-    const expected = (h - START_HOUR) * HOUR_PX;
-    expect(topPx(iso)).toBe(expected);
+  // Tests con tz='UTC' e ISOs con 'Z' para evitar ambigüedad de zona local del runtime.
+  const TZ = 'UTC';
+
+  it('retorna 0 para las 06:00 UTC (inicio del grid)', () => {
+    expect(topPx('2026-03-07T06:00:00Z', TZ)).toBe(0);
   });
 
   it('retorna HOUR_PX para una hora después del inicio', () => {
-    const d = new Date();
-    d.setHours(START_HOUR + 1, 0, 0, 0);
-    const iso = d.toISOString().replace('Z', '');
-    // Force a local ISO string
-    const localIso = `${toDateStr(new Date())}T${String(START_HOUR + 1).padStart(2, '0')}:00:00`;
-    expect(topPx(localIso)).toBeCloseTo(HOUR_PX, 0);
+    expect(topPx('2026-03-07T07:00:00Z', TZ)).toBeCloseTo(HOUR_PX, 0);
   });
 
   it('calcula correctamente 30 minutos = HOUR_PX/2 px', () => {
-    const now = new Date();
-    const h   = START_HOUR + 2; // 08:00 → 2 horas desde inicio
-    const localIso = `${toDateStr(now)}T${String(h).padStart(2, '0')}:30:00`;
-    const d         = new Date(localIso);
-    const mins      = (d.getHours() - START_HOUR) * 60 + d.getMinutes();
-    const expected  = mins * (HOUR_PX / 60);
-    expect(topPx(localIso)).toBeCloseTo(expected, 1);
+    // 08:30 UTC → 2.5h desde START_HOUR (6) → 2.5 * HOUR_PX
+    expect(topPx('2026-03-07T08:30:00Z', TZ)).toBeCloseTo(2.5 * HOUR_PX, 1);
   });
 
   it('el valor aumenta para horas más tardías', () => {
-    const base = new Date();
-    base.setHours(START_HOUR + 3, 0, 0, 0);
-    const later = new Date();
-    later.setHours(START_HOUR + 5, 0, 0, 0);
+    expect(topPx('2026-03-07T11:00:00Z', TZ)).toBeGreaterThan(
+      topPx('2026-03-07T09:00:00Z', TZ),
+    );
+  });
 
-    const makeLocalIso = (d: Date) =>
-      `${toDateStr(d)}T${String(d.getHours()).padStart(2, '0')}:00:00`;
-
-    expect(topPx(makeLocalIso(later))).toBeGreaterThan(topPx(makeLocalIso(base)));
+  it('respeta el timezone del tenant (Caracas UTC-4)', () => {
+    // 12:00 UTC == 08:00 America/Caracas → 2h desde START_HOUR (6)
+    expect(topPx('2026-03-07T12:00:00Z', 'America/Caracas')).toBeCloseTo(2 * HOUR_PX, 0);
   });
 });
 

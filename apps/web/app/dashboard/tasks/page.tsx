@@ -97,7 +97,7 @@ export default function TasksPage() {
         title: formTitle.trim(),
         description: formDesc.trim() || undefined,
         assigned_to: formAssigned || undefined,
-        due_at: formDueAt || undefined,
+        due_at: formDueAt ? new Date(`${formDueAt}T00:00:00`).toISOString() : undefined,
       });
       setShowForm(false);
       setFormTitle('');

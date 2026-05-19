@@ -70,6 +70,11 @@ func (s *appointmentSvc) GetByID(ctx context.Context, tenantID, id uuid.UUID) (*
 }
 
 // Create crea una nueva cita con validación de conflictos.
+//
+// Contrato con el frontend: req.StartsAt debe ser RFC3339 con offset explícito
+// (ej. "2026-05-19T08:00:00-04:00") o con sufijo Z. Go interpreta ambos como
+// instantes absolutos. NUNCA enviar timestamps naive sin zona — el servicio
+// los trataría como UTC y desplazaría la cita por el offset del tenant.
 func (s *appointmentSvc) Create(ctx context.Context, tenantID uuid.UUID, req *domain.CreateAppointmentRequest) (*domain.Appointment, error) {
 	// 1. Obtener servicio para calcular ends_at
 	svc, err := s.serviceRepo.GetByID(ctx, tenantID, req.ServiceID)

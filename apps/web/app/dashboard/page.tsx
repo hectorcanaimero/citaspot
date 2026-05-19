@@ -447,7 +447,11 @@ export default function DashboardPage() {
                     >
                       <div className="w-14 flex-shrink-0 text-center">
                         <p className="text-sm font-bold text-neutral-900">
-                          {formatInTimeZone(appt.starts_at, tenant?.timezone ?? 'UTC', 'HH:mm')}
+                          {formatInTimeZone(
+                            appt.starts_at,
+                            tenant?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
+                            'HH:mm',
+                          )}
                         </p>
                         <p className="text-xs text-neutral-400">{appt.service_duration_min}{t.common.min}</p>
                       </div>

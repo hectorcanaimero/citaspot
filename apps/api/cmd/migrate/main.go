@@ -92,9 +92,15 @@ func getMigrationFiles() ([]string, error) {
 
 	var files []string
 	for _, entry := range entries {
-		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".sql") {
-			files = append(files, entry.Name())
+		name := entry.Name()
+		if entry.IsDir() || !strings.HasSuffix(name, ".sql") {
+			continue
 		}
+		// Excluir archivos .down.sql: son scripts de reversión, no migraciones forward
+		if strings.HasSuffix(name, ".down.sql") {
+			continue
+		}
+		files = append(files, name)
 	}
 	sort.Strings(files)
 	return files, nil

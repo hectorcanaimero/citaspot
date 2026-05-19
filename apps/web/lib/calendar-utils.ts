@@ -2,6 +2,7 @@
 // Extraídas para permitir tests unitarios sin dependencias de Next.js.
 
 import { getHours, getMinutes } from 'date-fns';
+import { toZonedTime } from 'date-fns-tz';
 
 // ── Constantes del grid de tiempo ─────────────────────────────────────────────
 
@@ -26,9 +27,19 @@ export function getGreeting(): string {
   return 'Buenas noches';
 }
 
-/** Offset en píxeles desde el inicio del grid para una fecha ISO. */
-export function topPx(isoStr: string): number {
-  const d    = new Date(isoStr);
+/**
+ * Offset en píxeles desde el inicio del grid para una fecha ISO,
+ * calculado en el timezone del tenant (NO en el del browser).
+ */
+export function topPx(isoStr: string, tz: string): number {
+  const d    = toZonedTime(isoStr, tz);
+  const mins = (getHours(d) - START_HOUR) * 60 + getMinutes(d);
+  return mins * (HOUR_PX / 60);
+}
+
+/** Hora local del tenant en píxeles desde START_HOUR (para la línea "ahora"). */
+export function nowPx(now: Date, tz: string): number {
+  const d    = toZonedTime(now, tz);
   const mins = (getHours(d) - START_HOUR) * 60 + getMinutes(d);
   return mins * (HOUR_PX / 60);
 }

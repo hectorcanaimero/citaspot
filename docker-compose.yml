@@ -50,6 +50,8 @@ services:
       RABBITMQ_URL: amqp://citaspot:citaspot_dev@rabbitmq:5672/
       EVOLUTION_API_URL: http://evolution:8080
       AI_SERVICE_URL: http://ai:8001
+      # Server-side en UTC; el timezone por-tenant se resuelve vía tenants.timezone.
+      TZ: UTC
     volumes:
       - ./apps/api:/app
     depends_on:
