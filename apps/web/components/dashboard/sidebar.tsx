@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/browser';
 import { useTranslations } from '@/lib/i18n';
+import { useTenantStore } from '@/store/tenant';
 
 const STORAGE_KEY = 'citaspot_sidebar';
 
@@ -73,6 +74,8 @@ export function Sidebar() {
   async function handleLogout() {
     const supabase = createClient();
     await supabase.auth.signOut();
+    useTenantStore.getState().setTenant(null);
+    if (typeof window !== 'undefined') localStorage.removeItem('citaspot_tenant');
     router.push('/login');
     router.refresh();
   }

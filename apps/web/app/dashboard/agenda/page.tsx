@@ -19,8 +19,8 @@ import {
   professionals, Professional,
   services, Service,
   TimeSlot,
-  auth,
 } from '@/lib/api';
+import { useTenantTimezone } from '@/store/tenant';
 import {
   START_HOUR, END_HOUR, HOUR_PX, TOTAL_HOURS, GRID_PX,
   toDateStr, topPx, heightPx, assignColumns, nowPx,
@@ -446,13 +446,8 @@ export default function AgendaPage() {
   const [showNewAppt, setShowNewAppt] = useState(false);
   const [detailAppt, setDetailAppt] = useState<Appointment | null>(null);
   const [filterProfIds, setFilterProfIds] = useState<Set<string>>(new Set());
-  // Fallback al timezone del browser ANTES de cargar tenant.timezone desde la API.
-  // Evita el "1er render con UTC" que mostraba citas con offset incorrecto.
-  // Una vez carga auth.me(), si tenant.timezone existe, lo sobreescribe.
-  const [tenantTz, setTenantTz] = useState(() => {
-    if (typeof window === 'undefined') return 'UTC';
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-  });
+  // Timezone del tenant proviene del store global (hidratado por DashboardLayout).
+  const tenantTz = useTenantTimezone();
 
   // Mapa de color por profesional para el borde izquierdo de los bloques
   const profColorMap = useMemo(() => {
@@ -478,7 +473,6 @@ export default function AgendaPage() {
   useEffect(() => {
     professionals.list().then(r => setProfList(r.data ?? [])).catch(() => {});
     services.list().then(r => setSvcList((r.data ?? []).filter(s => s.is_active))).catch(() => {});
-    auth.me().then(({ tenant }) => { if (tenant.timezone) setTenantTz(tenant.timezone); }).catch(() => {});
   }, []);
 
   const ensureLoaded = useCallback((dates: Date[]) => {
@@ -529,7 +523,7 @@ export default function AgendaPage() {
       return;
     }
     setLoadingAvail(true);
-    appointments.availability(selProf, selSvc, currentDateStr)
+    appointments.availability(selProf, selSvc, currentDateStr, tenantTz)
       .then(res => setSlots(res.data ?? []))
       .catch(() => setSlots([]))
       .finally(() => setLoadingAvail(false));

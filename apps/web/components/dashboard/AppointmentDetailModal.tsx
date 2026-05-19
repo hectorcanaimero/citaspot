@@ -14,6 +14,7 @@ import {
   APIError,
 } from '@/lib/api';
 import { useTranslations, useDateLocale } from '@/lib/i18n';
+import { useTenantTimezone } from '@/store/tenant';
 import { Spinner } from '@/components/ui/spinner';
 
 interface AppointmentDetailModalProps {
@@ -57,10 +58,9 @@ export default function AppointmentDetailModal({
   onUpdated,
   timezone,
 }: AppointmentDetailModalProps) {
-  // Fallback al timezone del browser si el caller no provee tenant.timezone.
-  // Evita renderizar UTC literal cuando el tenant aún no cargó.
-  const tz = timezone
-    || (typeof window !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'UTC');
+  // El timezone del tenant viene del store global; el prop tiene prioridad.
+  const storeTz = useTenantTimezone();
+  const tz = timezone || storeTz;
   const t = useTranslations();
   const dateLocale = useDateLocale();
 
@@ -102,6 +102,7 @@ export default function AppointmentDetailModal({
         appointment.professional_id,
         appointment.service_id,
         rescheduleDate,
+        tz,
       );
       setRescheduleSlots(res.data ?? []);
     } catch {
@@ -109,7 +110,7 @@ export default function AppointmentDetailModal({
     } finally {
       setLoadingSlots(false);
     }
-  }, [appointment, rescheduleDate]);
+  }, [appointment, rescheduleDate, tz]);
 
   useEffect(() => {
     if (mode === 'reschedule' && rescheduleDate) {

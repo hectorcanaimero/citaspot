@@ -2,7 +2,7 @@
 
 // Sistema de internacionalización para CitaSpot.
 // Soporta: es (español), en (inglés), pt (portugués brasileño).
-// Prioridad: admin-set (localStorage) > idioma del navegador > 'es'
+// Prioridad: admin-set (localStorage con override) > tenant.country (post-login) > 'es'
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { es as dateFnsEs, enUS as dateFnsEn, ptBR as dateFnsPt } from 'date-fns/locale';
@@ -19,6 +19,7 @@ type StringValues<T> = {
 export type Translations = StringValues<typeof esTranslations>;
 
 const STORAGE_KEY = 'citaspot_language';
+const STORAGE_KEY_OVERRIDDEN = 'citaspot_language_overridden';
 
 const TRANSLATIONS: Record<Language, Translations> = {
   es: esTranslations,
@@ -36,21 +37,28 @@ function detectLanguage(): Language {
   if (typeof window === 'undefined') return 'es';
   const stored = localStorage.getItem(STORAGE_KEY);
   if (stored === 'en' || stored === 'es' || stored === 'pt') return stored;
-  const lang = navigator.language.split('-')[0].toLowerCase();
-  if (lang === 'en') return 'en';
-  if (lang === 'pt') return 'pt';
+  return 'es';
+}
+
+export function countryToLanguage(country?: string | null): Language {
+  if (!country) return 'es';
+  const c = country.toUpperCase();
+  if (c === 'BR') return 'pt';
+  if (c === 'US' || c === 'GB' || c === 'CA') return 'en';
   return 'es';
 }
 
 interface LanguageContextValue {
   language: Language;
   setLanguage: (lang: Language) => void;
+  setLanguageFromCountry: (country?: string | null) => void;
   t: Translations;
 }
 
 const LanguageContext = createContext<LanguageContextValue>({
   language: 'es',
   setLanguage: () => {},
+  setLanguageFromCountry: () => {},
   t: esTranslations,
 });
 
@@ -63,6 +71,15 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     setLanguageState(detected);
   }, []);
 
+  // Migración one-shot: usuarios pre-existentes con idioma guardado se marcan como overridden
+  // para no pisar su elección al hidratar tenant.country.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (localStorage.getItem(STORAGE_KEY) && !localStorage.getItem(STORAGE_KEY_OVERRIDDEN)) {
+      localStorage.setItem(STORAGE_KEY_OVERRIDDEN, 'true');
+    }
+  }, []);
+
   // Actualizar el atributo lang del documento cuando cambia el idioma
   useEffect(() => {
     document.documentElement.lang = language;
@@ -70,12 +87,21 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
   function setLanguage(lang: Language) {
     localStorage.setItem(STORAGE_KEY, lang);
+    localStorage.setItem(STORAGE_KEY_OVERRIDDEN, 'true');
+    setLanguageState(lang);
+  }
+
+  function setLanguageFromCountry(country?: string | null) {
+    if (typeof window === 'undefined') return;
+    if (localStorage.getItem(STORAGE_KEY_OVERRIDDEN) === 'true') return;
+    const lang = countryToLanguage(country);
+    localStorage.setItem(STORAGE_KEY, lang);
     setLanguageState(lang);
   }
 
   return (
     <LanguageContext.Provider
-      value={{ language, setLanguage, t: TRANSLATIONS[language] }}
+      value={{ language, setLanguage, setLanguageFromCountry, t: TRANSLATIONS[language] }}
     >
       {children}
     </LanguageContext.Provider>
@@ -89,8 +115,8 @@ export function useTranslations(): Translations {
 
 /** Retorna el idioma activo y la función para cambiarlo. */
 export function useLanguage() {
-  const { language, setLanguage } = useContext(LanguageContext);
-  return { language, setLanguage };
+  const { language, setLanguage, setLanguageFromCountry } = useContext(LanguageContext);
+  return { language, setLanguage, setLanguageFromCountry };
 }
 
 /** Retorna el locale de date-fns para el idioma activo. */

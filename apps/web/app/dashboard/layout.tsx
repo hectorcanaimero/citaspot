@@ -4,11 +4,14 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Sidebar } from '@/components/dashboard/sidebar';
 import { auth, APIError } from '@/lib/api';
-import { useTranslations } from '@/lib/i18n';
+import { useTranslations, useLanguage } from '@/lib/i18n';
+import { useTenantStore } from '@/store/tenant';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const t = useTranslations();
+  const { setLanguageFromCountry } = useLanguage();
+  const setTenant = useTenantStore((s) => s.setTenant);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -16,6 +19,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     let cancelled = false;
     auth.me().then(({ tenant }) => {
       if (cancelled) return;
+      setTenant(tenant);
+      setLanguageFromCountry(tenant.country);
       if (!tenant.onboarding_done) {
         router.replace('/onboarding');
       } else {
@@ -32,7 +37,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       setError(t.common.errorLoadingSession);
     });
     return () => { cancelled = true; };
-  }, [router, t]);
+  }, [router, t, setTenant, setLanguageFromCountry]);
 
   if (error) {
     return (

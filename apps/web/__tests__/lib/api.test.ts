@@ -49,7 +49,7 @@ function mockFetch(status: number, body: unknown) {
 describe('appointments.list', () => {
   it('llama al endpoint correcto con la fecha', async () => {
     const spy = mockFetch(200, { data: [] });
-    await appointments.list('2026-03-07');
+    await appointments.list('2026-03-07', 'UTC');
     expect(spy).toHaveBeenCalledOnce();
     const url = spy.mock.calls[0][0] as string;
     expect(url).toContain('/api/v1/appointments');
@@ -58,7 +58,7 @@ describe('appointments.list', () => {
 
   it('incluye el token de autorización en la cabecera', async () => {
     const spy = mockFetch(200, { data: [] });
-    await appointments.list('2026-03-07');
+    await appointments.list('2026-03-07', 'UTC');
     const init = spy.mock.calls[0][1] as RequestInit;
     expect((init.headers as Record<string, string>)['Authorization']).toBe(
       'Bearer test-jwt-token'
@@ -70,32 +70,32 @@ describe('appointments.list', () => {
       { id: '1', customer_name: 'Ana García', status: 'confirmed' },
     ];
     mockFetch(200, { data: mockAppts });
-    const result = await appointments.list('2026-03-07');
+    const result = await appointments.list('2026-03-07', 'UTC');
     expect(result.data).toHaveLength(1);
     expect(result.data[0].customer_name).toBe('Ana García');
   });
 
   it('retorna data vacía cuando no hay citas', async () => {
     mockFetch(200, { data: [] });
-    const result = await appointments.list('2026-03-07');
+    const result = await appointments.list('2026-03-07', 'UTC');
     expect(result.data).toEqual([]);
   });
 
   it('lanza APIError con status 500 en error del servidor', async () => {
     mockFetch(500, { error: 'Internal Server Error' });
-    await expect(appointments.list('2026-03-07')).rejects.toThrow(APIError);
+    await expect(appointments.list('2026-03-07', 'UTC')).rejects.toThrow(APIError);
   });
 
   it('lanza APIError con status 404', async () => {
     mockFetch(404, { error: 'No encontrado' });
-    await expect(appointments.list('2026-03-07')).rejects.toMatchObject({
+    await expect(appointments.list('2026-03-07', 'UTC')).rejects.toMatchObject({
       status: 404,
     });
   });
 
   it('lanza APIError "session_expired" en error 401', async () => {
     mockFetch(401, { error: 'Unauthorized' });
-    await expect(appointments.list('2026-03-07')).rejects.toMatchObject({
+    await expect(appointments.list('2026-03-07', 'UTC')).rejects.toMatchObject({
       status: 401,
       code: 'session_expired',
     });
@@ -107,7 +107,7 @@ describe('appointments.list', () => {
 describe('appointments.availability', () => {
   it('incluye professional_id, service_id y date en la URL', async () => {
     const spy = mockFetch(200, { data: [] });
-    await appointments.availability('prof-1', 'svc-1', '2026-03-07');
+    await appointments.availability('prof-1', 'svc-1', '2026-03-07', 'UTC');
     const url = spy.mock.calls[0][0] as string;
     expect(url).toContain('professional_id=prof-1');
     expect(url).toContain('service_id=svc-1');
@@ -120,7 +120,7 @@ describe('appointments.availability', () => {
       { starts_at: '2026-03-07T10:00:00', ends_at: '2026-03-07T10:30:00' },
     ];
     mockFetch(200, { data: slots });
-    const result = await appointments.availability('prof-1', 'svc-1', '2026-03-07');
+    const result = await appointments.availability('prof-1', 'svc-1', '2026-03-07', 'UTC');
     expect(result.data).toHaveLength(2);
     expect(result.data[0].starts_at).toBe('2026-03-07T09:00:00');
   });

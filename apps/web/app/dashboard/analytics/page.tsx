@@ -9,6 +9,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { appointments, Appointment } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { useTranslations } from '@/lib/i18n';
+import { useTenantTimezone } from '@/store/tenant';
 
 interface KPI {
   label: string;
@@ -72,7 +73,7 @@ export default function AnalyticsPage() {
   const t = useTranslations();
   const [loading, setLoading] = useState(true);
   const [appts, setAppts]     = useState<Appointment[]>([]);
-  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const tz = useTenantTimezone();
 
   useEffect(() => {
     const today = new Date();

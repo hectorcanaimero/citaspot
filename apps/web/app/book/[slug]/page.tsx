@@ -61,7 +61,7 @@ export default function BookingPage() {
     if (!selectedProfessional || !selectedService || !selectedDate) return;
     setLoadingSlots(true);
     try {
-      const res = await publicApi.getAvailability(slug, selectedProfessional.id, selectedService.id, selectedDate);
+      const res = await publicApi.getAvailability(slug, selectedProfessional.id, selectedService.id, selectedDate, profile?.timezone || 'UTC');
       setSlots(res.data);
     } catch {
       setSlots([]);
@@ -157,7 +157,7 @@ export default function BookingPage() {
 
   // ── Success ──────────────────────────────────────────────────────────────────
   if (step === 'success' && booked) {
-    const bookedTz = profile.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const bookedTz = profile.timezone || 'UTC';
     const dateStr = formatInTimeZone(booked.starts_at, bookedTz, "d 'de' MMMM 'a las' h:mm a", { locale: dateLocale });
     return (
       <div className="flex min-h-screen items-center justify-center bg-neutral-50 px-4">
@@ -315,7 +315,7 @@ export default function BookingPage() {
                       <p className="mb-2 text-sm font-medium text-neutral-700">{t.booking.availableSlots}</p>
                       <div className="grid grid-cols-3 gap-2">
                         {slots.map((s) => {
-                          const tz = profile.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+                          const tz = profile.timezone || 'UTC';
                           const timeLabel = formatInTimeZone(s.starts_at, tz, 'h:mm a');
                           const sel = selectedSlot?.starts_at === s.starts_at;
                           return (
@@ -411,11 +411,11 @@ export default function BookingPage() {
                 </div>
                 <div className="flex items-center gap-2 text-neutral-700">
                   <Calendar className="h-4 w-4 text-primary-500" />
-                  <span>{formatInTimeZone(selectedSlot.starts_at, profile.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone, "d 'de' MMMM yyyy", { locale: dateLocale })}</span>
+                  <span>{formatInTimeZone(selectedSlot.starts_at, profile.timezone || 'UTC', "d 'de' MMMM yyyy", { locale: dateLocale })}</span>
                 </div>
                 <div className="flex items-center gap-2 text-neutral-700">
                   <Clock className="h-4 w-4 text-primary-500" />
-                  <span>{formatInTimeZone(selectedSlot.starts_at, profile.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone, 'h:mm a')}</span>
+                  <span>{formatInTimeZone(selectedSlot.starts_at, profile.timezone || 'UTC', 'h:mm a')}</span>
                 </div>
                 <div className="flex items-center gap-2 text-neutral-700">
                   <Phone className="h-4 w-4 text-primary-500" />

@@ -154,7 +154,7 @@ export interface TimeSlot {
 export interface AppointmentListParams {
   date_from: string;
   date_to: string;
-  timezone?: string;
+  timezone: string;
   professional_id?: string;
   service_id?: string;
   status?: string;
@@ -242,13 +242,12 @@ export const auth = {
 // ── Appointments ───────────────────────────────────────────────────────────────
 
 export const appointments = {
-  async list(date: string, timezone?: string): Promise<{ data: Appointment[] }> {
-    const tz = timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
-    return request(`/api/v1/appointments?date=${date}&timezone=${encodeURIComponent(tz)}`);
+  async list(date: string, timezone: string): Promise<{ data: Appointment[] }> {
+    return request(`/api/v1/appointments?date=${date}&timezone=${encodeURIComponent(timezone)}`);
   },
 
   async listFiltered(params: AppointmentListParams): Promise<PaginatedAppointments> {
-    const tz = params.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const tz = params.timezone;
     const searchParams = new URLSearchParams();
     searchParams.set('date_from', params.date_from);
     searchParams.set('date_to', params.date_to);
@@ -278,10 +277,9 @@ export const appointments = {
     });
   },
 
-  async availability(professionalId: string, serviceId: string, date: string): Promise<{ data: TimeSlot[] }> {
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  async availability(professionalId: string, serviceId: string, date: string, timezone: string): Promise<{ data: TimeSlot[] }> {
     return request(
-      `/api/v1/appointments/availability?professional_id=${professionalId}&service_id=${serviceId}&date=${date}&timezone=${encodeURIComponent(tz)}`,
+      `/api/v1/appointments/availability?professional_id=${professionalId}&service_id=${serviceId}&date=${date}&timezone=${encodeURIComponent(timezone)}`,
     );
   },
 
@@ -971,10 +969,9 @@ export const publicApi = {
     professionalId: string,
     serviceId: string,
     date: string,
-    timezone?: string,
+    timezone: string,
   ): Promise<{ data: TimeSlot[] }> {
-    const tz = timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const url = `${API_URL}/api/v1/public/${slug}/availability?professional_id=${professionalId}&service_id=${serviceId}&date=${date}&timezone=${encodeURIComponent(tz)}`;
+    const url = `${API_URL}/api/v1/public/${slug}/availability?professional_id=${professionalId}&service_id=${serviceId}&date=${date}&timezone=${encodeURIComponent(timezone)}`;
     return fetch(url).then(async (r) => {
       if (!r.ok) throw new APIError(r.status, 'Error consultando disponibilidad');
       return r.json();

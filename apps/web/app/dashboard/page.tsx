@@ -15,9 +15,10 @@ import {
 import {
   appointments, Appointment, whatsapp, knowledge,
   professionals, Professional, KnowledgeDocument,
-  auth, TenantDTO, APIError, crm, CRMMetrics,
+  APIError, crm, CRMMetrics,
 } from '@/lib/api';
 import { useTranslations, useDateLocale } from '@/lib/i18n';
+import { useTenantStore, useTenantTimezone } from '@/store/tenant';
 import NewAppointmentModal from '@/components/dashboard/NewAppointmentModal';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -81,7 +82,8 @@ export default function DashboardPage() {
   const [docsLoading, setDocsLoading] = useState(true);
   const [profList, setProfList]     = useState<Professional[]>([]);
 
-  const [tenant, setTenant]         = useState<TenantDTO | null>(null);
+  const tenant = useTenantStore((s) => s.tenant);
+  const tz = useTenantTimezone();
   const [greeting, setGreeting]     = useState('');
 
   const [crmMetrics, setCrmMetrics] = useState<CRMMetrics | null>(null);
@@ -101,14 +103,10 @@ export default function DashboardPage() {
   }, [t]);
 
   useEffect(() => {
-    auth.me().then(({ tenant }) => setTenant(tenant)).catch(() => {});
-  }, []);
-
-  useEffect(() => {
     let cancelled = false;
     setApptLoading(true);
     setApptError('');
-    appointments.list(dateStr, tenant?.timezone)
+    appointments.list(dateStr, tz)
       .then((res) => { if (!cancelled) setAppts(res.data ?? []); })
       .catch((err) => {
         if (!cancelled) setApptError(
@@ -117,7 +115,7 @@ export default function DashboardPage() {
       })
       .finally(() => { if (!cancelled) setApptLoading(false); });
     return () => { cancelled = true; };
-  }, [dateStr, t, tenant?.timezone]);
+  }, [dateStr, t, tz]);
 
   useEffect(() => {
     setWALoading(true);
@@ -447,11 +445,7 @@ export default function DashboardPage() {
                     >
                       <div className="w-14 flex-shrink-0 text-center">
                         <p className="text-sm font-bold text-neutral-900">
-                          {formatInTimeZone(
-                            appt.starts_at,
-                            tenant?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
-                            'HH:mm',
-                          )}
+                          {formatInTimeZone(appt.starts_at, tz, 'HH:mm')}
                         </p>
                         <p className="text-xs text-neutral-400">{appt.service_duration_min}{t.common.min}</p>
                       </div>
@@ -694,7 +688,7 @@ export default function DashboardPage() {
               )}
 
               <Link
-                href="/dashboard/crm"
+                href="/dashboard/pipeline"
                 className="mt-3 flex items-center justify-between rounded-lg border border-neutral-200 px-3 py-2 text-xs font-medium text-neutral-600 transition-colors hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700"
               >
                 {t.dashboard.viewCRM}
@@ -710,7 +704,7 @@ export default function DashboardPage() {
         onClose={() => setShowNewAppt(false)}
         onCreated={() => {
           // Recargar citas del dia actual
-          appointments.list(dateStr, tenant?.timezone)
+          appointments.list(dateStr, tz)
             .then((res) => setAppts(res.data ?? []))
             .catch(() => {});
         }}

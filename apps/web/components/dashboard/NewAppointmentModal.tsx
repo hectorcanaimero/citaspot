@@ -10,13 +10,13 @@ import {
   appointments,
   professionals,
   services,
-  auth,
   Professional,
   Service,
   TimeSlot,
   APIError,
 } from '@/lib/api';
 import { useTranslations, useDateLocale } from '@/lib/i18n';
+import { useTenantStore, useTenantTimezone } from '@/store/tenant';
 import { Spinner } from '@/components/ui/spinner';
 import {
   PhoneInput,
@@ -65,8 +65,10 @@ export default function NewAppointmentModal({
   const [phoneError, setPhoneError] = useState('');
   const [notes, setNotes] = useState('');
 
-  // País del tenant para preseleccionar prefijo en PhoneInput
-  const [tenantCountry, setTenantCountry] = useState<string | undefined>(undefined);
+  // País y timezone del tenant desde el store global
+  const tenant = useTenantStore((s) => s.tenant);
+  const tenantCountry = tenant?.country;
+  const tenantTz = useTenantTimezone();
 
   // Estado de submit
   const [submitting, setSubmitting] = useState(false);
@@ -84,8 +86,6 @@ export default function NewAppointmentModal({
       })
       .catch(() => {})
       .finally(() => setLoadingData(false));
-    // Resolver el país del tenant para el PhoneInput (no bloquea la UI)
-    auth.me().then(({ tenant }) => setTenantCountry(tenant.country)).catch(() => {});
   }, [open]);
 
   // Reset al cerrar
@@ -119,6 +119,7 @@ export default function NewAppointmentModal({
         selectedProf.id,
         selectedSvc.id,
         selectedDate,
+        tenantTz,
       );
       setSlots(res.data ?? []);
     } catch {
@@ -126,7 +127,7 @@ export default function NewAppointmentModal({
     } finally {
       setLoadingSlots(false);
     }
-  }, [selectedProf, selectedSvc, selectedDate]);
+  }, [selectedProf, selectedSvc, selectedDate, tenantTz]);
 
   useEffect(() => {
     if (step === 'datetime') {

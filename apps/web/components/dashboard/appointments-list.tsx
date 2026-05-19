@@ -36,7 +36,7 @@ type SortDir = 'asc' | 'desc';
 
 // ── Componente principal ──────────────────────────────────────────────────────
 
-export default function AppointmentsList({ timezone }: { timezone?: string }) {
+export default function AppointmentsList({ timezone }: { timezone: string }) {
   const t = useTranslations();
   const dateLocale = useDateLocale();
 
@@ -96,7 +96,7 @@ export default function AppointmentsList({ timezone }: { timezone?: string }) {
         sort_dir: sortDir,
         page,
         per_page: perPage,
-        timezone: timezone || undefined,
+        timezone,
       });
       setResult(res);
     } catch {
