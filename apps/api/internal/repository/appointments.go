@@ -40,6 +40,28 @@ func (r *appointmentRepository) Create(ctx context.Context, a *domain.Appointmen
 		if err != nil {
 			return fmt.Errorf("appointmentRepository.Create: %w", err)
 		}
+
+		// Si el appointment está vinculado a un tratamiento, materializar
+		// una treatment_session en la misma tx. Atomicidad: si falla,
+		// withTenant hace rollback del appointment también.
+		if a.TreatmentID != nil {
+			durationMin := int(a.EndsAt.Sub(a.StartsAt).Minutes())
+			_, err := tx.Exec(ctx, `
+				INSERT INTO treatment_sessions (
+					id, tenant_id, treatment_id, professional_id,
+					status, scheduled_at, duration_minutes,
+					appointment_id, created_at, updated_at
+				) VALUES (
+					uuid_generate_v4(), $1, $2, $3,
+					'pending', $4, $5,
+					$6, NOW(), NOW()
+				)
+			`, a.TenantID, *a.TreatmentID, a.ProfessionalID,
+				a.StartsAt, durationMin, a.ID)
+			if err != nil {
+				return fmt.Errorf("appointmentRepository.Create: materialize session: %w", err)
+			}
+		}
 		return nil
 	})
 }
@@ -404,6 +426,9 @@ func (r *appointmentRepository) ListUpcomingByCustomer(ctx context.Context, tena
 }
 
 // UpdateStatus actualiza el estado y notas de una cita.
+// Si el appointment está vinculado a un tratamiento y el status cambia a
+// completed/cancelled, sincroniza la treatment_session correspondiente en
+// la misma transacción y recalcula completed_sessions del tratamiento.
 func (r *appointmentRepository) UpdateStatus(ctx context.Context, tenantID, id uuid.UUID, req *domain.UpdateAppointmentRequest) error {
 	return withTenant(ctx, r.db, tenantID, func(tx pgx.Tx) error {
 		now := time.Now().UTC()
@@ -435,8 +460,39 @@ func (r *appointmentRepository) UpdateStatus(ctx context.Context, tenantID, id u
 		if tag.RowsAffected() == 0 {
 			return domain.ErrNotFound
 		}
+
+		// Sincronizar treatment_session vinculada (si existe) cuando el
+		// status del appointment cambia a completed o cancelled.
+		if req.Status == "completed" || req.Status == "cancelled" {
+			if err := syncSessionStatusForAppointment(ctx, tx, id, req.Status); err != nil {
+				return fmt.Errorf("appointmentRepository.UpdateStatus: sync session: %w", err)
+			}
+		}
 		return nil
 	})
+}
+
+// syncSessionStatusForAppointment actualiza el status de la treatment_session
+// vinculada (vía appointment_id) y dispara recalc del contador del tratamiento.
+// No-op si no hay session vinculada.
+func syncSessionStatusForAppointment(ctx context.Context, tx pgx.Tx, appointmentID uuid.UUID, status string) error {
+	var treatmentID uuid.UUID
+	err := tx.QueryRow(ctx, `
+		UPDATE treatment_sessions
+		SET status = $2,
+		    completed_at = CASE WHEN $2 = 'completed' THEN NOW() ELSE NULL END,
+		    updated_at = NOW()
+		WHERE appointment_id = $1
+		RETURNING treatment_id
+	`, appointmentID, status).Scan(&treatmentID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			// El appointment no tiene session vinculada (treatment_id == nil al crear).
+			return nil
+		}
+		return err
+	}
+	return recalcCompleted(ctx, tx, treatmentID)
 }
 
 // CheckConflict retorna true si hay conflicto de horario con otra cita activa.
@@ -490,6 +546,21 @@ func (r *appointmentRepository) Reschedule(ctx context.Context, tenantID, id, pr
 		}
 		if tag.RowsAffected() == 0 {
 			return domain.ErrNotFound
+		}
+
+		// Si el appointment tiene treatment_session vinculada, mantener la
+		// scheduled_at y professional_id en sync. No-op si no hay session.
+		durationMin := int(endsAt.Sub(startsAt).Minutes())
+		_, err = tx.Exec(ctx, `
+			UPDATE treatment_sessions
+			SET professional_id  = $2,
+			    scheduled_at     = $3,
+			    duration_minutes = $4,
+			    updated_at       = NOW()
+			WHERE appointment_id = $1
+		`, id, professionalID, startsAt, durationMin)
+		if err != nil {
+			return fmt.Errorf("appointmentRepository.Reschedule: sync session: %w", err)
 		}
 		return nil
 	})

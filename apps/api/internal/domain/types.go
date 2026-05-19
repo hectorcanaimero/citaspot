@@ -284,6 +284,9 @@ type CreateAppointmentRequest struct {
 	CustomerPhone  string     `json:"customer_phone"` // booking público
 	CustomerEmail  string     `json:"customer_email"` // booking público
 	Source         string     `json:"source"`         // "dashboard","web","whatsapp","api"
+	// Si está presente, materializa automáticamente una treatment_session
+	// vinculada al tratamiento (status='pending', appointment_id=appt.ID).
+	TreatmentID *uuid.UUID `json:"treatment_id"`
 }
 
 // UpdateAppointmentRequest actualiza estado/notas de una cita.
@@ -657,8 +660,11 @@ type TreatmentSession struct {
 	PaidInSession   *float64   `json:"paid_in_session,omitempty"`
 	Currency        string     `json:"currency,omitempty"`
 	NextSessionAt   *time.Time `json:"next_session_at,omitempty"`
-	CreatedAt       time.Time  `json:"created_at"`
-	UpdatedAt       time.Time  `json:"updated_at"`
+	// NULL si fue creada manualmente (registro retroactivo);
+	// poblado si fue materializada desde un appointment con treatment_id.
+	AppointmentID *uuid.UUID `json:"appointment_id,omitempty"`
+	CreatedAt     time.Time  `json:"created_at"`
+	UpdatedAt     time.Time  `json:"updated_at"`
 
 	// JOIN expandido
 	ProfessionalName string `json:"professional_name,omitempty"`

@@ -15,7 +15,7 @@ const sessionCols = `
 	ts.id, ts.tenant_id, ts.treatment_id, ts.professional_id,
 	ts.status, ts.scheduled_at, ts.duration_minutes, ts.completed_at,
 	ts.procedures_done, ts.notes, ts.paid_in_session, ts.currency,
-	ts.next_session_at, ts.created_at, ts.updated_at,
+	ts.next_session_at, ts.appointment_id, ts.created_at, ts.updated_at,
 	p.name AS professional_name`
 
 type treatmentSessionRepo struct {
@@ -38,7 +38,7 @@ func scanSession(row pgx.Row, s *domain.TreatmentSession) error {
 		&s.ID, &s.TenantID, &s.TreatmentID, &s.ProfessionalID,
 		&s.Status, &s.ScheduledAt, &s.DurationMinutes, &s.CompletedAt,
 		&proceduresDone, &notes, &s.PaidInSession, &currency,
-		&s.NextSessionAt, &s.CreatedAt, &s.UpdatedAt,
+		&s.NextSessionAt, &s.AppointmentID, &s.CreatedAt, &s.UpdatedAt,
 		&professionalName,
 	)
 	if err != nil {
@@ -90,13 +90,16 @@ func (r *treatmentSessionRepo) Create(ctx context.Context, tenantID, treatmentID
 	}
 
 	id := uuid.New()
+	// appointment_id queda NULL: este Create es del flujo manual/retroactivo.
+	// El flujo automático (appointment con treatment_id) ocurre en
+	// appointmentRepository.Create dentro de la misma tx.
 	_, err = tx.Exec(ctx, `
 		INSERT INTO treatment_sessions
 			(id, tenant_id, treatment_id, professional_id, status,
 			 scheduled_at, duration_minutes, procedures_done, notes,
-			 paid_in_session, currency, next_session_at,
+			 paid_in_session, currency, next_session_at, appointment_id,
 			 completed_at, created_at, updated_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12, NULL,
 		        CASE WHEN $5::text = 'completed' THEN NOW() ELSE NULL END,
 		        NOW(), NOW())
 	`,

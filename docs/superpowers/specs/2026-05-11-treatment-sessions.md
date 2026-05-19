@@ -288,3 +288,50 @@ Añadir claves en `apps/web/lib/i18n/locales/{en,es,pt}.ts` para:
 - [ ] Link "Ver todas las sesiones →" navega a la página del tratamiento
 - [ ] RLS activo: un tenant no puede ver sesiones de otro tenant
 - [ ] Todos los endpoints requieren JWT válido
+
+---
+
+## Relación con appointments (resuelto en Plane #32, migration 037)
+
+Una `appointment` puede estar vinculada a un `treatment` vía `appointments.treatment_id`. Cuando ese vínculo existe, la `treatment_session` se materializa **automáticamente** y se mantiene sincronizada con el ciclo de vida del appointment.
+
+### Schema
+
+```sql
+-- migration 037_treatment_sessions_appointment_link.sql
+ALTER TABLE treatment_sessions
+  ADD COLUMN appointment_id UUID NULL REFERENCES appointments(id) ON DELETE CASCADE;
+```
+
+- `appointment_id NULL` → sesión creada manualmente (registro retroactivo o agendamiento sin appointment formal)
+- `appointment_id != NULL` → sesión materializada desde un appointment; ciclo de vida sincronizado
+
+### Reglas de sincronización (atómicas, en la misma tx)
+
+| Evento en appointment | Efecto en treatment_session |
+|---|---|
+| `Create` con `treatment_id != nil` | INSERT session con `status='pending'`, `scheduled_at=starts_at`, `duration_minutes=ends_at-starts_at`, `appointment_id=appt.id` |
+| `UpdateStatus` a `completed` | UPDATE session vinculada → `status='completed'`, `completed_at=NOW()`. Recalcular `treatments.completed_sessions` |
+| `UpdateStatus` a `cancelled` | UPDATE session vinculada → `status='cancelled'`. Recalcular `treatments.completed_sessions` (idempotente) |
+| `UpdateStatus` a `confirmed` | Sesión permanece `pending` (confirmed es sobre la agenda, no sobre la clínica) |
+| `Reschedule` (cambia professional/starts_at) | UPDATE session vinculada → `professional_id`, `scheduled_at`, `duration_minutes` |
+| `DELETE` (hard-delete; raro, no expuesto en API actual) | CASCADE elimina la session automáticamente |
+
+### Atomicidad
+
+Toda sincronización ocurre dentro de la misma transacción `withTenant` del repositorio de appointments. Si el INSERT/UPDATE de la session falla, el appointment también hace rollback. **No hay estado intermedio observable.**
+
+### Fuente de verdad
+
+- **Agenda** (slot, profesional, hora): `appointment` es fuente de verdad. Cuando cambia, la session sigue.
+- **Clínica** (procedimientos, notas, pagos): `treatment_session` es fuente de verdad. Se actualiza independientemente vía `PATCH /treatments/:id/sessions/:sid`.
+
+### Greenfield
+
+Esta sincronización aplica a appointments creados **después** de la migración 037. Appointments anteriores con `treatment_id` no tienen session vinculada — no se hace backfill automático.
+
+### Implementación
+
+- `apps/api/internal/repository/appointments.go` → `Create`, `UpdateStatus`, `Reschedule` (sync inline)
+- Helper `syncSessionStatusForAppointment(ctx, tx, appointmentID, status)` reutilizado por status changes
+- `recalcCompleted(ctx, tx, treatmentID)` (definido en `treatment_sessions.go`) llamado tras cada cambio de status

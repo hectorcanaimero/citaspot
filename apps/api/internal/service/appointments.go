@@ -124,6 +124,7 @@ func (s *appointmentSvc) Create(ctx context.Context, tenantID uuid.UUID, req *do
 		CustomerID:     customerID,
 		ProfessionalID: req.ProfessionalID,
 		ServiceID:      req.ServiceID,
+		TreatmentID:    req.TreatmentID, // materializa treatment_session si != nil
 		StartsAt:       req.StartsAt,
 		EndsAt:         endsAt,
 		Status:         "pending",

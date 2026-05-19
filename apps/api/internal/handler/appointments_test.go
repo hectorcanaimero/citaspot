@@ -208,6 +208,80 @@ func TestAppointmentHandler_Create(t *testing.T) {
 	}
 }
 
+// TestAppointmentHandler_Create_WithTreatmentID verifica que cuando el body
+// incluye treatment_id, el campo se propaga al service para materializar la
+// treatment_session vinculada (lógica de Plane #32 / migration 037).
+func TestAppointmentHandler_Create_WithTreatmentID(t *testing.T) {
+	treatmentID := uuid.MustParse("66666666-6666-6666-6666-666666666666")
+	body := `{
+		"professional_id":"` + validProfID + `",
+		"service_id":"` + validServiceID + `",
+		"starts_at":"2026-03-20T10:00:00Z",
+		"customer_name":"Ana García",
+		"customer_phone":"+18091234567",
+		"treatment_id":"` + treatmentID.String() + `"
+	}`
+
+	var captured *domain.CreateAppointmentRequest
+	mock := &mockAppointmentSvc{
+		createFn: func(_ context.Context, _ uuid.UUID, req *domain.CreateAppointmentRequest) (*domain.Appointment, error) {
+			captured = req
+			return &domain.Appointment{ID: uuid.New(), TreatmentID: req.TreatmentID}, nil
+		},
+	}
+
+	h := newApptHandler(mock, &mockAvailabilitySvc{})
+	app := newProtectedApp()
+	app.Post("/appointments", h.Create)
+
+	resp := doJSON(app, "POST", "/appointments", body)
+	assertStatus(t, http.StatusCreated, resp.StatusCode)
+
+	if captured == nil {
+		t.Fatal("service Create no fue invocado")
+	}
+	if captured.TreatmentID == nil {
+		t.Fatal("TreatmentID no fue propagado al service")
+	}
+	if *captured.TreatmentID != treatmentID {
+		t.Fatalf("TreatmentID esperado %s, recibido %s", treatmentID, *captured.TreatmentID)
+	}
+}
+
+// TestAppointmentHandler_Create_WithoutTreatmentID verifica que un appointment
+// sin treatment_id mantiene TreatmentID = nil (no materializa session).
+func TestAppointmentHandler_Create_WithoutTreatmentID(t *testing.T) {
+	body := `{
+		"professional_id":"` + validProfID + `",
+		"service_id":"` + validServiceID + `",
+		"starts_at":"2026-03-20T10:00:00Z",
+		"customer_name":"Ana García",
+		"customer_phone":"+18091234567"
+	}`
+
+	var captured *domain.CreateAppointmentRequest
+	mock := &mockAppointmentSvc{
+		createFn: func(_ context.Context, _ uuid.UUID, req *domain.CreateAppointmentRequest) (*domain.Appointment, error) {
+			captured = req
+			return &domain.Appointment{ID: uuid.New()}, nil
+		},
+	}
+
+	h := newApptHandler(mock, &mockAvailabilitySvc{})
+	app := newProtectedApp()
+	app.Post("/appointments", h.Create)
+
+	resp := doJSON(app, "POST", "/appointments", body)
+	assertStatus(t, http.StatusCreated, resp.StatusCode)
+
+	if captured == nil {
+		t.Fatal("service Create no fue invocado")
+	}
+	if captured.TreatmentID != nil {
+		t.Fatalf("TreatmentID debería ser nil, recibido %s", *captured.TreatmentID)
+	}
+}
+
 func TestAppointmentHandler_GetByID(t *testing.T) {
 	tests := []struct {
 		name       string
