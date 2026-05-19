@@ -138,13 +138,14 @@ func main() {
 	clinicalFileRepo := repository.NewClinicalFileRepository(pool)
 	eventRepo        := repository.NewEventRepository(pool)
 	chatbotConfigRepo := repository.NewChatbotConfigRepository(pool)
+	waitlistRepo      := repository.NewWaitlistRepository(pool)
 
 	// ── Servicios ─────────────────────────────────────────────────────────────
 	authSvc    := service.NewAuthService(authRepo, cfg)
 	profSvc    := service.NewProfessionalService(profRepo, scheduleRepo, publisher)
 	serviceSvc := service.NewServiceSvc(serviceRepo, publisher)
 	availSvc   := service.NewAvailabilityService(scheduleRepo, serviceRepo)
-	apptSvc    := service.NewAppointmentSvc(apptRepo, serviceRepo, customerRepo, authRepo, waClient, notifRepo, publisher, eventRepo)
+	apptSvc    := service.NewAppointmentSvc(apptRepo, serviceRepo, customerRepo, profRepo, authRepo, waClient, notifRepo, publisher, eventRepo)
 	publicSvc  := service.NewPublicSvc(authRepo, profRepo, serviceRepo, availSvc, apptSvc, customerRepo)
 
 	var waSvc domain.WhatsAppSvc
@@ -161,6 +162,7 @@ func main() {
 	treatmentSessionSvc := service.NewTreatmentSessionSvc(treatmentSessionRepo, treatmentRepo)
 	taskSvc             := service.NewTaskSvc(taskRepo)
 	ruleSvc      := service.NewRuleSvc(ruleRepo, ruleExecRepo)
+	waitlistSvc  := service.NewWaitlistSvc(waitlistRepo)
 
 	// ── MinIO (storage de branding assets) ──────────────────────────────────
 	var brandingSvc domain.BrandingService
@@ -226,6 +228,7 @@ func main() {
 	clinicalNoteHandler := handler.NewClinicalNoteHandler(clinicalNoteSvc)
 	clinicalFileHandler := handler.NewClinicalFileHandler(clinicalFileSvc)
 	chatbotHandler      := handler.NewChatbotHandler(chatbotSvc)
+	waitlistHandler     := handler.NewWaitlistHandler(waitlistSvc)
 
 	// ── Workers background ────────────────────────────────────────────────────
 	reminderWorker := worker.NewReminderWorker(reminderRepo, notifRepo, waClient, publisher)
@@ -423,6 +426,22 @@ func main() {
 	pub.Get("/:slug/my-appointments", pubHandler.ListMyAppointments)
 	pub.Post("/:slug/appointments/:id/cancel", pubHandler.CancelAppointment)
 	pub.Post("/:slug/appointments/:id/reschedule", pubHandler.RescheduleAppointment)
+
+	// Lista de espera pre-launch (sin auth, sin tenant). Rate limit estricto
+	// por IP para prevenir abuse de bots que rellenen la tabla.
+	pub.Post("/waitlist", limiter.New(limiter.Config{
+		Max:        5,
+		Expiration: 1 * time.Minute,
+		KeyGenerator: func(c *fiber.Ctx) string {
+			return "waitlist:" + c.IP()
+		},
+		LimitReached: func(c *fiber.Ctx) error {
+			return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
+				"code":    "RATE_LIMIT",
+				"message": "Demasiados intentos. Intenta de nuevo en un minuto.",
+			})
+		},
+	}), waitlistHandler.Join)
 
 	// ── Rutas protegidas (JWT + tenant + plan check) ───────────────────────────
 	// Rate limit general: 120 req/min por IP en todas las rutas autenticadas

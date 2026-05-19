@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     deepseek_api_key: str = ""
     booking_base_url: str = "https://citaspot.com"
 
-    model_config = {"env_file": ".env", "case_sensitive": False}
+    model_config = {"env_file": ".env", "case_sensitive": False, "extra": "ignore"}
 
 
 settings = Settings()

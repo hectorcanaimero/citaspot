@@ -350,8 +350,8 @@ export default function LandingPage() {
             <a href="#como-funciona" onClick={() => setMenuOpen(false)}>{l.navHowItWorks}</a>
             <a href="#precios" onClick={() => setMenuOpen(false)}>{l.navPricing}</a>
             <Link href="/login" onClick={() => setMenuOpen(false)} style={{ fontSize: 22, fontFamily: 'Plus Jakarta Sans', color: 'var(--muted)' }}>{l.navLogin}</Link>
-            <Link href="/register" className="btn-p" onClick={() => setMenuOpen(false)} style={{ fontSize: 15 }}>
-              {l.navStartFree} <ArrowRight size={15} />
+            <Link href="/waitlist" className="btn-p" onClick={() => setMenuOpen(false)} style={{ fontSize: 15 }}>
+              {t.waitlist.navCta} <ArrowRight size={15} />
             </Link>
           </div>
         )}
@@ -365,8 +365,8 @@ export default function LandingPage() {
               <a href="#como-funciona" className="btn-g">{l.navHowItWorks}</a>
               <a href="#precios" className="btn-g">{l.navPricing}</a>
               <Link href="/login" className="btn-g">{l.navLogin}</Link>
-              <Link href="/register" className="btn-p">
-                {l.navStartFree} <ArrowRight size={14} />
+              <Link href="/waitlist" className="btn-p">
+                {t.waitlist.navCta} <ArrowRight size={14} />
               </Link>
             </div>
 
@@ -402,8 +402,8 @@ export default function LandingPage() {
                 </p>
 
                 <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 14, marginBottom: 48 }}>
-                  <Link href="/register" className="btn-p" style={{ fontSize: 15, padding: '15px 32px' }}>
-                    {l.heroCta} <ArrowRight size={16} />
+                  <Link href="/waitlist" className="btn-p" style={{ fontSize: 15, padding: '15px 32px' }}>
+                    {t.waitlist.heroCta} <ArrowRight size={16} />
                   </Link>
                   <a href="#como-funciona" className="btn-g" style={{ fontSize: 15 }}>
                     {l.heroCtaAlt}
@@ -559,8 +559,8 @@ export default function LandingPage() {
                     </div>
                   ))}
                 </div>
-                <Link href="/register" className="btn-g" style={{ display: 'flex', justifyContent: 'center', width: '100%', borderColor: 'var(--border)' }}>
-                  {l.startFreeBtn}
+                <Link href="/waitlist" className="btn-g" style={{ display: 'flex', justifyContent: 'center', width: '100%', borderColor: 'var(--border)' }}>
+                  {t.waitlist.pricingCta}
                 </Link>
               </div>
 
@@ -584,8 +584,8 @@ export default function LandingPage() {
                     </div>
                   ))}
                 </div>
-                <Link href="/register" className="btn-p" style={{ display: 'flex', justifyContent: 'center', width: '100%', fontSize: 15 }}>
-                  {l.startFreeBtn} <ArrowRight size={15} />
+                <Link href="/waitlist" className="btn-p" style={{ display: 'flex', justifyContent: 'center', width: '100%', fontSize: 15 }}>
+                  {t.waitlist.pricingCta} <ArrowRight size={15} />
                 </Link>
               </div>
             </div>
@@ -642,8 +642,8 @@ export default function LandingPage() {
               {l.ctaSub}
             </p>
             <div style={{ display: 'flex', justifyContent: 'center', gap: 14, flexWrap: 'wrap' }}>
-              <Link href="/register" className="btn-p" style={{ fontSize: 16, padding: '16px 36px' }}>
-                {l.ctaBtn} <ArrowRight size={16} />
+              <Link href="/waitlist" className="btn-p" style={{ fontSize: 16, padding: '16px 36px' }}>
+                {t.waitlist.ctaFinal} <ArrowRight size={16} />
               </Link>
               <Link href="/login" className="btn-g" style={{ fontSize: 16 }}>
                 {l.ctaLoginBtn}

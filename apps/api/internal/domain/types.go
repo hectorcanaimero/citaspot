@@ -843,3 +843,27 @@ type TopRuleMetric struct {
 	RuleName   string    `json:"rule_name"`
 	Executions int       `json:"executions"`
 }
+
+// ── Waitlist (pre-launch) ─────────────────────────────────────────────────────
+
+// WaitlistSignup representa un lead capturado en la landing pre-launch.
+// La tabla `waitlist_signups` es global (sin tenant_id, sin RLS) porque los
+// visitantes dejan sus datos antes de tener cuenta.
+type WaitlistSignup struct {
+	ID           uuid.UUID `json:"id"             db:"id"`
+	Email        string    `json:"email"          db:"email"`
+	BusinessName string    `json:"business_name"  db:"business_name"`
+	IPAddress    string    `json:"ip_address,omitempty"  db:"ip_address"`
+	UserAgent    string    `json:"user_agent,omitempty"  db:"user_agent"`
+	CreatedAt    time.Time `json:"created_at"     db:"created_at"`
+}
+
+// JoinWaitlistInput datos crudos recibidos desde el handler para sumar un lead.
+// La validación de email/business_name se hace en el service.
+type JoinWaitlistInput struct {
+	Email        string `json:"email"         validate:"required,email,max=254"`
+	BusinessName string `json:"business_name" validate:"required,min=2,max=120"`
+	// Capturados por el handler desde el request HTTP, no vienen en el body.
+	IPAddress string `json:"-"`
+	UserAgent string `json:"-"`
+}

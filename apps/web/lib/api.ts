@@ -3,8 +3,8 @@
 // El token lo gestiona Supabase SDK (@supabase/ssr) — no usamos localStorage manualmente.
 
 import { createClient } from '@/lib/supabase/browser';
-console.log('NEXT_PUBLIC_API_URL', process.env.NEXT_PUBLIC_API_URL);
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.citaspot.com';
+// `||` y no `??`: si la env var queda como string vacío en build, ?? no cae al fallback.
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.citaspot.com';
 
 export class APIError extends Error {
   /** Código legible por máquina devuelto por el backend (e.g. "not_found").
@@ -522,7 +522,7 @@ export interface Rule {
   trigger_event: string;
   trigger_schedule: { interval_days: number; reference_field: string } | null;
   conditions: Array<{ field: string; op: string; value: unknown }>;
-  actions: Array<{ type: string; template: string; params: Record<string, unknown> }>;
+  actions: Array<{ type: string; template: string; params: Record<string, unknown>; recipient?: string }>;
   is_active: boolean;
   is_template: boolean;
   template_key: string;
@@ -782,7 +782,7 @@ export const rules = {
     trigger_event: string;
     trigger_schedule?: { interval_days: number; reference_field: string };
     conditions?: Array<{ field: string; op: string; value: unknown }>;
-    actions: Array<{ type: string; template: string; params: Record<string, unknown> }>;
+    actions: Array<{ type: string; template: string; params: Record<string, unknown>; recipient?: string }>;
     cooldown_hours?: number;
     priority?: number;
   }): Promise<Rule> {
@@ -799,7 +799,7 @@ export const rules = {
     trigger_event: string;
     trigger_schedule: { interval_days: number; reference_field: string };
     conditions: Array<{ field: string; op: string; value: unknown }>;
-    actions: Array<{ type: string; template: string; params: Record<string, unknown> }>;
+    actions: Array<{ type: string; template: string; params: Record<string, unknown>; recipient?: string }>;
     is_active: boolean;
     cooldown_hours: number;
     priority: number;
@@ -875,6 +875,47 @@ export const knowledge = {
   },
   async remove(id: string) {
     return request(`/api/v1/knowledge/${id}`, { method: 'DELETE' });
+  },
+};
+
+// ── Waitlist (público, sin auth) ──────────────────────────────────────────────
+
+export interface WaitlistEntry {
+  id: string;
+  email: string;
+  business_name: string;
+  created_at: string;
+}
+
+export interface JoinWaitlistInput {
+  email: string;
+  businessName: string;
+}
+
+export const waitlist = {
+  // Endpoint público — NUNCA enviar Authorization header.
+  // 409 indica email duplicado; el componente lo distingue por err.code === 'duplicate'.
+  async join({ email, businessName }: JoinWaitlistInput): Promise<WaitlistEntry> {
+    const res = await fetch(`${API_URL}/api/v1/public/waitlist`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, business_name: businessName }),
+    });
+
+    if (res.status === 409) {
+      // Email ya registrado en la lista — error específico para la UI.
+      const body = await res.json().catch(() => ({}));
+      throw new APIError(409, body.message ?? 'Email already on the waitlist', 'duplicate');
+    }
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({ code: 'unknown', message: 'Error joining waitlist' }));
+      const code = body.code as string | undefined;
+      const message = (body.message ?? body.error ?? 'Error joining waitlist') as string;
+      throw new APIError(res.status, message, code);
+    }
+
+    return res.json() as Promise<WaitlistEntry>;
   },
 };
 

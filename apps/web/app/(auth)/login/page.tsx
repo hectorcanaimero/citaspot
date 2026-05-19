@@ -84,8 +84,8 @@ function LoginForm() {
 
           <p className="mt-5 text-center text-sm text-neutral-500">
             {t.auth.noAccount}{' '}
-            <Link href="/register" className="font-medium text-primary-600 hover:text-primary-700">
-              {t.auth.registerFree}
+            <Link href="/waitlist" className="font-medium text-primary-600 hover:text-primary-700">
+              {t.waitlist.navCta}
             </Link>
           </p>
         </Card>

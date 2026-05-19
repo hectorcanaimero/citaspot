@@ -26,9 +26,34 @@ func (a *SendWhatsAppAction) Execute(ctx context.Context, params engine.ActionPa
 		return nil
 	}
 
-	phone, ok := params.Context["customer_phone"].(string)
-	if !ok || phone == "" {
-		return fmt.Errorf("SendWhatsAppAction.Execute: customer_phone no disponible en contexto")
+	// Determinar destinatario: por defecto el cliente, opcionalmente el profesional.
+	recipient, _ := params.Params["recipient"].(string)
+	if recipient == "" {
+		recipient = "customer"
+	}
+
+	var (
+		phone   string
+		ctxKey  string
+	)
+	switch recipient {
+	case "professional":
+		ctxKey = "professional_phone"
+	case "customer":
+		ctxKey = "customer_phone"
+	default:
+		return fmt.Errorf("SendWhatsAppAction.Execute: recipient inválido '%s'", recipient)
+	}
+
+	phone, _ = params.Context[ctxKey].(string)
+	if phone == "" {
+		// Best-effort: si el profesional no tiene telefono, no romper la regla.
+		if recipient == "professional" {
+			slog.Warn("SendWhatsAppAction: profesional sin telefono, skipping",
+				"tenant", params.TenantSlug, "entity_id", params.EntityID)
+			return nil
+		}
+		return fmt.Errorf("SendWhatsAppAction.Execute: %s no disponible en contexto", ctxKey)
 	}
 
 	connected, err := a.waClient.IsConnected(ctx, params.TenantSlug)
@@ -46,7 +71,8 @@ func (a *SendWhatsAppAction) Execute(ctx context.Context, params engine.ActionPa
 		return fmt.Errorf("SendWhatsAppAction.Execute: %w", err)
 	}
 
-	slog.Info("SendWhatsAppAction: mensaje enviado", "tenant", params.TenantSlug, "phone", phone)
+	slog.Info("SendWhatsAppAction: mensaje enviado",
+		"tenant", params.TenantSlug, "recipient", recipient, "phone", phone)
 	return nil
 }
 

@@ -170,6 +170,7 @@ def _build_system_prompt(
     rag_context: str,
     tone: str | None = None,
     custom_instructions: str | None = None,
+    is_first_turn: bool = True,
 ) -> str:
     """Construye el system prompt del asistente con contexto del negocio."""
     msgs = get_messages(_LANG)
@@ -235,7 +236,20 @@ def _build_system_prompt(
         f"\n\n{msgs['system_rag_header']}\n{rag_context}" if rag_context else ""
     )
 
-    intro = msgs["system_intro"].format(business_name=business_name, bot_name=bot_name)
+    # Guard anti-hallucination: si no hay servicios cargados, inyectar instrucción dura
+    # para que el LLM no invente catálogo basado en el rubro del negocio.
+    no_catalog_section = ""
+    if not profile or not profile.get("services"):
+        no_catalog_section = f"\n\n{msgs['system_no_catalog']}"
+
+    greeting_instruction = (
+        msgs["greeting_first_turn"] if is_first_turn else msgs["greeting_continuation"]
+    )
+    intro = msgs["system_intro"].format(
+        business_name=business_name,
+        bot_name=bot_name,
+        greeting_instruction=greeting_instruction,
+    )
     warning = msgs["system_warning"]
 
     # Instrucciones de tono (desde chatbot_configs o default del system_intro)
@@ -249,7 +263,7 @@ def _build_system_prompt(
     if custom_instructions and custom_instructions.strip():
         custom_section = f"\n\nInstrucciones adicionales del negocio: {custom_instructions.strip()}"
 
-    return f"{intro}{tone_section}{custom_section}{business_context}{services_text}{professionals_text}{mapping_text}{rag_section}\n\n{warning}"
+    return f"{intro}{tone_section}{custom_section}{business_context}{services_text}{professionals_text}{mapping_text}{rag_section}{no_catalog_section}\n\n{warning}"
 
 
 async def process_message(
@@ -681,7 +695,8 @@ async def _handle_query(
     profile = await get_tenant_profile(tenant_slug)
     context = await rag_query(tenant_id, message_text)
 
-    system = _build_system_prompt(profile, context)
+    is_first_turn = len(history) == 0
+    system = _build_system_prompt(profile, context, is_first_turn=is_first_turn)
     messages = [{"role": "system", "content": system}]
 
     for h in history[-8:]:

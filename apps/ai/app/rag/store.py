@@ -13,7 +13,7 @@ log = logging.getLogger(__name__)
 # Número máximo de chunks a retornar en búsqueda semántica
 _TOP_K = 5
 # Umbral mínimo de similitud coseno (0–1)
-_MIN_SIMILARITY = 0.70
+_MIN_SIMILARITY = 0.55
 
 
 async def vectorize_document(

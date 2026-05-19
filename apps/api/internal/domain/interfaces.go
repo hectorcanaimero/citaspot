@@ -463,3 +463,19 @@ type ClinicalFileSvc interface {
 	ListByCustomer(ctx context.Context, tenantID, customerID uuid.UUID, category string, limit, offset int) ([]*ClinicalFile, int, error)
 	Delete(ctx context.Context, tenantID, fileID uuid.UUID) error
 }
+
+// ── Waitlist (pre-launch) ────────────────────────────────────────────────────
+
+// WaitlistRepository persistencia de leads pre-launch.
+// Opera sin RLS — la tabla `waitlist_signups` es global (sin tenant_id).
+type WaitlistRepository interface {
+	// Create inserta un nuevo signup. Devuelve ErrWaitlistEmailExists si el
+	// email ya estaba registrado (UNIQUE violation en PostgreSQL).
+	Create(ctx context.Context, signup *WaitlistSignup) error
+}
+
+// WaitlistSvc lógica de negocio para la lista de espera.
+type WaitlistSvc interface {
+	// Join normaliza y valida el input, luego persiste el signup.
+	Join(ctx context.Context, input *JoinWaitlistInput) (*WaitlistSignup, error)
+}

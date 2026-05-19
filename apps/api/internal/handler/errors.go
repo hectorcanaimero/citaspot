@@ -63,6 +63,10 @@ func handleServiceError(c *fiber.Ctx, err error) error {
 		return c.Status(http.StatusConflict).JSON(newError("max_files_reached", err.Error()))
 	case errors.Is(err, domain.ErrRateLimited):
 		return c.Status(http.StatusTooManyRequests).JSON(newError("rate_limited", err.Error()))
+	case errors.Is(err, domain.ErrWaitlistEmailExists):
+		return c.Status(http.StatusConflict).JSON(newError("waitlist_email_exists", err.Error()))
+	case errors.Is(err, domain.ErrWaitlistInvalidEmail):
+		return c.Status(http.StatusBadRequest).JSON(newError("waitlist_invalid_email", err.Error()))
 	default:
 		// Error inesperado — loggear internamente, no exponer detalles al cliente
 		slog.Error("handler internal error",

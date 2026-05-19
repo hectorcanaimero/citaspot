@@ -20,7 +20,10 @@ interface Action {
   type: string;
   template: string;
   params: Record<string, unknown>;
+  recipient?: string;
 }
+
+const RECIPIENTS = ['customer', 'professional'] as const;
 
 const TRIGGER_EVENTS = [
   'appointment.created',
@@ -129,6 +132,7 @@ export default function EditRulePage() {
           type: a.type,
           template: a.template ?? '',
           params: a.params ?? {},
+          recipient: a.recipient,
         })),
       );
       setCooldownHours(rule.cooldown_hours ?? 24);
@@ -462,6 +466,24 @@ export default function EditRulePage() {
                     <X className="h-4 w-4" />
                   </button>
                 </div>
+
+                {/* Destinatario solo para send_whatsapp */}
+                {action.type === 'send_whatsapp' && (
+                  <div className="mb-3">
+                    <FieldLabel>{ta.recipientLabel}</FieldLabel>
+                    <select
+                      value={action.recipient ?? 'customer'}
+                      onChange={e => updateAction(idx, { recipient: e.target.value })}
+                      className={`${selectCls} w-full`}
+                    >
+                      {RECIPIENTS.map(r => (
+                        <option key={r} value={r}>
+                          {(ta.recipients as unknown as Record<string, string>)[r] ?? r}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 {/* Template para whatsapp y create_task */}
                 {(action.type === 'send_whatsapp' || action.type === 'create_task') && (

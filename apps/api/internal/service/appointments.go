@@ -16,6 +16,7 @@ type appointmentSvc struct {
 	apptRepo     domain.AppointmentRepository
 	serviceRepo  domain.ServiceRepository
 	customerRepo domain.CustomerRepository
+	profRepo     domain.ProfessionalRepository
 	authRepo     domain.AuthRepository
 	waClient     domain.WAClient
 	notifRepo    domain.NotificationRepository
@@ -28,6 +29,7 @@ func NewAppointmentSvc(
 	apptRepo domain.AppointmentRepository,
 	serviceRepo domain.ServiceRepository,
 	customerRepo domain.CustomerRepository,
+	profRepo domain.ProfessionalRepository,
 	authRepo domain.AuthRepository,
 	waClient domain.WAClient,
 	notifRepo domain.NotificationRepository,
@@ -38,6 +40,7 @@ func NewAppointmentSvc(
 		apptRepo:     apptRepo,
 		serviceRepo:  serviceRepo,
 		customerRepo: customerRepo,
+		profRepo:     profRepo,
 		authRepo:     authRepo,
 		waClient:     waClient,
 		notifRepo:    notifRepo,
@@ -324,6 +327,14 @@ func (s *appointmentSvc) emitAppointmentEvent(ctx context.Context, tenantID, app
 	}
 	localTime := appt.StartsAt.In(loc)
 
+	// Resolver telefono del profesional para reglas con recipient=professional
+	var professionalPhone string
+	if s.profRepo != nil {
+		if prof, err := s.profRepo.GetByID(ctx, tenantID, appt.ProfessionalID); err == nil && prof != nil {
+			professionalPhone = prof.Phone
+		}
+	}
+
 	s.publishRuleEvent(ctx, domain.RuleEvent{
 		TenantID:   tenantID,
 		EventType:  eventType,
@@ -331,19 +342,20 @@ func (s *appointmentSvc) emitAppointmentEvent(ctx context.Context, tenantID, app
 		EntityID:   apptID,
 		EntityType: "appointment",
 		Payload: map[string]any{
-			"appointment_id":    apptID.String(),
-			"customer_id":       appt.CustomerID.String(),
-			"professional_id":   appt.ProfessionalID.String(),
-			"service_id":        appt.ServiceID.String(),
-			"status":            appt.Status,
-			"trigger":           trigger,
-			"starts_at":         localTime.Format("02/01/2006 3:04 PM"),
-			"appointment_date":  localTime.Format("02/01/2006"),
-			"appointment_time":  localTime.Format("3:04 PM"),
-			"customer_phone":    appt.CustomerPhone,
+			"appointment_id":     apptID.String(),
+			"customer_id":        appt.CustomerID.String(),
+			"professional_id":    appt.ProfessionalID.String(),
+			"service_id":         appt.ServiceID.String(),
+			"status":             appt.Status,
+			"trigger":            trigger,
+			"starts_at":          localTime.Format("02/01/2006 3:04 PM"),
+			"appointment_date":   localTime.Format("02/01/2006"),
+			"appointment_time":   localTime.Format("3:04 PM"),
+			"customer_phone":     appt.CustomerPhone,
 			"customer_name":     appt.CustomerName,
 			"service_name":      appt.ServiceName,
-			"professional_name": appt.ProfessionalName,
+			"professional_name":  appt.ProfessionalName,
+			"professional_phone": professionalPhone,
 		},
 		Timestamp: time.Now(),
 	})

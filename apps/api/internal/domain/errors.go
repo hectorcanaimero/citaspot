@@ -64,4 +64,10 @@ var (
 
 	// ErrRateLimited se retorna cuando se excede el límite de solicitudes.
 	ErrRateLimited = errors.New("demasiadas solicitudes, intentá de nuevo más tarde")
+
+	// ErrWaitlistEmailExists se retorna cuando el email ya está en la lista de espera.
+	ErrWaitlistEmailExists = errors.New("ese email ya está en la lista de espera")
+
+	// ErrWaitlistInvalidEmail se retorna cuando el email no tiene formato válido.
+	ErrWaitlistInvalidEmail = errors.New("el email no tiene un formato válido")
 )
