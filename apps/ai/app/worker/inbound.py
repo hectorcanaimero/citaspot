@@ -9,6 +9,7 @@ import aio_pika
 import structlog
 from aio_pika.abc import AbstractIncomingMessage
 
+from app.agent import history as history_module
 from app.agent.orchestrator import process_message
 from app.core.config import settings
 
@@ -22,19 +23,47 @@ async def _process(message: AbstractIncomingMessage) -> None:
     async with message.process(requeue=True):
         try:
             payload = json.loads(message.body)
+            tenant_id = payload["tenant_id"]
+            conversation_id = payload["conversation_id"]
+            message_text = payload["content"]
+
             log.info(
                 "worker.inbound: recibido",
-                tenant=payload.get("tenant_id"),
-                conv=payload.get("conversation_id"),
+                tenant=tenant_id,
+                conv=conversation_id,
             )
-            await process_message(
-                tenant_id=payload["tenant_id"],
+
+            # El historial es propiedad del AI service: lo leemos de Redis y
+            # NO confiamos en lo que envíe el Core API en el payload.
+            history = await history_module.get_recent(
+                tenant_id, conversation_id, limit=10
+            )
+            log.info(
+                "worker.inbound: history_loaded_from_redis",
+                count=len(history),
+                tenant_id=str(tenant_id),
+            )
+
+            reply = await process_message(
+                tenant_id=tenant_id,
                 tenant_slug=payload["tenant_slug"],
-                conversation_id=payload["conversation_id"],
+                conversation_id=conversation_id,
                 wa_phone=payload["wa_phone"],
-                message_text=payload["content"],
-                history=payload.get("history", []),
+                message_text=message_text,
+                history=history,
             )
+
+            # Persistir AMBOS turnos en orden cronológico:
+            #   1) mensaje del usuario (después de process_message para que
+            #      el LLM haya visto el historial SIN el turno actual)
+            #   2) respuesta del asistente (si la hubo)
+            await history_module.append_message(
+                tenant_id, conversation_id, "user", message_text
+            )
+            if reply:
+                await history_module.append_message(
+                    tenant_id, conversation_id, "assistant", reply
+                )
         except json.JSONDecodeError as e:
             log.error("worker.inbound: JSON inválido", error=str(e))
             # No reencolar — mensaje malformado

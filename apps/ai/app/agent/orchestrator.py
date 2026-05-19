@@ -16,16 +16,17 @@ from app.agent.actions import (
     get_availability,
     get_my_appointments,
     get_tenant_profile,
-    rag_query,
     reschedule_appointment,
 )
 from app.agent.intent import Intent
 from app.agent.intent import detect as detect_intent
 from app.agent.messages import get_messages
+from app.agent.output import format_for_whatsapp
 from app.agent.state import ConvState, get_state, reset_state, save_state
+from app.agent.tools import OPENAI_TOOLS
 from app.core.config import settings
 from app.core.rabbitmq import publish
-from app.llm.router import chat
+from app.llm.router import chat_with_tools
 
 log = structlog.get_logger(__name__)
 
@@ -34,6 +35,12 @@ _LANG = os.environ.get("WHATSAPP_LANGUAGE", "es")
 
 # Timeout para publicar "Un momento..." al usuario
 _SLOW_RESPONSE_SECS = 5.0
+
+# Tope de chars por mensaje de WhatsApp (post-formateo del LLM).
+_WHATSAPP_MAX_CHARS = 400
+# Delay entre chunks consecutivos al partir un mensaje largo en varios envíos.
+# Respeta el rate limit de WhatsApp (1 msg/seg/sesión, CLAUDE.md §7).
+_INTER_CHUNK_DELAY_SECS = 1.0
 
 
 def _m(key: str, **kwargs: Any) -> str:
@@ -125,19 +132,36 @@ def _format_friendly_date(date_str: str) -> str:
 
 
 async def _publish_reply(
-    tenant_id: str, tenant_slug: str, conversation_id: str, wa_phone: str, text: str,
+    tenant_id: str,
+    tenant_slug: str,
+    conversation_id: str,
+    wa_phone: str,
+    text: str | list[str],
 ) -> None:
-    """Publica la respuesta en wa.messages.outbound."""
-    await publish(
-        "wa.messages.outbound",
-        {
-            "tenant_id": tenant_id,
-            "tenant_slug": tenant_slug,
-            "conversation_id": conversation_id,
-            "wa_phone": wa_phone,
-            "content": text,
-        },
-    )
+    """Publica la respuesta en wa.messages.outbound.
+
+    Acepta un único string o una lista de strings (chunks). Cuando recibe lista,
+    publica cada chunk como mensaje WA separado con un pequeño delay entre cada
+    uno para respetar el rate limit (1 msg/seg, CLAUDE.md §7).
+    """
+    chunks = text if isinstance(text, list) else [text]
+    chunks = [c for c in chunks if c]
+    if not chunks:
+        return
+
+    for i, chunk in enumerate(chunks):
+        if i > 0:
+            await asyncio.sleep(_INTER_CHUNK_DELAY_SECS)
+        await publish(
+            "wa.messages.outbound",
+            {
+                "tenant_id": tenant_id,
+                "tenant_slug": tenant_slug,
+                "conversation_id": conversation_id,
+                "wa_phone": wa_phone,
+                "content": chunk,
+            },
+        )
 
 
 # Mapeo de tone a instrucciones de comunicación
@@ -273,7 +297,7 @@ async def process_message(
     wa_phone: str,
     message_text: str,
     history: list[dict[str, Any]],
-) -> None:
+) -> str | None:
     """
     Punto de entrada principal del orquestador.
     Lee el estado de Redis, detecta intención, ejecuta acción y publica respuesta.
@@ -285,6 +309,11 @@ async def process_message(
         wa_phone: Número WhatsApp del cliente.
         message_text: Texto del mensaje recibido.
         history: Últimos mensajes de la conversación [{role, content}].
+
+    Returns:
+        El texto de la respuesta enviada al usuario (o None si no hubo respuesta,
+        p. ej. estado HANDED_OFF). El caller puede usarlo para persistir el
+        historial.
     """
     state = await get_state(tenant_id, conversation_id)
     current_state = ConvState(state.get("state", ConvState.IDLE))
@@ -317,7 +346,16 @@ async def process_message(
         slow_task.cancel()
 
     if response:
-        await _publish_reply(tenant_id, tenant_slug, conversation_id, wa_phone, response)
+        # Post-procesar para WhatsApp: corta markdown no soportado y parte mensajes
+        # largos (>400 chars) en varios chunks. Los templates de messages.py ya
+        # son cortos y WA-safe → se devuelven como una sola lista de 1 elemento.
+        chunks = format_for_whatsapp(response, max_chars=_WHATSAPP_MAX_CHARS)
+        await _publish_reply(tenant_id, tenant_slug, conversation_id, wa_phone, chunks)
+        # Devolver el texto unido para que el historial vea la respuesta completa
+        # como un solo turno del asistente (más útil para el LLM en próximos turnos).
+        return "\n\n".join(chunks)
+
+    return response
 
 
 async def _send_slow_response(
@@ -344,8 +382,23 @@ async def _handle(
     if current_state == ConvState.HANDED_OFF:
         return None
 
-    # --- Detectar intención ---
-    intent = await detect_intent(message_text, history)
+    # --- Detectar intención (sesgado por el estado actual) ---
+    pending_data = {
+        "service_id": state.get("pending_service_id"),
+        "professional_id": state.get("pending_professional_id"),
+        "date": state.get("pending_date"),
+        "selected_slot": state.get("pending_selected_slot"),
+        "customer_name": state.get("customer_name"),
+        "cancel_id": state.get("pending_cancel_id"),
+        "reschedule_id": state.get("pending_reschedule_id"),
+        "reschedule_date": state.get("pending_reschedule_date"),
+    }
+    intent = await detect_intent(
+        message_text,
+        history,
+        conv_state=current_state,
+        pending_data=pending_data,
+    )
     log.info("orchestrator: intent detectado", intent=str(intent), state=str(current_state), text_len=len(message_text))
 
     # --- Escape hatch: HANDOFF y CANCEL desde cualquier estado de selección ---
@@ -685,25 +738,113 @@ async def _handle_name_collection(
     return await _confirm_booking(tenant_id, tenant_slug, wa_phone, conversation_id, state)
 
 
+def _build_query_system_prompt(tenant_slug: str, is_first_turn: bool) -> str:
+    """System prompt corto y duro para el handler de QUERY con tool-calling.
+
+    Sin catálogo inyectado: el LLM debe pedir info via tools (list_services,
+    get_business_info, search_knowledge, etc.) y NUNCA inventar datos.
+    """
+    msgs = get_messages(_LANG)
+    greeting_rule = (
+        msgs.get("greeting_first_turn", "First message — you may greet briefly.")
+        if is_first_turn
+        else msgs.get("greeting_continuation", "Mid-conversation — no greeting.")
+    )
+
+    if _LANG == "en":
+        return (
+            f"You are the WhatsApp assistant for business `{tenant_slug}`.\n\n"
+            f"{greeting_rule}\n\n"
+            "RULES:\n"
+            "- ONLY answer with information returned by the available tools.\n"
+            "- If a tool doesn't return the data, say 'I don't have that info' "
+            "  and offer to escalate to a human.\n"
+            "- NEVER invent services, prices, hours, professionals, or policies.\n"
+            "- WhatsApp style: max 2-3 short sentences. No long paragraphs.\n"
+            "- Don't repeat the business name in every reply.\n"
+            "- Use the tools proactively: list_services for prices/catalog, "
+            "  get_business_info for location/contact, search_knowledge for FAQs/policies, "
+            "  check_availability only when the user asks about a specific date.\n"
+            "- Don't use markdown headers (#). Don't use **double asterisks** — "
+            "  WhatsApp uses *single* asterisks for bold.\n"
+            "- Don't use numbered lists with more than 3 items. "
+            "  Prefer inline 'A, B and C'.\n"
+            "- Max 400 characters total. Be conversational, not formal.\n"
+        )
+    if _LANG == "pt":
+        return (
+            f"Você é o assistente de WhatsApp do negócio `{tenant_slug}`.\n\n"
+            f"{greeting_rule}\n\n"
+            "REGRAS:\n"
+            "- Responda APENAS com informações obtidas pelas tools.\n"
+            "- Se uma tool não retornar o dado, diga 'Não tenho essa informação' "
+            "  e ofereça escalar para um humano.\n"
+            "- NUNCA invente serviços, preços, horários, profissionais ou políticas.\n"
+            "- Estilo WhatsApp: máximo 2-3 frases curtas. Sem parágrafos longos.\n"
+            "- Não repita o nome do negócio em cada resposta.\n"
+            "- Use as tools proativamente: list_services para preços/catálogo, "
+            "  get_business_info para localização/contato, search_knowledge para FAQs/políticas, "
+            "  check_availability apenas quando o cliente perguntar por uma data específica.\n"
+            "- Não use cabeçalhos markdown (#). Não use **asteriscos duplos** — "
+            "  WhatsApp usa *asterisco simples* para negrito.\n"
+            "- Não use listas numeradas com mais de 3 itens. "
+            "  Prefira 'A, B e C' em linha.\n"
+            "- Máximo 400 caracteres no total. Seja conversacional, não formal.\n"
+        )
+    # Default: español rioplatense neutro LATAM
+    return (
+        f"Sos el asistente de WhatsApp del negocio `{tenant_slug}`.\n\n"
+        f"{greeting_rule}\n\n"
+        "REGLAS:\n"
+        "- Solo respondé con información que obtuviste de las tools.\n"
+        "- Si una tool no devuelve el dato, decí 'No tengo esa información' "
+        "  y ofrecé escalar a un humano.\n"
+        "- NUNCA inventes servicios, precios, horarios, profesionales ni políticas.\n"
+        "- Estilo WhatsApp: máximo 2-3 oraciones cortas. Sin párrafos largos.\n"
+        "- No repitas el nombre del negocio en cada respuesta.\n"
+        "- Usá las tools proactivamente: list_services para precios/catálogo, "
+        "  get_business_info para ubicación/contacto, search_knowledge para FAQs/políticas, "
+        "  check_availability solo cuando el cliente pregunte por una fecha concreta.\n"
+        "- No uses encabezados markdown (#). No uses **asteriscos dobles** — "
+        "  WhatsApp usa *asterisco simple* para negrita.\n"
+        "- No uses listas numeradas con más de 3 ítems. "
+        "  Preferí 'A, B y C' en línea.\n"
+        "- Máximo 400 caracteres en total. Sé conversacional, no formal.\n"
+    )
+
+
 async def _handle_query(
     tenant_id: str,
     tenant_slug: str,
     message_text: str,
     history: list[dict[str, Any]],
 ) -> str:
-    """Responde preguntas usando RAG + LLM."""
-    profile = await get_tenant_profile(tenant_slug)
-    context = await rag_query(tenant_id, message_text)
+    """Responde preguntas vía tool-calling: el LLM decide qué tools invocar.
 
+    Anti-hallucination: NO inyectamos catálogo en el prompt. Si el LLM necesita
+    datos del tenant los pide via list_services / get_business_info /
+    search_knowledge / check_availability.
+    """
     is_first_turn = len(history) == 0
-    system = _build_system_prompt(profile, context, is_first_turn=is_first_turn)
-    messages = [{"role": "system", "content": system}]
+    system = _build_query_system_prompt(tenant_slug, is_first_turn)
+    messages: list[dict[str, Any]] = [{"role": "system", "content": system}]
 
     for h in history[-8:]:
         messages.append({"role": h["role"], "content": h["content"]})
     messages.append({"role": "user", "content": message_text})
 
-    return await chat(messages, temperature=0.3)
+    try:
+        return await chat_with_tools(
+            messages=messages,
+            tools=OPENAI_TOOLS,
+            ctx={"tenant_slug": tenant_slug, "tenant_id": tenant_id},
+            temperature=0.2,
+            max_tokens=800,
+            max_iterations=3,
+        )
+    except Exception as e:
+        log.error("orchestrator._handle_query: tool-calling falló", error=str(e))
+        return _m("slow_response")
 
 
 # ---------------------------------------------------------------------------
