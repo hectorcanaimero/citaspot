@@ -86,6 +86,24 @@ export default function TreatmentDetailPage() {
 
   const total = treatment.total_sessions;
   const completed = treatment.completed_sessions;
+  const sessionProgressPct = total ? Math.min(100, Math.round((completed / total) * 100)) : 0;
+  const paidAmount = treatment.paid_amount ?? 0;
+  const estimatedCost = treatment.estimated_cost;
+  const paymentPct = estimatedCost && estimatedCost > 0
+    ? Math.min(100, Math.round((paidAmount / estimatedCost) * 100))
+    : 0;
+  const remaining = estimatedCost != null ? Math.max(0, estimatedCost - paidAmount) : null;
+  const canMarkCompleted = treatment.status !== 'completed' && treatment.status !== 'abandoned';
+
+  const handleMarkTreatmentCompleted = async () => {
+    if (!confirm(s.confirmMarkCompleted)) return;
+    try {
+      const updated = await treatments.updateStatus(id, 'completed');
+      setTreatment(updated);
+    } catch {
+      // silencio: usuario reintenta
+    }
+  };
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
@@ -104,12 +122,64 @@ export default function TreatmentDetailPage() {
             {completed}{total ? `/${total}` : ''} {s.title.toLowerCase()}
           </p>
         </div>
-        <button
-          onClick={() => setModalOpen(true)}
-          className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition-colors"
-        >
-          {s.newSession}
-        </button>
+        <div className="flex items-center gap-2">
+          {canMarkCompleted && (
+            <button
+              onClick={handleMarkTreatmentCompleted}
+              className="border border-emerald-200 bg-emerald-50 text-emerald-700 px-3 py-2 rounded-lg text-sm font-medium hover:bg-emerald-100"
+            >
+              {s.markTreatmentCompleted}
+            </button>
+          )}
+          <button
+            onClick={() => setModalOpen(true)}
+            className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition-colors"
+          >
+            {s.newSession}
+          </button>
+        </div>
+      </div>
+
+      {/* Resumen: Progreso + Pagos */}
+      <div className="mb-8 grid gap-4 sm:grid-cols-2">
+        {/* Progreso de sesiones */}
+        <div className="rounded-xl border border-slate-200 bg-white p-5">
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">{s.progressTitle}</p>
+          {total ? (
+            <>
+              <div className="flex items-baseline justify-between mb-2">
+                <span className="text-2xl font-bold text-slate-900">{sessionProgressPct}%</span>
+                <span className="text-sm text-slate-500">{completed} / {total} {s.title.toLowerCase()}</span>
+              </div>
+              <div className="h-2 w-full rounded-full bg-slate-100">
+                <div className="h-full rounded-full bg-indigo-500 transition-all" style={{ width: `${sessionProgressPct}%` }} />
+              </div>
+            </>
+          ) : (
+            <p className="text-sm text-slate-400">{s.noTotalSessions}</p>
+          )}
+        </div>
+
+        {/* Pagos */}
+        <div className="rounded-xl border border-slate-200 bg-white p-5">
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">{s.paymentsTitle}</p>
+          {estimatedCost && estimatedCost > 0 ? (
+            <>
+              <div className="flex items-baseline justify-between mb-2">
+                <span className="text-2xl font-bold text-emerald-600">${paidAmount.toFixed(2)}</span>
+                <span className="text-sm text-slate-500">/ ${estimatedCost.toFixed(2)} {treatment.currency}</span>
+              </div>
+              <div className="h-2 w-full rounded-full bg-slate-100">
+                <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${paymentPct}%` }} />
+              </div>
+              {remaining != null && remaining > 0 && (
+                <p className="mt-2 text-xs text-slate-500">{s.remaining}: ${remaining.toFixed(2)} {treatment.currency}</p>
+              )}
+            </>
+          ) : (
+            <p className="text-sm text-slate-400">{s.noEstimatedCost}</p>
+          )}
+        </div>
       </div>
 
       {/* Sessions list */}

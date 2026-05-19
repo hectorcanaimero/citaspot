@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -309,4 +310,67 @@ func nullString(s string) *string {
 		return nil
 	}
 	return &s
+}
+
+// FindPendingPostOpJobs busca sessions completadas en la ventana
+// [completedAfter, completedBefore] que aún no tienen post_op_sent_at,
+// filtrando por tenants con módulo dental activo. Cross-tenant, sin RLS.
+func (r *treatmentSessionRepo) FindPendingPostOpJobs(ctx context.Context, completedBefore, completedAfter time.Time) ([]*domain.PostOpJob, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT
+			ts.id, ts.treatment_id, ts.tenant_id,
+			ten.slug,
+			t.customer_id,
+			c.name, c.phone,
+			t.name, t.treatment_type,
+			p.name,
+			ts.completed_at
+		FROM treatment_sessions ts
+		JOIN treatments t        ON t.id = ts.treatment_id
+		JOIN tenants ten         ON ten.id = ts.tenant_id
+		JOIN customers c         ON c.id = t.customer_id
+		JOIN professionals p     ON p.id = ts.professional_id
+		JOIN tenant_modules tm   ON tm.tenant_id = ts.tenant_id AND tm.module_key = 'dental' AND tm.enabled = TRUE
+		WHERE ts.status = 'completed'
+		  AND ts.completed_at IS NOT NULL
+		  AND ts.completed_at <= $1
+		  AND ts.completed_at >= $2
+		  AND ts.post_op_sent_at IS NULL
+		  AND c.phone IS NOT NULL AND c.phone != ''
+		ORDER BY ts.completed_at
+		LIMIT 100
+	`, completedBefore, completedAfter)
+	if err != nil {
+		return nil, fmt.Errorf("treatmentSessionRepo.FindPendingPostOpJobs: %w", err)
+	}
+	defer rows.Close()
+
+	jobs := make([]*domain.PostOpJob, 0, 32)
+	for rows.Next() {
+		j := &domain.PostOpJob{}
+		if err := rows.Scan(
+			&j.SessionID, &j.TreatmentID, &j.TenantID,
+			&j.TenantSlug,
+			&j.CustomerID,
+			&j.CustomerName, &j.CustomerPhone,
+			&j.TreatmentName, &j.TreatmentType,
+			&j.ProfessionalName,
+			&j.CompletedAt,
+		); err != nil {
+			return nil, err
+		}
+		jobs = append(jobs, j)
+	}
+	return jobs, rows.Err()
+}
+
+// MarkPostOpSent marca una sesión como notificada post-op.
+func (r *treatmentSessionRepo) MarkPostOpSent(ctx context.Context, sessionID uuid.UUID) error {
+	_, err := r.db.Exec(ctx, `
+		UPDATE treatment_sessions SET post_op_sent_at = NOW(), updated_at = NOW() WHERE id = $1
+	`, sessionID)
+	if err != nil {
+		return fmt.Errorf("treatmentSessionRepo.MarkPostOpSent: %w", err)
+	}
+	return nil
 }

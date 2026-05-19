@@ -12,13 +12,11 @@ import (
 	"time"
 	_ "time/tzdata" // Embebe la base de datos de timezones en el binario (Alpine/scratch no la incluyen)
 
-	"github.com/google/uuid"
 	"github.com/gofiber/contrib/swagger"
 	"github.com/joho/godotenv"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	fiberlogger "github.com/gofiber/fiber/v2/middleware/logger"
-	"github.com/gofiber/fiber/v2/middleware/limiter"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/gofiber/fiber/v2/middleware/requestid"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -34,9 +32,7 @@ import (
 	"github.com/citaspot/api/internal/engine/actions"
 	"github.com/citaspot/api/internal/handler"
 	"github.com/citaspot/api/internal/logger"
-	"github.com/citaspot/api/internal/middleware"
 	"github.com/citaspot/api/internal/repository"
-	"github.com/citaspot/api/internal/seed"
 	"github.com/citaspot/api/internal/service"
 	"github.com/citaspot/api/internal/worker"
 )
@@ -139,6 +135,7 @@ func main() {
 	eventRepo        := repository.NewEventRepository(pool)
 	chatbotConfigRepo := repository.NewChatbotConfigRepository(pool)
 	waitlistRepo      := repository.NewWaitlistRepository(pool)
+	tenantModuleRepo  := repository.NewTenantModuleRepository(pool)
 
 	// ── Servicios ─────────────────────────────────────────────────────────────
 	authSvc    := service.NewAuthService(authRepo, cfg)
@@ -146,7 +143,7 @@ func main() {
 	serviceSvc := service.NewServiceSvc(serviceRepo, publisher)
 	availSvc   := service.NewAvailabilityService(scheduleRepo, serviceRepo)
 	apptSvc    := service.NewAppointmentSvc(apptRepo, serviceRepo, customerRepo, profRepo, authRepo, waClient, notifRepo, publisher, eventRepo)
-	publicSvc  := service.NewPublicSvc(authRepo, profRepo, serviceRepo, availSvc, apptSvc, customerRepo)
+	publicSvc  := service.NewPublicSvc(authRepo, profRepo, serviceRepo, availSvc, apptSvc, customerRepo, treatmentRepo, tenantModuleRepo)
 
 	var waSvc domain.WhatsAppSvc
 	if publisher != nil {
@@ -233,8 +230,10 @@ func main() {
 	// ── Workers background ────────────────────────────────────────────────────
 	reminderWorker := worker.NewReminderWorker(reminderRepo, notifRepo, waClient, publisher)
 	outboundWorker := worker.NewOutboundWorker(cfg.RabbitMQURL, waClient, notifRepo, convRepo)
+	dentalNotificationsWorker := worker.NewDentalNotificationsWorker(treatmentRepo, treatmentSessionRepo, notifRepo, waClient)
 	go reminderWorker.Start(ctx)
 	go outboundWorker.Start(ctx)
+	go dentalNotificationsWorker.Start(ctx)
 
 	// Worker de mantenimiento de eventos (particiones + limpieza)
 	eventsWorker := worker.NewEventsMaintenanceWorker(pool)
@@ -371,320 +370,38 @@ func main() {
 		return c.Status(statusCode).JSON(fiber.Map{"status": status, "checks": checks})
 	})
 
-	api := app.Group("/api/v1")
-	// Preflight CORS: el navegador envía OPTIONS antes de POST/GET
-	api.Options("/*", func(c *fiber.Ctx) error { return c.SendStatus(fiber.StatusNoContent) })
-
-	// ── Rate limiting en rutas públicas sensibles ─────────────────────────────
-	// Auth: 10 req/min por IP — protege contra brute force
-	auth := api.Group("/auth", limiter.New(limiter.Config{
-		Max:        10,
-		Expiration: 1 * time.Minute,
-		KeyGenerator: func(c *fiber.Ctx) string {
-			return "auth:" + c.IP()
-		},
-		LimitReached: func(c *fiber.Ctx) error {
-			return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
-				"code":    "RATE_LIMIT",
-				"message": "Demasiados intentos. Intenta de nuevo en un minuto.",
-			})
-		},
-	}))
-	auth.Post("/register", authHandler.Register)
-	auth.Post("/login", authHandler.Login)
-	auth.Post("/refresh", authHandler.RefreshToken)
-
-	// WhatsApp webhook: 300 req/min — Evolution envía ráfagas de eventos
-	api.Post("/whatsapp/webhook", limiter.New(limiter.Config{
-		Max:        300,
-		Expiration: 1 * time.Minute,
-		KeyGenerator: func(c *fiber.Ctx) string {
-			return "wa_webhook:" + c.IP()
-		},
-		LimitReached: func(c *fiber.Ctx) error {
-			return c.SendStatus(fiber.StatusTooManyRequests)
-		},
-	}), waHandler.Webhook)
-
-	// Stripe webhook: 50 req/min
-	api.Post("/billing/webhook", limiter.New(limiter.Config{
-		Max:        50,
-		Expiration: 1 * time.Minute,
-		KeyGenerator: func(c *fiber.Ctx) string {
-			return "stripe_webhook:" + c.IP()
-		},
-		LimitReached: func(c *fiber.Ctx) error {
-			return c.SendStatus(fiber.StatusTooManyRequests)
-		},
-	}), billingHandler.Webhook)
-
-	// Booking público (sin JWT, por slug)
-	pub := api.Group("/public")
-	pub.Get("/:slug", pubHandler.GetProfile)
-	pub.Get("/:slug/availability", pubHandler.GetAvailability)
-	pub.Post("/:slug/book", pubHandler.Book)
-	pub.Get("/:slug/my-appointments", pubHandler.ListMyAppointments)
-	pub.Post("/:slug/appointments/:id/cancel", pubHandler.CancelAppointment)
-	pub.Post("/:slug/appointments/:id/reschedule", pubHandler.RescheduleAppointment)
-
-	// Lista de espera pre-launch (sin auth, sin tenant). Rate limit estricto
-	// por IP para prevenir abuse de bots que rellenen la tabla.
-	pub.Post("/waitlist", limiter.New(limiter.Config{
-		Max:        5,
-		Expiration: 1 * time.Minute,
-		KeyGenerator: func(c *fiber.Ctx) string {
-			return "waitlist:" + c.IP()
-		},
-		LimitReached: func(c *fiber.Ctx) error {
-			return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
-				"code":    "RATE_LIMIT",
-				"message": "Demasiados intentos. Intenta de nuevo en un minuto.",
-			})
-		},
-	}), waitlistHandler.Join)
-
-	// ── Rutas protegidas (JWT + tenant + plan check) ───────────────────────────
-	// Rate limit general: 120 req/min por IP en todas las rutas autenticadas
-	apiLimiter := limiter.New(limiter.Config{
-		Max:        120,
-		Expiration: 1 * time.Minute,
-		KeyGenerator: func(c *fiber.Ctx) string {
-			return "api:" + c.IP()
-		},
-		LimitReached: func(c *fiber.Ctx) error {
-			return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
-				"code":    "RATE_LIMIT",
-				"message": "Demasiadas solicitudes. Intenta en un momento.",
-			})
-		},
+	// ── Wiring de rutas de negocio ────────────────────────────────────────────
+	// Extraído a routes.go para permitir tests del wiring (ver routes_test.go).
+	SetupRoutes(app, &RouteDeps{
+		Cfg:                     cfg,
+		Pool:                    pool,
+		Rdb:                     rdb,
+		AuthRepo:                authRepo,
+		TenantModuleRepo:        tenantModuleRepo,
+		ProfSvc:                 profSvc,
+		AuthHandler:             authHandler,
+		ProfHandler:             profHandler,
+		SvcHandler:              svcHandler,
+		ApptHandler:             apptHandler,
+		PubHandler:              pubHandler,
+		WaHandler:               waHandler,
+		KnowledgeHandler:        knowledgeHandler,
+		CustomerHandler:         customerHandler,
+		SettingsHandler:         settingsHandler,
+		BlockHandler:            blockHandler,
+		BillingHandler:          billingHandler,
+		PipelineHandler:         pipelineHandler,
+		TreatmentHandler:        treatmentHandler,
+		TreatmentSessionHandler: treatmentSessionHandler,
+		TaskHandler:             taskHandler,
+		RuleHandler:             ruleHandler,
+		CrmHandler:              crmHandler,
+		BrandingHandler:         brandingHandler,
+		ClinicalNoteHandler:     clinicalNoteHandler,
+		ClinicalFileHandler:     clinicalFileHandler,
+		ChatbotHandler:          chatbotHandler,
+		WaitlistHandler:         waitlistHandler,
 	})
-	protected := api.Group("",
-		apiLimiter,
-		middleware.JWTMiddleware(cfg.JWTSecret, cfg.SupabaseURL),
-		middleware.TenantMiddleware(authRepo, pool),
-		middleware.PlanCheckMiddleware(),
-	)
-
-	protected.Get("/me", func(c *fiber.Ctx) error {
-		return c.JSON(fiber.Map{
-			"user":   middleware.UserFromContext(c),
-			"tenant": middleware.TenantFromContext(c),
-		})
-	})
-
-	// Marca el onboarding del tenant como completado.
-	protected.Post("/onboarding/complete", func(c *fiber.Ctx) error {
-		tenantID := middleware.TenantIDFromContext(c)
-		if tenantID == uuid.Nil {
-			return fiber.NewError(403, "tenant no identificado")
-		}
-		if err := authRepo.CompleteOnboarding(c.Context(), tenantID); err != nil {
-			return fiber.NewError(500, "error interno")
-		}
-
-		// Auto-asigna servicios al primer profesional para que /book/{slug} funcione tras onboarding.
-		if n, err := profSvc.AutoAssignAllServicesToFirstProfessional(c.Context(), tenantID); err != nil {
-			slog.Warn("onboarding: auto-asignación falló", "tenant_id", tenantID, "error", err)
-		} else if n > 0 {
-			slog.Info("onboarding: servicios auto-asignados", "tenant_id", tenantID, "count", n)
-		}
-
-		// Auto-seed CRM por business_type — pipeline aplica a todos los verticales
-		// con template; rule templates y knowledge siguen siendo dental-only.
-		tenant := middleware.TenantFromContext(c)
-		if tenant != nil {
-			bt := tenant.BusinessType
-			go func() {
-				bgCtx := context.Background()
-				if seeded, err := seed.SeedPipelineForBusinessType(bgCtx, pool, tenantID, bt); err != nil {
-					slog.Warn("onboarding: error seeding pipeline", "tenant_id", tenantID, "business_type", bt, "error", err)
-				} else if len(seeded) > 0 {
-					slog.Info("onboarding: pipeline seeded", "tenant_id", tenantID, "business_type", bt, "stages", len(seeded))
-				}
-				// Templates genericos vertical-agnosticos (post-cita, etc) — corren para todos los tenants.
-				if err := seed.SeedGenericRuleTemplates(bgCtx, pool); err != nil {
-					slog.Warn("onboarding: error seeding generic rule templates", "error", err)
-				}
-				// Copiar reglas de notificación de citas al tenant nuevo
-				if err := seed.SeedAppointmentRulesForTenant(bgCtx, pool, tenantID); err != nil {
-					slog.Warn("onboarding: error seeding appointment rules", "tenant_id", tenantID, "error", err)
-				} else {
-					slog.Info("onboarding: appointment notification rules seeded", "tenant_id", tenantID)
-				}
-				if bt == "dental" {
-					// Rule templates son globales (idempotent) — safe to call multiple times
-					if err := seed.SeedDentalRuleTemplates(bgCtx, pool); err != nil {
-						slog.Warn("onboarding: error seeding dental rule templates", "error", err)
-					}
-					if err := seed.SeedDentalKnowledge(bgCtx, pool, tenantID); err != nil {
-						slog.Warn("onboarding: error seeding dental knowledge", "tenant_id", tenantID, "error", err)
-					} else {
-						slog.Info("onboarding: dental knowledge seeded", "tenant_id", tenantID)
-					}
-				}
-			}()
-		}
-
-		return c.JSON(fiber.Map{"ok": true})
-	})
-
-	profs := protected.Group("/professionals")
-	profs.Get("/", profHandler.List)
-	profs.Post("/", profHandler.Create)
-	profs.Get("/:id", profHandler.GetByID)
-	profs.Patch("/:id", profHandler.Update)
-	profs.Get("/:id/schedule", profHandler.GetSchedule)
-	profs.Put("/:id/schedule", profHandler.SetSchedule)
-	profs.Get("/:id/services", profHandler.ListServices)
-	profs.Post("/:id/services/:serviceID", profHandler.AssignService)
-	profs.Delete("/:id/services/:serviceID", profHandler.RemoveService)
-
-	srvs := protected.Group("/services")
-	srvs.Get("/", svcHandler.List)
-	srvs.Post("/", svcHandler.Create)
-	srvs.Get("/:id", svcHandler.GetByID)
-	srvs.Patch("/:id", svcHandler.Update)
-	srvs.Delete("/:id", svcHandler.Delete)
-
-	appts := protected.Group("/appointments")
-	appts.Get("/availability", apptHandler.Availability)
-	appts.Get("/search", apptHandler.ListFiltered)
-	appts.Get("/", apptHandler.List)
-	appts.Post("/", apptHandler.Create)
-	appts.Get("/:id", apptHandler.GetByID)
-	appts.Patch("/:id", apptHandler.Update)
-	appts.Delete("/:id/cancel", apptHandler.Cancel)
-	appts.Patch("/:id/reschedule", apptHandler.Reschedule)
-
-	knowledge := protected.Group("/knowledge")
-	knowledge.Get("/", knowledgeHandler.List)
-	knowledge.Post("/", knowledgeHandler.Create)
-	knowledge.Post("/upload", knowledgeHandler.Upload)
-	knowledge.Get("/:id", knowledgeHandler.Get)
-	knowledge.Put("/:id", knowledgeHandler.Update)
-	knowledge.Delete("/:id", knowledgeHandler.Delete)
-
-	chatbot := protected.Group("/chatbot")
-	chatbot.Get("/config", chatbotHandler.GetConfig)
-	chatbot.Patch("/config", chatbotHandler.UpdateConfig)
-	chatbot.Post("/test", chatbotHandler.Test)
-	chatbot.Post("/validate", chatbotHandler.Validate)
-
-	customers := protected.Group("/customers")
-	customers.Get("/", customerHandler.List)
-	customers.Get("/:id", customerHandler.GetByID)
-	customers.Patch("/:id/stage", customerHandler.UpdateStage)
-
-	protected.Get("/whatsapp/status", waHandler.Status)
-	protected.Get("/whatsapp/qr", waHandler.GetQR)
-	protected.Post("/whatsapp/connect", waHandler.Connect)
-	protected.Delete("/whatsapp/disconnect", waHandler.Disconnect)
-
-	// Billing: checkout, subscription info, invoices y cancel requieren auth
-	billing := protected.Group("/billing")
-	billing.Post("/checkout", billingHandler.CreateCheckout)
-	billing.Get("/subscription", billingHandler.Subscription)
-	billing.Get("/invoices", billingHandler.Invoices)
-	billing.Post("/cancel", billingHandler.CancelSubscription)
-
-	// Settings
-	protected.Get("/settings", settingsHandler.Get)
-	protected.Patch("/settings", settingsHandler.Update)
-	protected.Patch("/tenant/profile", settingsHandler.UpdateTenantProfile)
-	protected.Patch("/me/profile", settingsHandler.UpdateMyProfile)
-
-	// Tenant branding (logo + portada). Las rutas siempre se registran.
-	// Si MinIO no está disponible, el handler devuelve 503 con mensaje descriptivo.
-	branding := protected.Group("/tenant/branding")
-	branding.Post("/logo", brandingHandler.UploadLogo)
-	branding.Post("/cover", brandingHandler.UploadCover)
-	branding.Delete("/:kind", brandingHandler.Remove)
-
-	// Schedule Blocks
-	blocks := protected.Group("/schedule-blocks")
-	blocks.Post("/", blockHandler.Create)
-	blocks.Get("/", blockHandler.List)
-	blocks.Delete("/:id", blockHandler.Delete)
-
-	// Pipeline Stages
-	stages := protected.Group("/pipeline-stages")
-	stages.Get("/", pipelineHandler.List)
-	stages.Post("/", pipelineHandler.Create)
-	stages.Post("/load-template", func(c *fiber.Ctx) error {
-		tenantID := middleware.TenantIDFromContext(c)
-		if tenantID == uuid.Nil {
-			return fiber.NewError(403, "tenant no identificado")
-		}
-		tenant := middleware.TenantFromContext(c)
-		if tenant == nil {
-			return fiber.NewError(403, "tenant no identificado")
-		}
-		seeded, err := seed.SeedPipelineForBusinessType(c.Context(), pool, tenantID, tenant.BusinessType)
-		if err != nil {
-			slog.Error("pipeline load-template: failed", "tenant_id", tenantID, "error", err)
-			return fiber.NewError(500, "error interno")
-		}
-		if len(seeded) == 0 {
-			return fiber.NewError(409, "el pipeline ya tiene etapas o el vertical no tiene template")
-		}
-		return c.JSON(fiber.Map{"ok": true, "stages": seeded})
-	})
-	stages.Put("/reorder", pipelineHandler.Reorder)
-	stages.Get("/:id", pipelineHandler.GetByID)
-	stages.Patch("/:id", pipelineHandler.Update)
-	stages.Delete("/:id", pipelineHandler.Delete)
-
-	// Treatments
-	treatments := protected.Group("/treatments")
-	treatments.Get("/", treatmentHandler.List)
-	treatments.Post("/", treatmentHandler.Create)
-	treatments.Get("/:id", treatmentHandler.GetByID)
-	treatments.Patch("/:id", treatmentHandler.Update)
-	treatments.Patch("/:id/status", treatmentHandler.UpdateStatus)
-
-	// Sesiones de tratamiento
-	treatmentSessions := treatments.Group("/:id/sessions")
-	treatmentSessions.Get("/", treatmentSessionHandler.List)
-	treatmentSessions.Post("/", treatmentSessionHandler.Create)
-	treatmentSessions.Get("/:sid", treatmentSessionHandler.GetByID)
-	treatmentSessions.Patch("/:sid", treatmentSessionHandler.Update)
-	treatmentSessions.Delete("/:sid", treatmentSessionHandler.Delete)
-
-	// Tasks
-	tasks := protected.Group("/tasks")
-	tasks.Get("/", taskHandler.List)
-	tasks.Post("/", taskHandler.Create)
-	tasks.Get("/:id", taskHandler.GetByID)
-	tasks.Patch("/:id", taskHandler.Update)
-	tasks.Post("/:id/complete", taskHandler.Complete)
-	tasks.Post("/:id/dismiss", taskHandler.Dismiss)
-
-	// Rules
-	rules := protected.Group("/rules")
-	rules.Get("/", ruleHandler.List)
-	rules.Post("/", ruleHandler.Create)
-	rules.Get("/:id", ruleHandler.GetByID)
-	rules.Patch("/:id", ruleHandler.Update)
-	rules.Delete("/:id", ruleHandler.Delete)
-	rules.Get("/:id/executions", ruleHandler.ListExecutions)
-
-	// Clinical Notes
-	appts.Post("/:id/clinical-note", clinicalNoteHandler.Create)
-	appts.Get("/:id/clinical-note", clinicalNoteHandler.GetByAppointment)
-	customers.Get("/:id/clinical-notes", clinicalNoteHandler.ListByCustomer)
-	customers.Get("/:id/clinical-notes/:noteId", clinicalNoteHandler.GetByID)
-	clinicalNotes := protected.Group("/clinical-notes")
-	clinicalNotes.Patch("/:noteId", clinicalNoteHandler.Update)
-	clinicalNotes.Delete("/:noteId", clinicalNoteHandler.Delete)
-	clinicalNotes.Post("/:noteId/files/upload", clinicalFileHandler.Upload)
-	clinicalNotes.Get("/:noteId/files", clinicalFileHandler.ListByNote)
-
-	// Clinical Files
-	customers.Get("/:id/clinical-files", clinicalFileHandler.ListByCustomer)
-	protected.Delete("/clinical-files/:fileId", clinicalFileHandler.Delete)
-
-	// CRM Metrics
-	protected.Get("/crm/metrics", crmHandler.Metrics)
 
 	// ── Arrancar servidor ─────────────────────────────────────────────────────
 	slog.Info("Core API iniciando", "port", cfg.Port, "env", cfg.AppEnv)

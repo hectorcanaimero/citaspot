@@ -35,6 +35,7 @@ export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const t = useTranslations();
+  const enabledModules = useTenantStore((s) => s.tenant?.enabled_modules ?? []);
 
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -54,12 +55,17 @@ export function Sidebar() {
     setMobileOpen(false);
   }, [pathname]);
 
+  const hasDental = enabledModules.includes('dental');
+
   const NAV_ITEMS = [
     { href: '/dashboard',            icon: LayoutDashboard, label: t.nav.dashboard   },
     { href: '/dashboard/agenda',     icon: CalendarDays,    label: t.nav.agenda      },
     { href: '/dashboard/clients',    icon: Users,           label: t.nav.clients     },
     { href: '/dashboard/pipeline',     icon: Kanban,       label: t.nav.pipeline     },
-    { href: '/dashboard/treatments',   icon: Stethoscope,  label: t.nav.treatments   },
+    // Tratamientos: módulo dental activable (Plane #31)
+    ...(hasDental
+      ? [{ href: '/dashboard/treatments', icon: Stethoscope, label: t.nav.treatments }]
+      : []),
     { href: '/dashboard/tasks',        icon: CheckSquare,  label: t.nav.tasks        },
     { href: '/dashboard/automations',  icon: Zap,          label: t.nav.automations  },
     { href: '/dashboard/services',   icon: Scissors,        label: t.nav.services    },

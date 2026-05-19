@@ -974,6 +974,13 @@ export const es = {
     sessions: {
       title: 'Sesiones',
       newSession: '+ Sesión',
+      progressTitle: 'Progreso',
+      paymentsTitle: 'Pagos',
+      remaining: 'Pendiente',
+      noTotalSessions: 'Sin total de sesiones definido',
+      noEstimatedCost: 'Sin costo estimado definido',
+      markTreatmentCompleted: 'Cerrar tratamiento',
+      confirmMarkCompleted: '¿Marcar este tratamiento como completado?',
       schedule: 'Agendar',
       logCompleted: 'Registrar completada',
       scheduleSession: 'Agendar sesión',

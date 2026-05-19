@@ -979,6 +979,13 @@ export const pt = {
     sessions: {
       title: 'Sessões',
       newSession: '+ Sessão',
+      progressTitle: 'Progresso',
+      paymentsTitle: 'Pagamentos',
+      remaining: 'Pendente',
+      noTotalSessions: 'Sem total de sessões definido',
+      noEstimatedCost: 'Sem custo estimado definido',
+      markTreatmentCompleted: 'Fechar tratamento',
+      confirmMarkCompleted: 'Marcar este tratamento como concluído?',
       schedule: 'Agendar',
       logCompleted: 'Registrar concluída',
       scheduleSession: 'Agendar sessão',

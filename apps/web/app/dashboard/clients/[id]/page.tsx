@@ -25,6 +25,7 @@ import { SessionModal } from '@/components/sessions/SessionModal';
 import { ClinicalHistorySection } from '@/components/clinical/ClinicalHistorySection';
 import { ClinicalNoteModal } from '@/components/clinical/ClinicalNoteModal';
 import { useTranslations, useDateLocale } from '@/lib/i18n';
+import { useTenantStore } from '@/store/tenant';
 import { format } from 'date-fns';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -538,6 +539,7 @@ export default function CustomerProfilePage() {
   const dateLocale = useDateLocale();
   const router     = useRouter();
   const { id }     = useParams<{ id: string }>();
+  const hasDental  = useTenantStore((s) => s.tenant?.enabled_modules?.includes('dental') ?? false);
 
   const [customer,             setCustomer]             = useState<Customer | null>(null);
   const [treatList,            setTreatList]            = useState<Treatment[]>([]);
@@ -553,7 +555,13 @@ export default function CustomerProfilePage() {
   const [sessionModalTreatment, setSessionModalTreatment] = useState<string | null>(null);
   const [clinicalNoteList,       setClinicalNoteList]       = useState<ClinicalNoteWithDetails[]>([]);
   const [showClinicalNoteForm,   setShowClinicalNoteForm]   = useState(false);
-  const [activeTab,              setActiveTab]              = useState<'treatments' | 'tasks' | 'clinical'>('treatments');
+  const [activeTab,              setActiveTab]              = useState<'treatments' | 'tasks' | 'clinical'>(hasDental ? 'treatments' : 'tasks');
+
+  useEffect(() => {
+    if (!hasDental && (activeTab === 'treatments' || activeTab === 'clinical')) {
+      setActiveTab('tasks');
+    }
+  }, [hasDental, activeTab]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -561,11 +569,11 @@ export default function CustomerProfilePage() {
     try {
       const [cust, trRes, tkRes, stRes, prRes, cnRes] = await Promise.all([
         customers.getById(id),
-        treatments.list({ customer_id: id }),
+        hasDental ? treatments.list({ customer_id: id }) : Promise.resolve({ data: [], total: 0 }),
         tasks.list({ customer_id: id }),
         pipelineStages.list(),
         professionals.list(),
-        clinicalNotes.listByCustomer(id).catch(() => ({ data: [], total: 0 })),
+        hasDental ? clinicalNotes.listByCustomer(id).catch(() => ({ data: [], total: 0 })) : Promise.resolve({ data: [], total: 0 }),
       ]);
       setCustomer(cust);
       setTreatList(trRes.data ?? []);
@@ -578,7 +586,7 @@ export default function CustomerProfilePage() {
     } finally {
       setLoading(false);
     }
-  }, [id, t.clients.notFound]);
+  }, [id, hasDental, t.clients.notFound]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -661,9 +669,13 @@ export default function CustomerProfilePage() {
   const currentStage   = stages.find((s) => s.id === customer.stage_id);
 
   const tabsConfig = [
-    { key: 'treatments' as const, label: t.clients.treatments, count: treatList.length },
+    ...(hasDental
+      ? [{ key: 'treatments' as const, label: t.clients.treatments, count: treatList.length }]
+      : []),
     { key: 'tasks' as const, label: t.clients.tasks, count: taskList.filter(tk => tk.status === 'pending' || tk.status === 'in_progress').length },
-    { key: 'clinical' as const, label: t.clients.clinicalHistory, count: clinicalNoteList.length },
+    ...(hasDental
+      ? [{ key: 'clinical' as const, label: t.clients.clinicalHistory, count: clinicalNoteList.length }]
+      : []),
   ];
 
   return (
@@ -845,7 +857,7 @@ export default function CustomerProfilePage() {
               </div>
               {/* "+ New" button for the active tab */}
               <div className="px-3 flex-shrink-0">
-                {activeTab === 'treatments' && (
+                {activeTab === 'treatments' && hasDental && (
                   <button
                     type="button"
                     onClick={() => setShowTreatForm(true)}
@@ -865,7 +877,7 @@ export default function CustomerProfilePage() {
                     {t.clients.newTask}
                   </button>
                 )}
-                {activeTab === 'clinical' && (
+                {activeTab === 'clinical' && hasDental && (
                   <button
                     type="button"
                     onClick={() => setShowClinicalNoteForm(true)}
@@ -881,7 +893,7 @@ export default function CustomerProfilePage() {
 
           {/* Tab content */}
           <div className="overflow-hidden rounded-b-xl border border-neutral-200 border-t-0 bg-white">
-            {activeTab === 'treatments' && (
+            {activeTab === 'treatments' && hasDental && (
               <TreatmentsSection
                 items={treatList}
                 t={t}
@@ -902,7 +914,7 @@ export default function CustomerProfilePage() {
               />
             )}
 
-            {activeTab === 'clinical' && (
+            {activeTab === 'clinical' && hasDental && (
               <ClinicalHistorySection
                 customerId={id}
                 professionalId={profList[0]?.id ?? ''}

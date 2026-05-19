@@ -102,6 +102,9 @@ export interface TenantDTO {
   plan_status: string;
   onboarding_done: boolean;
   trial_ends_at?: string;
+  // Módulos activos del tenant (Plane #31). Se popula desde /me con el array
+  // top-level enabled_modules. Default [] si el backend no lo devuelve.
+  enabled_modules?: string[];
 }
 
 export interface Appointment {
@@ -219,7 +222,11 @@ export const auth = {
   },
 
   async me() {
-    return request<{ user: UserDTO; tenant: TenantDTO }>('/api/v1/me');
+    return request<{
+      user: UserDTO;
+      tenant: TenantDTO;
+      enabled_modules?: string[];
+    }>('/api/v1/me');
   },
 
   async completeOnboarding() {

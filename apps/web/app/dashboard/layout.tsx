@@ -17,9 +17,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   useEffect(() => {
     let cancelled = false;
-    auth.me().then(({ tenant }) => {
+    auth.me().then(({ tenant, enabled_modules }) => {
       if (cancelled) return;
-      setTenant(tenant);
+      setTenant({ ...tenant, enabled_modules: enabled_modules ?? [] });
       setLanguageFromCountry(tenant.country);
       if (!tenant.onboarding_done) {
         router.replace('/onboarding');

@@ -11,12 +11,14 @@ import (
 )
 
 type publicSvc struct {
-	authRepo     domain.AuthRepository
-	profRepo     domain.ProfessionalRepository
-	serviceRepo  domain.ServiceRepository
-	availSvc     domain.AvailabilityService
-	apptSvc      domain.AppointmentSvc
-	customerRepo domain.CustomerRepository
+	authRepo       domain.AuthRepository
+	profRepo       domain.ProfessionalRepository
+	serviceRepo    domain.ServiceRepository
+	availSvc       domain.AvailabilityService
+	apptSvc        domain.AppointmentSvc
+	customerRepo   domain.CustomerRepository
+	treatmentRepo  domain.TreatmentRepository
+	moduleRepo     domain.TenantModuleRepository
 }
 
 // NewPublicSvc crea el servicio de booking público (sin auth).
@@ -27,14 +29,18 @@ func NewPublicSvc(
 	availSvc domain.AvailabilityService,
 	apptSvc domain.AppointmentSvc,
 	customerRepo domain.CustomerRepository,
+	treatmentRepo domain.TreatmentRepository,
+	moduleRepo domain.TenantModuleRepository,
 ) domain.PublicSvc {
 	return &publicSvc{
-		authRepo:     authRepo,
-		profRepo:     profRepo,
-		serviceRepo:  serviceRepo,
-		availSvc:     availSvc,
-		apptSvc:      apptSvc,
-		customerRepo: customerRepo,
+		authRepo:      authRepo,
+		profRepo:      profRepo,
+		serviceRepo:   serviceRepo,
+		availSvc:      availSvc,
+		apptSvc:       apptSvc,
+		customerRepo:  customerRepo,
+		treatmentRepo: treatmentRepo,
+		moduleRepo:    moduleRepo,
 	}
 }
 
@@ -213,4 +219,30 @@ func (s *publicSvc) RescheduleAppointment(ctx context.Context, slug string, appo
 	return s.apptSvc.Reschedule(ctx, tenant.ID, appointmentID, &domain.RescheduleRequest{
 		StartsAt: startsAt,
 	})
+}
+
+// ListMyTreatments retorna treatments activos del cliente por teléfono.
+// Bloquea con ErrForbidden si el tenant no tiene módulo dental activo —
+// alineado con el gating del Plane #31 para que la IA no exponga info de
+// tenants no dentales.
+func (s *publicSvc) ListMyTreatments(ctx context.Context, slug, phone string) ([]*domain.CustomerTreatmentSummary, error) {
+	tenant, err := s.authRepo.FindTenantBySlug(ctx, slug)
+	if err != nil {
+		return nil, err
+	}
+
+	active, err := s.moduleRepo.IsActive(ctx, tenant.ID, domain.ModuleDental)
+	if err != nil {
+		return nil, fmt.Errorf("publicSvc.ListMyTreatments: module check: %w", err)
+	}
+	if !active {
+		return nil, domain.ErrForbidden
+	}
+
+	phone = domain.NormalizePhone(phone)
+	if phone == "" {
+		return []*domain.CustomerTreatmentSummary{}, nil
+	}
+
+	return s.treatmentRepo.ListByCustomerPhonePublic(ctx, tenant.ID, phone)
 }

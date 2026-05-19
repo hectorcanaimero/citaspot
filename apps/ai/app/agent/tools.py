@@ -264,6 +264,20 @@ async def _tool_get_business_info(tenant_slug: str) -> dict[str, Any]:
     })
 
 
+async def _tool_list_my_treatments(tenant_slug: str, phone: str) -> dict[str, Any]:
+    """Lista tratamientos activos del cliente identificado por teléfono (Plane #34).
+    Solo funciona para tenants con módulo dental activo — devuelve no_dental_module
+    si el backend retorna 403.
+    """
+    if not phone or not phone.strip():
+        return _err("empty_phone")
+    from .actions import get_my_treatments
+    data = await get_my_treatments(tenant_slug, phone.strip())
+    if data is None:
+        return _err("no_dental_module")
+    return _ok(data)
+
+
 # ---------------------------------------------------------------------------
 # Schemas (parameters) — JSON Schema subset común OpenAI/Gemini
 # ---------------------------------------------------------------------------
@@ -330,6 +344,17 @@ _BUSINESS_INFO_PARAMS = {
     "type": "object",
     "properties": {},
     "required": [],
+}
+
+_LIST_MY_TREATMENTS_PARAMS = {
+    "type": "object",
+    "properties": {
+        "phone": {
+            "type": "string",
+            "description": "Teléfono del cliente en formato internacional (ej: +584241234567). Obtener del context de la conversación, no inventar.",
+        },
+    },
+    "required": ["phone"],
 }
 
 
@@ -403,6 +428,19 @@ TOOL_REGISTRY: dict[str, ToolSpec] = {
         ),
         fn=_tool_get_business_info,
         parameters=_BUSINESS_INFO_PARAMS,
+        context_args=("tenant_slug",),
+    ),
+    "list_my_treatments": ToolSpec(
+        name="list_my_treatments",
+        description=(
+            "DENTAL ONLY. Returns the client's active treatment plans (orthodontics, "
+            "implants, endodontics, etc.) with progress and next scheduled session. "
+            "Call ONLY when the user asks about their treatment, sessions remaining, "
+            "treatment progress, or next dental session. Returns no_dental_module if "
+            "the business is not a dental clinic with the module activated."
+        ),
+        fn=_tool_list_my_treatments,
+        parameters=_LIST_MY_TREATMENTS_PARAMS,
         context_args=("tenant_slug",),
     ),
 }

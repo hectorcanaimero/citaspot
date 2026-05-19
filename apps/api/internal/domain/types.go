@@ -873,3 +873,69 @@ type JoinWaitlistInput struct {
 	IPAddress string `json:"-"`
 	UserAgent string `json:"-"`
 }
+
+// ── Dental Notification Jobs (Plane #34) ──────────────────────────────────────
+
+// PostOpJob datos necesarios para enviar un mensaje post-op 48h después
+// de completar una sesión de tratamiento. Producido por el worker de
+// dental notifications (sin RLS — query cross-tenant filtrada por módulo).
+type PostOpJob struct {
+	SessionID        uuid.UUID
+	TreatmentID      uuid.UUID
+	TenantID         uuid.UUID
+	TenantSlug       string
+	CustomerID       uuid.UUID
+	CustomerName     string
+	CustomerPhone    string
+	TreatmentName    string
+	TreatmentType    string
+	ProfessionalName string
+	CompletedAt      time.Time
+}
+
+// RecallJob datos necesarios para enviar un recall 6 meses después de
+// completar un tratamiento.
+type RecallJob struct {
+	TreatmentID   uuid.UUID
+	TenantID      uuid.UUID
+	TenantSlug    string
+	CustomerID    uuid.UUID
+	CustomerName  string
+	CustomerPhone string
+	TreatmentName string
+	TreatmentType string
+	CompletedAt   time.Time
+}
+
+// CustomerTreatmentSummary resumen liviano de un tratamiento del cliente para
+// devolver vía endpoint público al AI service (tool list_my_treatments).
+type CustomerTreatmentSummary struct {
+	ID                uuid.UUID  `json:"id"`
+	Name              string     `json:"name"`
+	TreatmentType     string     `json:"treatment_type"`
+	Status            string     `json:"status"`
+	CompletedSessions int        `json:"completed_sessions"`
+	TotalSessions     *int       `json:"total_sessions,omitempty"`
+	NextSessionAt     *time.Time `json:"next_session_at,omitempty"`
+	ProfessionalName  string     `json:"professional_name,omitempty"`
+}
+
+// ── Tenant Modules ────────────────────────────────────────────────────────────
+
+// Module keys registrados. Agregar aquí cualquier nuevo módulo activable.
+const (
+	ModuleDental = "dental"
+)
+
+// TenantModule representa la activación de un módulo opcional para un tenant.
+// Audita las transiciones enabled/disabled con timestamps.
+type TenantModule struct {
+	ID            uuid.UUID  `json:"id"`
+	TenantID      uuid.UUID  `json:"tenant_id"`
+	ModuleKey     string     `json:"module_key"`
+	Enabled       bool       `json:"enabled"`
+	ActivatedAt   time.Time  `json:"activated_at"`
+	DeactivatedAt *time.Time `json:"deactivated_at,omitempty"`
+	CreatedAt     time.Time  `json:"created_at"`
+	UpdatedAt     time.Time  `json:"updated_at"`
+}

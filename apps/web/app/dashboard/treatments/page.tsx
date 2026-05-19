@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import {
   Stethoscope, Search,
 } from 'lucide-react';
@@ -190,7 +191,11 @@ export default function TreatmentsPage() {
               : 0;
 
             return (
-              <div key={tr.id} className="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
+              <Link
+                key={tr.id}
+                href={`/dashboard/treatments/${tr.id}`}
+                className="block rounded-xl border border-neutral-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md focus:outline-none focus:ring-2 focus:ring-primary-300"
+              >
                 {/* Nombre + status */}
                 <div className="mb-3 flex items-start justify-between gap-3">
                   <div>
@@ -249,7 +254,7 @@ export default function TreatmentsPage() {
                     </p>
                   </div>
                 </div>
-              </div>
+              </Link>
             );
           })}
         </div>

@@ -283,6 +283,56 @@ func (r *appointmentRepository) Create(c *fiber.Ctx, appt *domain.Appointment) e
 }
 ```
 
+### RequireModule — gating por módulo activable (Plane #31)
+
+Las features de pago/activables viven en la tabla `tenant_modules`. Cualquier
+endpoint que pertenezca a un módulo debe estar protegido con `RequireModule`.
+
+**Módulos activos:**
+
+| Constante (`domain/types.go`) | Key BD   | Features asociadas                                              |
+| ----------------------------- | -------- | --------------------------------------------------------------- |
+| `domain.ModuleDental`         | `dental` | Treatments, treatment sessions, clinical notes, clinical files  |
+
+**Patrón canónico — definir un gate compartido una vez:**
+
+```go
+// En main.go, antes de las rutas dental
+dentalGate := middleware.RequireModule(tenantModuleRepo, domain.ModuleDental)
+```
+
+**Caso 1 — el módulo tiene su propio grupo:** aplicar al `Group(...)`.
+
+```go
+treatments := protected.Group("/treatments", dentalGate)
+treatments.Get("/", handler.List)        // hereda gate
+treatments.Post("/", handler.Create)     // hereda gate
+```
+
+**Caso 2 — la ruta vive en un grupo no-dental (`/appointments`, `/customers`):**
+aplicar el gate **por-ruta** como middleware previo al handler. NO aplicar al
+grupo padre — rompería las rutas no-dental del mismo grupo.
+
+```go
+// ❌ MAL — rompe todas las rutas de /customers para tenants sin dental
+customers := protected.Group("/customers", dentalGate)
+
+// ✅ BIEN — gate solo en la ruta dental específica
+customers.Get("/:id/clinical-notes", dentalGate, clinicalNoteHandler.ListByCustomer)
+```
+
+**Checklist al agregar una ruta dental:**
+
+1. ¿La ruta vive en `treatments := protected.Group(...)`? → ya está gateada por herencia.
+2. ¿La ruta se monta en `appts`, `customers`, o directo en `protected`? → agregá `dentalGate` como segundo argumento ANTES del handler.
+3. ¿Es un grupo nuevo solo-dental? → pasá `dentalGate` al `Group(...)`.
+
+**Bug histórico (2026-05-19):** las rutas de clinical notes y clinical files
+estaban montadas en `appts`/`customers`/`protected` sin gate, mientras que
+`/treatments` sí lo tenía. Un tenant sin dental podía crear/leer historia
+clínica vía API. Corregido en commit posterior — ver el wiring en `main.go`
+sección "Clinical Notes" y "Clinical Files".
+
 ---
 
 ## 🗄️ QUERIES SQL (db/queries/)

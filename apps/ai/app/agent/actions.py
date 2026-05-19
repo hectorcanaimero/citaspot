@@ -107,6 +107,22 @@ async def get_my_appointments(slug: str, phone: str) -> list[dict[str, Any]]:
             return []
 
 
+async def get_my_treatments(slug: str, phone: str) -> list[dict[str, Any]] | None:
+    """Obtiene tratamientos activos del cliente por teléfono (Plane #34).
+    Retorna None si el tenant no tiene módulo dental activo (HTTP 403)."""
+    params = {"phone": phone}
+    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+        try:
+            r = await client.get(_core_url(f"/public/{slug}/my-treatments"), params=params)
+            if r.status_code == 403:
+                return None  # módulo dental no activo para este tenant
+            r.raise_for_status()
+            return r.json().get("data", [])
+        except Exception as e:
+            log.error("actions.get_my_treatments: %s", e)
+            return []
+
+
 async def cancel_appointment(slug: str, appointment_id: str, phone: str) -> bool:
     """Cancela una cita existente. Retorna True si éxito."""
     body = {"phone": phone}

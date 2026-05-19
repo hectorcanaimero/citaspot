@@ -117,6 +117,27 @@ func (h *PublicHandler) ListMyAppointments(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"data": appts})
 }
 
+// ListMyTreatments GET /public/:slug/my-treatments?phone=+58412...
+// Retorna tratamientos activos del cliente. 403 si el tenant no tiene
+// módulo dental activo. Usado por el AI service tool list_my_treatments.
+func (h *PublicHandler) ListMyTreatments(c *fiber.Ctx) error {
+	slug := c.Params("slug")
+	if slug == "" {
+		return c.Status(http.StatusBadRequest).JSON(errorResponse{Error: "Slug requerido"})
+	}
+
+	phone := c.Query("phone")
+	if phone == "" {
+		return c.Status(http.StatusBadRequest).JSON(errorResponse{Error: "El parámetro 'phone' es requerido"})
+	}
+
+	treatments, err := h.svc.ListMyTreatments(c.Context(), slug, phone)
+	if err != nil {
+		return handleServiceError(c, err)
+	}
+	return c.JSON(fiber.Map{"data": treatments})
+}
+
 // CancelAppointment POST /public/:slug/appointments/:id/cancel
 // Cancela una cita verificando propiedad por teléfono.
 func (h *PublicHandler) CancelAppointment(c *fiber.Ctx) error {

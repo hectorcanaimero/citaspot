@@ -190,6 +190,9 @@ type PublicSvc interface {
 	CancelAppointment(ctx context.Context, slug string, appointmentID uuid.UUID, phone string) error
 	// RescheduleAppointment reagenda una cita verificando propiedad por teléfono.
 	RescheduleAppointment(ctx context.Context, slug string, appointmentID uuid.UUID, phone string, startsAt time.Time) error
+	// ListMyTreatments retorna treatments activos del cliente por teléfono (Plane #34).
+	// Solo accesible para tenants con módulo dental activo.
+	ListMyTreatments(ctx context.Context, slug, phone string) ([]*CustomerTreatmentSummary, error)
 }
 
 // ── WhatsApp / Conversaciones ─────────────────────────────────────────────────
@@ -317,6 +320,11 @@ type TreatmentRepository interface {
 	GetByID(ctx context.Context, tenantID, id uuid.UUID) (*Treatment, error)
 	Update(ctx context.Context, t *Treatment) error
 	UpdateStatus(ctx context.Context, tenantID, id uuid.UUID, status string) error
+	// Plane #34 — notificaciones automáticas dental
+	FindPendingRecallJobs(ctx context.Context, olderThan time.Time) ([]*RecallJob, error)
+	MarkRecallSent(ctx context.Context, treatmentID uuid.UUID) error
+	// Endpoint público — lista treatments del cliente por teléfono (sin auth)
+	ListByCustomerPhonePublic(ctx context.Context, tenantID uuid.UUID, phone string) ([]*CustomerTreatmentSummary, error)
 }
 
 // TreatmentSvc logica de negocio para tratamientos.
@@ -335,6 +343,9 @@ type TreatmentSessionRepository interface {
 	GetByID(ctx context.Context, tenantID, id uuid.UUID) (*TreatmentSession, error)
 	Update(ctx context.Context, tenantID, id uuid.UUID, input *UpdateTreatmentSessionInput) (*TreatmentSession, error)
 	Delete(ctx context.Context, tenantID, id uuid.UUID) error
+	// Plane #34 — post-op notification tracking
+	FindPendingPostOpJobs(ctx context.Context, completedBefore, completedAfter time.Time) ([]*PostOpJob, error)
+	MarkPostOpSent(ctx context.Context, sessionID uuid.UUID) error
 }
 
 // TreatmentSessionSvc lógica de negocio para sesiones de tratamiento.
@@ -486,4 +497,17 @@ type WaitlistRepository interface {
 type WaitlistSvc interface {
 	// Join normaliza y valida el input, luego persiste el signup.
 	Join(ctx context.Context, input *JoinWaitlistInput) (*WaitlistSignup, error)
+}
+
+// TenantModuleRepository acceso a la tabla tenant_modules (sin RLS — consultada
+// por middleware antes de tener contexto de tenant resuelto).
+type TenantModuleRepository interface {
+	// IsActive devuelve true si el módulo está enabled para el tenant.
+	IsActive(ctx context.Context, tenantID uuid.UUID, moduleKey string) (bool, error)
+	// ListActiveKeys devuelve las module_keys habilitadas para un tenant.
+	ListActiveKeys(ctx context.Context, tenantID uuid.UUID) ([]string, error)
+	// Enable activa (o reactiva) un módulo. Upsert idempotente.
+	Enable(ctx context.Context, tenantID uuid.UUID, moduleKey string) error
+	// Disable desactiva un módulo activo. No-op si ya está desactivado.
+	Disable(ctx context.Context, tenantID uuid.UUID, moduleKey string) error
 }

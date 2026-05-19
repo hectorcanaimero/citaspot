@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -176,4 +177,108 @@ func (r *treatmentRepository) UpdateStatus(ctx context.Context, tenantID, id uui
 		}
 		return nil
 	})
+}
+
+// FindPendingRecallJobs busca tratamientos completados antes de `olderThan`
+// (típicamente NOW() - 6 meses) que aún no tienen recall_sent_at, filtrando
+// por tenants con el módulo dental activo. Query cross-tenant — sin RLS, el
+// worker corre como sistema.
+func (r *treatmentRepository) FindPendingRecallJobs(ctx context.Context, olderThan time.Time) ([]*domain.RecallJob, error) {
+	rows, err := r.db.Query(ctx, `
+		SELECT
+			t.id, t.tenant_id, t.customer_id,
+			ten.slug,
+			c.name, c.phone,
+			t.name, t.treatment_type,
+			t.completed_at
+		FROM treatments t
+		JOIN tenants ten         ON ten.id = t.tenant_id
+		JOIN customers c         ON c.id = t.customer_id
+		JOIN tenant_modules tm   ON tm.tenant_id = t.tenant_id AND tm.module_key = 'dental' AND tm.enabled = TRUE
+		WHERE t.status = 'completed'
+		  AND t.completed_at IS NOT NULL
+		  AND t.completed_at <= $1
+		  AND t.recall_sent_at IS NULL
+		  AND c.phone IS NOT NULL AND c.phone != ''
+		ORDER BY t.completed_at
+		LIMIT 100
+	`, olderThan)
+	if err != nil {
+		return nil, fmt.Errorf("treatmentRepository.FindPendingRecallJobs: %w", err)
+	}
+	defer rows.Close()
+
+	jobs := make([]*domain.RecallJob, 0, 32)
+	for rows.Next() {
+		j := &domain.RecallJob{}
+		if err := rows.Scan(
+			&j.TreatmentID, &j.TenantID, &j.CustomerID,
+			&j.TenantSlug,
+			&j.CustomerName, &j.CustomerPhone,
+			&j.TreatmentName, &j.TreatmentType,
+			&j.CompletedAt,
+		); err != nil {
+			return nil, err
+		}
+		jobs = append(jobs, j)
+	}
+	return jobs, rows.Err()
+}
+
+// MarkRecallSent marca un tratamiento como notificado.
+func (r *treatmentRepository) MarkRecallSent(ctx context.Context, treatmentID uuid.UUID) error {
+	_, err := r.db.Exec(ctx, `
+		UPDATE treatments SET recall_sent_at = NOW(), updated_at = NOW() WHERE id = $1
+	`, treatmentID)
+	if err != nil {
+		return fmt.Errorf("treatmentRepository.MarkRecallSent: %w", err)
+	}
+	return nil
+}
+
+// ListByCustomerPhonePublic retorna treatments del cliente identificado por
+// teléfono. Usado por endpoint público sin auth (AI service). Aplica RLS.
+func (r *treatmentRepository) ListByCustomerPhonePublic(ctx context.Context, tenantID uuid.UUID, phone string) ([]*domain.CustomerTreatmentSummary, error) {
+	var result []*domain.CustomerTreatmentSummary
+	err := withTenant(ctx, r.db, tenantID, func(tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `
+			SELECT
+				t.id, t.name, t.treatment_type, t.status,
+				t.completed_sessions, t.total_sessions, t.next_session_at,
+				p.name
+			FROM treatments t
+			JOIN customers c        ON c.id = t.customer_id
+			JOIN professionals p    ON p.id = t.professional_id
+			WHERE t.tenant_id = $1
+			  AND c.phone = $2
+			  AND t.status IN ('accepted', 'in_progress')
+			ORDER BY t.created_at DESC
+			LIMIT 20
+		`, tenantID, phone)
+		if err != nil {
+			return fmt.Errorf("ListByCustomerPhonePublic: %w", err)
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			s := &domain.CustomerTreatmentSummary{}
+			var profName *string
+			if err := rows.Scan(
+				&s.ID, &s.Name, &s.TreatmentType, &s.Status,
+				&s.CompletedSessions, &s.TotalSessions, &s.NextSessionAt,
+				&profName,
+			); err != nil {
+				return err
+			}
+			if profName != nil {
+				s.ProfessionalName = *profName
+			}
+			result = append(result, s)
+		}
+		return rows.Err()
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return []*domain.CustomerTreatmentSummary{}, nil
+	}
+	return result, err
 }
