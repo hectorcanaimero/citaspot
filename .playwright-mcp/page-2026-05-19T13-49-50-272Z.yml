@@ -1,0 +1,250 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - complementary [ref=e5]:
+      - generic [ref=e6]:
+        - generic [ref=e7]: CitaSpot
+        - button "Colapsar" [ref=e8] [cursor=pointer]:
+          - img [ref=e9]
+      - navigation [ref=e12]:
+        - list [ref=e13]:
+          - listitem [ref=e14]:
+            - link "Dashboard" [ref=e15] [cursor=pointer]:
+              - /url: /dashboard
+              - img [ref=e16]
+              - text: Dashboard
+          - listitem [ref=e21]:
+            - link "Agenda" [ref=e22] [cursor=pointer]:
+              - /url: /dashboard/agenda
+              - img [ref=e23]
+              - text: Agenda
+          - listitem [ref=e25]:
+            - link "Clientes" [ref=e26] [cursor=pointer]:
+              - /url: /dashboard/clients
+              - img [ref=e27]
+              - text: Clientes
+          - listitem [ref=e32]:
+            - link "Pipeline" [ref=e33] [cursor=pointer]:
+              - /url: /dashboard/pipeline
+              - img [ref=e34]
+              - text: Pipeline
+          - listitem [ref=e35]:
+            - link "Tratamientos" [ref=e36] [cursor=pointer]:
+              - /url: /dashboard/treatments
+              - img [ref=e37]
+              - text: Tratamientos
+          - listitem [ref=e41]:
+            - link "Tareas" [ref=e42] [cursor=pointer]:
+              - /url: /dashboard/tasks
+              - img [ref=e43]
+              - text: Tareas
+          - listitem [ref=e46]:
+            - link "Automatizaciones" [ref=e47] [cursor=pointer]:
+              - /url: /dashboard/automations
+              - img [ref=e48]
+              - text: Automatizaciones
+          - listitem [ref=e50]:
+            - link "Servicios" [ref=e51] [cursor=pointer]:
+              - /url: /dashboard/services
+              - img [ref=e52]
+              - text: Servicios
+          - listitem [ref=e58]:
+            - link "Equipo" [ref=e59] [cursor=pointer]:
+              - /url: /dashboard/team
+              - img [ref=e60]
+              - text: Equipo
+          - listitem [ref=e72]:
+            - link "Chatbot" [ref=e73] [cursor=pointer]:
+              - /url: /dashboard/chatbot
+              - img [ref=e74]
+              - text: Chatbot
+          - listitem [ref=e77]:
+            - link "WhatsApp" [ref=e78] [cursor=pointer]:
+              - /url: /dashboard/whatsapp
+              - img [ref=e79]
+              - text: WhatsApp
+          - listitem [ref=e81]:
+            - link "Analíticas" [ref=e82] [cursor=pointer]:
+              - /url: /dashboard/analytics
+              - img [ref=e83]
+              - text: Analíticas
+          - listitem [ref=e85]:
+            - link "Configuración" [ref=e86] [cursor=pointer]:
+              - /url: /dashboard/settings
+              - img [ref=e87]
+              - text: Configuración
+          - listitem [ref=e90]:
+            - link "Ayuda" [ref=e91] [cursor=pointer]:
+              - /url: /dashboard/faq
+              - img [ref=e92]
+              - text: Ayuda
+      - button "Cerrar sesión" [ref=e96] [cursor=pointer]:
+        - img [ref=e97]
+        - text: Cerrar sesión
+    - main [ref=e100]:
+      - generic [ref=e101]:
+        - generic [ref=e103]:
+          - generic [ref=e104]:
+            - paragraph [ref=e105]:
+              - img [ref=e106]
+              - text: Buenos días
+            - heading "Salón Playwright QA" [level=1] [ref=e108]
+            - paragraph [ref=e109]: martes 19 de mayo, 2026
+          - generic [ref=e110]:
+            - link "WhatsApp" [ref=e111] [cursor=pointer]:
+              - /url: /dashboard/whatsapp
+              - img [ref=e112]
+              - text: WhatsApp
+            - button "Nueva cita" [ref=e114] [cursor=pointer]:
+              - img [ref=e115]
+              - text: Nueva cita
+        - generic [ref=e116]:
+          - generic [ref=e117]:
+            - generic [ref=e118]:
+              - generic [ref=e119]:
+                - generic [ref=e120]: Citas hoy
+                - img [ref=e122]
+              - paragraph [ref=e124]: "0"
+            - generic [ref=e125]:
+              - generic [ref=e126]:
+                - generic [ref=e127]: Requieren acción
+                - img [ref=e129]
+              - paragraph [ref=e131]: "0"
+              - paragraph [ref=e132]: Todo al día ✓
+            - generic [ref=e133]:
+              - generic [ref=e134]:
+                - generic [ref=e135]: WhatsApp
+                - img [ref=e137]
+              - paragraph [ref=e146]: Inactivo
+              - link "Conectar WhatsApp →" [ref=e147] [cursor=pointer]:
+                - /url: /dashboard/whatsapp
+            - generic [ref=e148]:
+              - generic [ref=e149]:
+                - generic [ref=e150]: Conocimiento IA
+                - img [ref=e152]
+              - paragraph [ref=e155]: "0"
+              - paragraph [ref=e156]: Sin documentos aún
+          - generic [ref=e157]:
+            - generic [ref=e158]:
+              - generic [ref=e159]:
+                - heading "Agenda de hoy" [level=2] [ref=e160]
+                - generic [ref=e161]:
+                  - button [ref=e162] [cursor=pointer]:
+                    - img [ref=e163]
+                  - button [ref=e165] [cursor=pointer]:
+                    - img [ref=e166]
+              - generic [ref=e168]:
+                - img [ref=e170]
+                - heading "Conectá tu WhatsApp para empezar a recibir citas" [level=3] [ref=e172]
+                - paragraph [ref=e173]: El asistente IA agenda automáticamente las reservas que llegan por WhatsApp.
+                - link "Conectar WhatsApp" [ref=e174] [cursor=pointer]:
+                  - /url: /dashboard/whatsapp
+                  - img [ref=e175]
+                  - text: Conectar WhatsApp
+                  - img [ref=e177]
+                - link "O compartí tu página pública de reservas →" [ref=e180] [cursor=pointer]:
+                  - /url: /book/salon-playwright-qa
+            - generic [ref=e181]:
+              - generic [ref=e182]:
+                - generic [ref=e183]:
+                  - heading "WhatsApp" [level=3] [ref=e184]
+                  - img [ref=e185]
+                - generic [ref=e189]: Desconectado
+                - paragraph [ref=e190]: Conecta tu WhatsApp para activar el asistente IA.
+                - link "Conectar WhatsApp" [ref=e191] [cursor=pointer]:
+                  - /url: /dashboard/whatsapp
+                  - text: Conectar WhatsApp
+                  - img [ref=e192]
+              - generic [ref=e195]:
+                - generic [ref=e196]:
+                  - heading "Base de conocimiento" [level=3] [ref=e197]
+                  - img [ref=e198]
+                - generic [ref=e201]:
+                  - paragraph [ref=e202]: "0"
+                  - paragraph [ref=e203]: documentos activos
+                - paragraph [ref=e204]: Agrega documentos para que la IA responda mejor a tus clientes.
+                - link "Gestionar documentos" [ref=e205] [cursor=pointer]:
+                  - /url: /dashboard/knowledge
+                  - text: Gestionar documentos
+                  - img [ref=e206]
+              - generic [ref=e209]:
+                - generic [ref=e210]:
+                  - heading "Equipo activo" [level=3] [ref=e211]
+                  - generic [ref=e212]:
+                    - img [ref=e213]
+                    - text: "1"
+                - generic [ref=e219]:
+                  - generic [ref=e220]: M
+                  - paragraph [ref=e222]: Maria QA
+                - link "Ver equipo" [ref=e223] [cursor=pointer]:
+                  - /url: /dashboard/team
+                  - text: Ver equipo
+                  - img [ref=e224]
+              - generic [ref=e227]:
+                - generic [ref=e228]:
+                  - heading "CRM" [level=3] [ref=e229]
+                  - img [ref=e230]
+                - generic [ref=e232]:
+                  - generic [ref=e233]:
+                    - paragraph [ref=e234]: Tratamientos activos
+                    - paragraph [ref=e235]: "0"
+                  - generic [ref=e236]:
+                    - paragraph [ref=e237]: Tareas pendientes
+                    - paragraph [ref=e238]: "0"
+                  - generic [ref=e239]:
+                    - paragraph [ref=e240]: Reglas ejecutadas (30d)
+                    - paragraph [ref=e241]: "0"
+                  - generic [ref=e242]:
+                    - paragraph [ref=e243]: Tasa de exito
+                    - paragraph [ref=e244]: 0%
+                - generic [ref=e245]:
+                  - paragraph [ref=e246]: Pipeline
+                  - generic [ref=e247]:
+                    - generic [ref=e248]:
+                      - generic [ref=e249]: Lead
+                      - generic [ref=e252]: "0"
+                    - generic [ref=e253]:
+                      - generic [ref=e254]: Interesado
+                      - generic [ref=e257]: "0"
+                    - generic [ref=e258]:
+                      - generic [ref=e259]: Cliente activo
+                      - generic [ref=e262]: "0"
+                    - generic [ref=e263]:
+                      - generic [ref=e264]: Cliente recurrente
+                      - generic [ref=e267]: "0"
+                - link "Ver CRM" [ref=e268] [cursor=pointer]:
+                  - /url: /dashboard/crm
+                  - text: Ver CRM
+                  - img [ref=e269]
+        - generic [ref=e273]:
+          - generic [ref=e274]:
+            - heading "Nueva cita" [level=2] [ref=e275]
+            - button [ref=e276] [cursor=pointer]:
+              - img [ref=e277]
+          - generic [ref=e311]:
+            - generic [ref=e312]:
+              - generic [ref=e313]: M
+              - generic [ref=e314]: Maria QA
+              - generic [ref=e315]: ·
+              - generic [ref=e316]: Corte de cabello
+            - generic [ref=e317]:
+              - generic [ref=e318]: Fecha
+              - textbox [ref=e319]: 2026-05-19
+            - generic [ref=e320]:
+              - generic [ref=e321]: Seleccionar horario
+              - generic [ref=e322]:
+                - button "11:00 AM" [ref=e323] [cursor=pointer]
+                - button "11:30 AM" [ref=e324] [cursor=pointer]
+                - button "12:00 PM" [ref=e325] [cursor=pointer]
+                - button "12:30 PM" [ref=e326] [cursor=pointer]
+                - button "1:00 PM" [ref=e327] [cursor=pointer]
+                - button "1:30 PM" [ref=e328] [cursor=pointer]
+                - button "2:00 PM" [ref=e329] [cursor=pointer]
+                - button "2:30 PM" [ref=e330] [cursor=pointer]
+                - button "3:00 PM" [ref=e331] [cursor=pointer]
+                - button "3:30 PM" [ref=e332] [cursor=pointer]
+                - button "4:00 PM" [ref=e333] [cursor=pointer]
+                - button "4:30 PM" [ref=e334] [cursor=pointer]
+                - button "5:00 PM" [ref=e335] [cursor=pointer]
+                - button "5:30 PM" [ref=e336] [cursor=pointer]
+          - button "Atrás" [ref=e310] [cursor=pointer]
+  - alert [ref=e4]

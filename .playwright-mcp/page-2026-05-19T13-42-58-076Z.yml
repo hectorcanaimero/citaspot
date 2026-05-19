@@ -1,0 +1,49 @@
+- generic [ref=e1]:
+  - alert [ref=e39]
+  - generic [ref=e59]:
+    - banner [ref=e60]:
+      - generic [ref=e61]:
+        - generic [ref=e62]: A
+        - generic [ref=e63]: CitaSpot
+    - main [ref=e64]:
+      - generic [ref=e65]:
+        - paragraph [ref=e71]: Passo 1 de 4 — Serviços
+        - heading "Quais serviços você oferece?" [level=1] [ref=e72]
+        - paragraph [ref=e73]: Defina os serviços que seus clientes podem agendar. Você pode adicionar mais pelo painel depois.
+        - generic [ref=e74]:
+          - generic [ref=e76]:
+            - generic [ref=e77]:
+              - paragraph [ref=e78]: Serviço 1
+              - button [ref=e92] [cursor=pointer]:
+                - img [ref=e93]
+            - generic [ref=e79]:
+              - generic [ref=e80]: Nome
+              - textbox "Nome Nome" [ref=e96]:
+                - /placeholder: Corte de cabelo
+                - text: Corte de cabello
+            - generic [ref=e82]:
+              - generic [ref=e83]:
+                - generic [ref=e84]: Duração (minutos)
+                - spinbutton "Duração (minutos) Duração (minutos)" [ref=e97]: "30"
+              - generic [ref=e86]:
+                - generic [ref=e87]: Preço (USD, opcional)
+                - spinbutton "Preço (USD, opcional) Preço (USD, opcional)" [ref=e98]: "15"
+          - generic [ref=e100]:
+            - generic [ref=e101]:
+              - paragraph [ref=e102]: Serviço 2
+              - button [ref=e103] [cursor=pointer]:
+                - img [ref=e104]
+            - generic [ref=e107]:
+              - generic [ref=e108]: Nome
+              - textbox "Corte de cabelo" [ref=e109]
+            - generic [ref=e110]:
+              - generic [ref=e111]:
+                - generic [ref=e112]: Duração (minutos)
+                - spinbutton [ref=e113]: "60"
+              - generic [ref=e114]:
+                - generic [ref=e115]: Preço (USD, opcional)
+                - spinbutton [ref=e116]
+          - button "Adicionar outro serviço" [active] [ref=e89] [cursor=pointer]:
+            - img [ref=e90]
+            - text: Adicionar outro serviço
+          - button "Continuar" [ref=e91] [cursor=pointer]

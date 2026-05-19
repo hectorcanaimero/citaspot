@@ -1,0 +1,33 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - navigation [ref=e3]:
+      - generic [ref=e4]:
+        - link "CitaSpot." [ref=e5] [cursor=pointer]:
+          - /url: /
+        - link "Voltar ao início" [ref=e6] [cursor=pointer]:
+          - /url: /
+          - img [ref=e7]
+          - text: Voltar ao início
+    - main [ref=e9]:
+      - generic [ref=e10]:
+        - generic [ref=e11]:
+          - generic [ref=e12]:
+            - img [ref=e13]
+            - text: Lista de espera
+          - heading "Lista de espera" [level=1] [ref=e15]
+          - paragraph [ref=e16]: Estamos abrindo vagas por país. Deixe seu e-mail e avisaremos quando chegarmos ao seu.
+        - generic [ref=e18]:
+          - generic [ref=e19]:
+            - generic [ref=e20]: E-mail
+            - textbox "E-mail" [ref=e21]:
+              - /placeholder: voce@email.com
+          - generic [ref=e22]:
+            - generic [ref=e23]: Nome do negócio
+            - textbox "Nome do negócio" [ref=e24]:
+              - /placeholder: Salão da Maria
+          - button "Entrar na lista" [ref=e25] [cursor=pointer]:
+            - text: Entrar na lista
+            - img [ref=e26]
+    - contentinfo [ref=e28]:
+      - generic [ref=e29]: © 2025 CitaSpot
+  - alert [ref=e30]

@@ -1,0 +1,30 @@
+- generic [active] [ref=e1]:
+  - alert [ref=e39]
+  - generic [ref=e59]:
+    - banner [ref=e60]:
+      - generic [ref=e61]:
+        - generic [ref=e62]: A
+        - generic [ref=e63]: CitaSpot
+    - main [ref=e64]:
+      - generic [ref=e65]:
+        - paragraph [ref=e71]: Passo 1 de 4 — Serviços
+        - heading "Quais serviços você oferece?" [level=1] [ref=e72]
+        - paragraph [ref=e73]: Defina os serviços que seus clientes podem agendar. Você pode adicionar mais pelo painel depois.
+        - generic [ref=e74]:
+          - generic [ref=e76]:
+            - paragraph [ref=e78]: Serviço 1
+            - generic [ref=e79]:
+              - generic [ref=e80]: Nome
+              - textbox "Nome" [ref=e81]:
+                - /placeholder: Corte de cabelo
+            - generic [ref=e82]:
+              - generic [ref=e83]:
+                - generic [ref=e84]: Duração (minutos)
+                - spinbutton "Duração (minutos)" [ref=e85]: "60"
+              - generic [ref=e86]:
+                - generic [ref=e87]: Preço (USD, opcional)
+                - spinbutton "Preço (USD, opcional)" [ref=e88]
+          - button "Adicionar outro serviço" [ref=e89] [cursor=pointer]:
+            - img [ref=e90]
+            - text: Adicionar outro serviço
+          - button "Continuar" [ref=e91] [cursor=pointer]

@@ -1,0 +1,32 @@
+- generic [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - generic [ref=e5]: A
+      - heading "Crie sua conta grátis" [level=1] [ref=e34]
+      - paragraph [ref=e7]: 14 dias de teste · Sem cartão de crédito
+    - generic [ref=e8]:
+      - generic [ref=e11]: Sua conta
+      - generic [ref=e14]: Seu negócio
+      - generic [ref=e17]: Localização
+    - generic [ref=e18]:
+      - generic [ref=e19]:
+        - generic [ref=e40]:
+          - generic [ref=e41]: Nome do negócio
+          - textbox "Nome do negócio" [ref=e42]:
+            - /placeholder: Salão da Maria
+        - generic [ref=e43]:
+          - generic [ref=e44]: Tipo de negócio
+          - generic [ref=e45]:
+            - button "Salão de beleza" [ref=e46] [cursor=pointer]
+            - button "Barbearia" [ref=e47] [cursor=pointer]
+            - button "Spa / Bem-estar" [ref=e48] [cursor=pointer]
+            - button "Clínica odontológica" [ref=e49] [cursor=pointer]
+            - button "Clínica médica" [ref=e50] [cursor=pointer]
+        - generic [ref=e30]:
+          - button "Voltar" [ref=e51] [cursor=pointer]
+          - button "Continuar" [active] [ref=e31] [cursor=pointer]
+      - paragraph [ref=e32]:
+        - text: Já tem uma conta?
+        - link "Entre aqui" [ref=e38] [cursor=pointer]:
+          - /url: /login
+  - alert [ref=e39]

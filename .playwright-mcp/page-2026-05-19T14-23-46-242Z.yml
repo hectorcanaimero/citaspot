@@ -1,0 +1,230 @@
+- generic [active] [ref=e1]:
+  - alert [ref=e19]
+  - generic [ref=e20]:
+    - complementary [ref=e21]:
+      - generic [ref=e22]:
+        - generic [ref=e23]: CitaSpot
+        - button "Colapsar" [ref=e24] [cursor=pointer]:
+          - img [ref=e25]
+      - navigation [ref=e28]:
+        - list [ref=e29]:
+          - listitem [ref=e30]:
+            - link "Dashboard" [ref=e31] [cursor=pointer]:
+              - /url: /dashboard
+              - img [ref=e32]
+              - text: Dashboard
+          - listitem [ref=e37]:
+            - link "Agenda" [ref=e38] [cursor=pointer]:
+              - /url: /dashboard/agenda
+              - img [ref=e39]
+              - text: Agenda
+          - listitem [ref=e41]:
+            - link "Clientes" [ref=e42] [cursor=pointer]:
+              - /url: /dashboard/clients
+              - img [ref=e43]
+              - text: Clientes
+          - listitem [ref=e48]:
+            - link "Pipeline" [ref=e49] [cursor=pointer]:
+              - /url: /dashboard/pipeline
+              - img [ref=e50]
+              - text: Pipeline
+          - listitem [ref=e51]:
+            - link "Tratamientos" [ref=e52] [cursor=pointer]:
+              - /url: /dashboard/treatments
+              - img [ref=e53]
+              - text: Tratamientos
+          - listitem [ref=e57]:
+            - link "Tareas" [ref=e58] [cursor=pointer]:
+              - /url: /dashboard/tasks
+              - img [ref=e59]
+              - text: Tareas
+          - listitem [ref=e62]:
+            - link "Automatizaciones" [ref=e63] [cursor=pointer]:
+              - /url: /dashboard/automations
+              - img [ref=e64]
+              - text: Automatizaciones
+          - listitem [ref=e66]:
+            - link "Servicios" [ref=e67] [cursor=pointer]:
+              - /url: /dashboard/services
+              - img [ref=e68]
+              - text: Servicios
+          - listitem [ref=e74]:
+            - link "Equipo" [ref=e75] [cursor=pointer]:
+              - /url: /dashboard/team
+              - img [ref=e76]
+              - text: Equipo
+          - listitem [ref=e88]:
+            - link "Chatbot" [ref=e89] [cursor=pointer]:
+              - /url: /dashboard/chatbot
+              - img [ref=e90]
+              - text: Chatbot
+          - listitem [ref=e93]:
+            - link "WhatsApp" [ref=e94] [cursor=pointer]:
+              - /url: /dashboard/whatsapp
+              - img [ref=e95]
+              - text: WhatsApp
+          - listitem [ref=e97]:
+            - link "Analíticas" [ref=e98] [cursor=pointer]:
+              - /url: /dashboard/analytics
+              - img [ref=e99]
+              - text: Analíticas
+          - listitem [ref=e101]:
+            - link "Configuración" [ref=e102] [cursor=pointer]:
+              - /url: /dashboard/settings
+              - img [ref=e103]
+              - text: Configuración
+          - listitem [ref=e106]:
+            - link "Ayuda" [ref=e107] [cursor=pointer]:
+              - /url: /dashboard/faq
+              - img [ref=e108]
+              - text: Ayuda
+      - button "Cerrar sesión" [ref=e112] [cursor=pointer]:
+        - img [ref=e113]
+        - text: Cerrar sesión
+    - main [ref=e116]:
+      - generic [ref=e117]:
+        - generic [ref=e119]:
+          - generic [ref=e120]:
+            - paragraph [ref=e121]:
+              - img [ref=e122]
+              - text: Buenos días
+            - heading "Salón Playwright QA" [level=1] [ref=e124]
+            - paragraph [ref=e125]: martes 19 de mayo, 2026
+          - generic [ref=e126]:
+            - link "WhatsApp" [ref=e127] [cursor=pointer]:
+              - /url: /dashboard/whatsapp
+              - img [ref=e128]
+              - text: WhatsApp
+            - button "Nueva cita" [ref=e130] [cursor=pointer]:
+              - img [ref=e131]
+              - text: Nueva cita
+        - generic [ref=e132]:
+          - generic [ref=e133]:
+            - generic [ref=e134]:
+              - generic [ref=e135]:
+                - generic [ref=e136]: Citas hoy
+                - img [ref=e138]
+              - paragraph [ref=e140]: "1"
+              - generic [ref=e141]:
+                - generic [ref=e142]: 1 pend.
+                - generic [ref=e144]: 0 conf.
+                - generic [ref=e146]: 0 comp.
+            - generic [ref=e148]:
+              - generic [ref=e149]:
+                - generic [ref=e150]: Requieren acción
+                - img [ref=e152]
+              - paragraph [ref=e154]: "1"
+              - paragraph [ref=e155]: 1 pendiente de confirmar
+            - generic [ref=e156]:
+              - generic [ref=e157]:
+                - generic [ref=e158]: WhatsApp
+                - img [ref=e160]
+              - paragraph [ref=e169]: Inactivo
+              - link "Conectar WhatsApp →" [ref=e170] [cursor=pointer]:
+                - /url: /dashboard/whatsapp
+            - generic [ref=e171]:
+              - generic [ref=e172]:
+                - generic [ref=e173]: Conocimiento IA
+                - img [ref=e175]
+              - paragraph [ref=e178]: "0"
+              - paragraph [ref=e179]: Sin documentos aún
+          - generic [ref=e180]:
+            - generic [ref=e181]:
+              - generic [ref=e182]:
+                - heading "Agenda de hoy" [level=2] [ref=e183]
+                - generic [ref=e184]:
+                  - button [ref=e185] [cursor=pointer]:
+                    - img [ref=e186]
+                  - button [ref=e188] [cursor=pointer]:
+                    - img [ref=e189]
+              - generic [ref=e192]:
+                - generic [ref=e193]:
+                  - paragraph [ref=e194]: 11:00
+                  - paragraph [ref=e195]: 30min
+                - generic [ref=e197]:
+                  - paragraph [ref=e198]: Juan Test
+                  - generic [ref=e199]:
+                    - generic [ref=e200]:
+                      - img [ref=e201]
+                      - text: Maria QA
+                    - generic [ref=e204]: ·
+                    - generic [ref=e205]: Corte de cabello
+                - generic [ref=e206]: Pendiente
+                - button "Confirmar" [ref=e207] [cursor=pointer]
+            - generic [ref=e208]:
+              - generic [ref=e209]:
+                - generic [ref=e210]:
+                  - heading "WhatsApp" [level=3] [ref=e211]
+                  - img [ref=e212]
+                - generic [ref=e216]: Desconectado
+                - paragraph [ref=e217]: Conecta tu WhatsApp para activar el asistente IA.
+                - link "Conectar WhatsApp" [ref=e218] [cursor=pointer]:
+                  - /url: /dashboard/whatsapp
+                  - text: Conectar WhatsApp
+                  - img [ref=e219]
+              - generic [ref=e222]:
+                - generic [ref=e223]:
+                  - heading "Base de conocimiento" [level=3] [ref=e224]
+                  - img [ref=e225]
+                - generic [ref=e228]:
+                  - paragraph [ref=e229]: "0"
+                  - paragraph [ref=e230]: documentos activos
+                - paragraph [ref=e231]: Agrega documentos para que la IA responda mejor a tus clientes.
+                - link "Gestionar documentos" [ref=e232] [cursor=pointer]:
+                  - /url: /dashboard/knowledge
+                  - text: Gestionar documentos
+                  - img [ref=e233]
+              - generic [ref=e236]:
+                - generic [ref=e237]:
+                  - heading "Equipo activo" [level=3] [ref=e238]
+                  - generic [ref=e239]:
+                    - img [ref=e240]
+                    - text: "1"
+                - generic [ref=e246]:
+                  - generic [ref=e247]: M
+                  - paragraph [ref=e249]: Maria QA
+                - link "Ver equipo" [ref=e250] [cursor=pointer]:
+                  - /url: /dashboard/team
+                  - text: Ver equipo
+                  - img [ref=e251]
+              - generic [ref=e254]:
+                - generic [ref=e255]:
+                  - heading "CRM" [level=3] [ref=e256]
+                  - img [ref=e257]
+                - generic [ref=e259]:
+                  - generic [ref=e260]:
+                    - paragraph [ref=e261]: Tratamientos activos
+                    - paragraph [ref=e262]: "0"
+                  - generic [ref=e263]:
+                    - paragraph [ref=e264]: Tareas pendientes
+                    - paragraph [ref=e265]: "0"
+                  - generic [ref=e266]:
+                    - paragraph [ref=e267]: Reglas ejecutadas (30d)
+                    - paragraph [ref=e268]: "2"
+                  - generic [ref=e269]:
+                    - paragraph [ref=e270]: Tasa de exito
+                    - paragraph [ref=e271]: 0%
+                - generic [ref=e272]:
+                  - paragraph [ref=e273]: Pipeline
+                  - generic [ref=e274]:
+                    - generic [ref=e275]:
+                      - generic [ref=e276]: Lead
+                      - generic [ref=e279]: "0"
+                    - generic [ref=e280]:
+                      - generic [ref=e281]: Interesado
+                      - generic [ref=e284]: "0"
+                    - generic [ref=e285]:
+                      - generic [ref=e286]: Cliente activo
+                      - generic [ref=e289]: "0"
+                    - generic [ref=e290]:
+                      - generic [ref=e291]: Cliente recurrente
+                      - generic [ref=e294]: "0"
+                - generic [ref=e297]:
+                  - generic [ref=e298]:
+                    - img [ref=e299]
+                    - text: Cita creada — pendiente de aprobación
+                  - generic [ref=e301]: 2x
+                - link "Ver CRM" [ref=e302] [cursor=pointer]:
+                  - /url: /dashboard/crm
+                  - text: Ver CRM
+                  - img [ref=e303]

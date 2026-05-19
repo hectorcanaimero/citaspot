@@ -1,0 +1,11 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e7]:
+    - generic [ref=e36]:
+      - generic [ref=e37]: S
+      - heading "Salón Playwright QA" [level=1] [ref=e38]
+      - paragraph [ref=e39]: Santo Domingo
+    - generic [ref=e40]:
+      - heading "¿Con quién prefieres?" [level=2] [ref=e41]
+      - paragraph [ref=e43]: No hay profesionales disponibles para este servicio.
+      - button "← Volver" [ref=e45] [cursor=pointer]
+  - alert [ref=e6]

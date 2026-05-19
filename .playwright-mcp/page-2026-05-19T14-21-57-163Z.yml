@@ -1,0 +1,29 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e7]:
+    - generic [ref=e82]:
+      - generic [ref=e83]: S
+      - heading "Salón Playwright QA" [level=1] [ref=e84]
+      - paragraph [ref=e85]: Santo Domingo
+    - generic [ref=e86]:
+      - heading "Tus datos de contacto" [level=2] [ref=e87]
+      - generic [ref=e88]:
+        - generic [ref=e89]: Nombre completo
+        - textbox "Nombre completo" [ref=e90]:
+          - /placeholder: María García
+      - generic [ref=e91]:
+        - generic [ref=e92]: WhatsApp / Teléfono
+        - generic [ref=e93]:
+          - button "Select country code" [ref=e95] [cursor=pointer]:
+            - generic [ref=e96]: 🇩🇴
+            - generic [ref=e97]: "+1"
+            - img [ref=e98]
+          - textbox "WhatsApp / Teléfono" [ref=e100]:
+            - /placeholder: "0000000000"
+      - generic [ref=e101]:
+        - generic [ref=e102]: Correo electrónico (opcional)
+        - textbox "Correo electrónico (opcional)" [ref=e103]:
+          - /placeholder: tu@correo.com
+      - generic [ref=e104]:
+        - button "← Volver" [ref=e105] [cursor=pointer]
+        - button "Revisar cita" [disabled] [ref=e106]
+  - alert [ref=e6]

@@ -1,0 +1,28 @@
+- generic [active] [ref=e1]:
+  - alert [ref=e39]
+  - generic [ref=e59]:
+    - banner [ref=e60]:
+      - generic [ref=e61]:
+        - generic [ref=e62]: A
+        - generic [ref=e63]: CitaSpot
+    - main [ref=e64]:
+      - generic [ref=e260]:
+        - img [ref=e261]
+        - heading "Tudo pronto!" [level=1] [ref=e264]
+        - paragraph [ref=e265]: Seu negócio está configurado. No painel você pode gerenciar seus agendamentos, clientes e ajustar qualquer configuração.
+        - generic [ref=e266]:
+          - paragraph [ref=e267]: O que você configurou
+          - generic [ref=e268]:
+            - generic [ref=e269]:
+              - img [ref=e271]
+              - text: Serviços criados
+            - generic [ref=e277]:
+              - img [ref=e279]
+              - text: Horários configurados
+            - generic [ref=e282]:
+              - img [ref=e284]
+              - text: WhatsApp configurado
+        - button "Ir ao painel" [ref=e286] [cursor=pointer]:
+          - img [ref=e287]
+          - text: Ir ao painel
+        - paragraph [ref=e289]: Sua página pública de agendamentos está disponível em citaspot.com/book/tu-negocio

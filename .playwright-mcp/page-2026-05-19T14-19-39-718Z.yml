@@ -1,0 +1,115 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - complementary [ref=e5]:
+      - generic [ref=e6]:
+        - generic [ref=e7]: CitaSpot
+        - button "Colapsar" [ref=e8] [cursor=pointer]:
+          - img [ref=e9]
+      - navigation [ref=e12]:
+        - list [ref=e13]:
+          - listitem [ref=e14]:
+            - link "Dashboard" [ref=e15] [cursor=pointer]:
+              - /url: /dashboard
+              - img [ref=e16]
+              - text: Dashboard
+          - listitem [ref=e21]:
+            - link "Agenda" [ref=e22] [cursor=pointer]:
+              - /url: /dashboard/agenda
+              - img [ref=e23]
+              - text: Agenda
+          - listitem [ref=e25]:
+            - link "Clientes" [ref=e26] [cursor=pointer]:
+              - /url: /dashboard/clients
+              - img [ref=e27]
+              - text: Clientes
+          - listitem [ref=e32]:
+            - link "Pipeline" [ref=e33] [cursor=pointer]:
+              - /url: /dashboard/pipeline
+              - img [ref=e34]
+              - text: Pipeline
+          - listitem [ref=e35]:
+            - link "Tratamientos" [ref=e36] [cursor=pointer]:
+              - /url: /dashboard/treatments
+              - img [ref=e37]
+              - text: Tratamientos
+          - listitem [ref=e41]:
+            - link "Tareas" [ref=e42] [cursor=pointer]:
+              - /url: /dashboard/tasks
+              - img [ref=e43]
+              - text: Tareas
+          - listitem [ref=e46]:
+            - link "Automatizaciones" [ref=e47] [cursor=pointer]:
+              - /url: /dashboard/automations
+              - img [ref=e48]
+              - text: Automatizaciones
+          - listitem [ref=e50]:
+            - link "Servicios" [ref=e51] [cursor=pointer]:
+              - /url: /dashboard/services
+              - img [ref=e52]
+              - text: Servicios
+          - listitem [ref=e58]:
+            - link "Equipo" [ref=e59] [cursor=pointer]:
+              - /url: /dashboard/team
+              - img [ref=e60]
+              - text: Equipo
+          - listitem [ref=e72]:
+            - link "Chatbot" [ref=e73] [cursor=pointer]:
+              - /url: /dashboard/chatbot
+              - img [ref=e74]
+              - text: Chatbot
+          - listitem [ref=e77]:
+            - link "WhatsApp" [ref=e78] [cursor=pointer]:
+              - /url: /dashboard/whatsapp
+              - img [ref=e79]
+              - text: WhatsApp
+          - listitem [ref=e81]:
+            - link "Analíticas" [ref=e82] [cursor=pointer]:
+              - /url: /dashboard/analytics
+              - img [ref=e83]
+              - text: Analíticas
+          - listitem [ref=e85]:
+            - link "Configuración" [ref=e86] [cursor=pointer]:
+              - /url: /dashboard/settings
+              - img [ref=e87]
+              - text: Configuración
+          - listitem [ref=e90]:
+            - link "Ayuda" [ref=e91] [cursor=pointer]:
+              - /url: /dashboard/faq
+              - img [ref=e92]
+              - text: Ayuda
+      - button "Cerrar sesión" [ref=e96] [cursor=pointer]:
+        - img [ref=e97]
+        - text: Cerrar sesión
+    - main [ref=e100]:
+      - generic [ref=e101]:
+        - generic [ref=e102]:
+          - generic [ref=e103]:
+            - heading "Equipo" [level=1] [ref=e104]
+            - paragraph [ref=e105]: Gestiona los profesionales de tu negocio y sus horarios de atención.
+          - generic [ref=e106]:
+            - generic [ref=e107] [cursor=pointer]:
+              - checkbox "Mostrar archivados" [ref=e108]
+              - text: Mostrar archivados
+            - button "Agregar profesional" [ref=e109] [cursor=pointer]:
+              - img [ref=e110]
+              - text: Agregar profesional
+        - generic [ref=e113]:
+          - generic [ref=e114]: M
+          - generic [ref=e115]:
+            - textbox "María García" [ref=e131]: Maria QA
+            - textbox "Estilista" [ref=e133]
+            - generic [ref=e135]:
+              - button "Select country code" [ref=e137] [cursor=pointer]:
+                - generic [ref=e138]: 🇩🇴
+                - generic [ref=e139]: "+1"
+                - img [ref=e140]
+              - textbox "0000000000" [ref=e142]
+          - generic [ref=e117]:
+            - generic [ref=e118]: Activo
+            - button "Guardar" [ref=e143] [cursor=pointer]
+            - button "Cancelar" [ref=e144] [cursor=pointer]
+            - button "Archivar" [ref=e123] [cursor=pointer]:
+              - img [ref=e124]
+            - button "Ver horarios" [ref=e127] [cursor=pointer]:
+              - img [ref=e128]
+  - alert [ref=e4]

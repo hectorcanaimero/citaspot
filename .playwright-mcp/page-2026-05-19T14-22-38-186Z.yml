@@ -1,0 +1,12 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e7]:
+    - generic [ref=e153]:
+      - generic [ref=e154]: S
+      - heading "Salón Playwright QA" [level=1] [ref=e155]
+      - paragraph [ref=e156]: Santo Domingo
+    - generic [ref=e157]:
+      - img [ref=e158]
+      - heading "¡Cita confirmada!" [level=2] [ref=e161]
+      - paragraph [ref=e162]: Tu cita de Corte de cabello con Maria QA está reservada para el 20 de mayo a las 10:00 AM.
+      - paragraph [ref=e163]: Recibirás un recordatorio por WhatsApp 24h antes. 🙌
+  - alert [ref=e6]

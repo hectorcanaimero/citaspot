@@ -1,0 +1,15 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e7]:
+    - generic [ref=e10]:
+      - generic [ref=e11]: S
+      - heading "Salón Playwright QA" [level=1] [ref=e12]
+      - paragraph [ref=e13]: Santo Domingo
+    - generic [ref=e21]:
+      - heading "¿Con quién prefieres?" [level=2] [ref=e22]
+      - button "M Maria QA" [ref=e24] [cursor=pointer]:
+        - generic [ref=e25]: M
+        - paragraph [ref=e27]: Maria QA
+      - generic [ref=e28]:
+        - button "← Volver" [ref=e29] [cursor=pointer]
+        - button "Continuar" [ref=e30] [cursor=pointer]
+  - alert [ref=e6]

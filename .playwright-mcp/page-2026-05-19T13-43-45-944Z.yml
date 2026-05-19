@@ -1,0 +1,31 @@
+- generic [active] [ref=e1]:
+  - alert [ref=e39]
+  - generic [ref=e59]:
+    - banner [ref=e60]:
+      - generic [ref=e61]:
+        - generic [ref=e62]: A
+        - generic [ref=e63]: CitaSpot
+    - main [ref=e64]:
+      - generic [ref=e185]:
+        - paragraph [ref=e191]: Passo 3 de 4 — WhatsApp
+        - heading "Conecte seu WhatsApp" [level=1] [ref=e192]
+        - paragraph [ref=e193]: Seu assistente de IA receberá e responderá mensagens dos seus clientes pelo WhatsApp.
+        - generic [ref=e195]:
+          - generic [ref=e196]:
+            - img [ref=e197]
+            - generic [ref=e203]:
+              - paragraph [ref=e204]: Sem conexão
+              - paragraph [ref=e205]: Escaneie o código QR para conectar.
+            - generic [ref=e206]: DISCONNECTED
+            - button [ref=e207] [cursor=pointer]:
+              - img [ref=e208]
+          - generic [ref=e213]:
+            - generic [ref=e214]:
+              - img "Cargando..." [ref=e215]
+              - paragraph [ref=e218]: Gerando código QR...
+            - button "Gerar novo QR" [ref=e219] [cursor=pointer]:
+              - img [ref=e220]
+              - text: Gerar novo QR
+        - generic [ref=e225]:
+          - button "Voltar" [ref=e226] [cursor=pointer]
+          - button "Pular por agora" [ref=e227] [cursor=pointer]

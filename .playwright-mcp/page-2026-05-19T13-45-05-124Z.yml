@@ -1,0 +1,150 @@
+- generic [ref=e1]:
+  - alert [ref=e39]
+  - generic [ref=e290]:
+    - complementary [ref=e291]:
+      - generic [ref=e292]:
+        - generic [ref=e293]: CitaSpot
+        - button "Colapsar" [ref=e294] [cursor=pointer]:
+          - img [ref=e295]
+      - navigation [ref=e298]:
+        - list [ref=e299]:
+          - listitem [ref=e300]:
+            - link "Painel" [ref=e301] [cursor=pointer]:
+              - /url: /dashboard
+              - img [ref=e302]
+              - text: Painel
+          - listitem [ref=e307]:
+            - link "Agenda" [active] [ref=e308] [cursor=pointer]:
+              - /url: /dashboard/agenda
+              - img [ref=e309]
+              - text: Agenda
+          - listitem [ref=e311]:
+            - link "Clientes" [ref=e312] [cursor=pointer]:
+              - /url: /dashboard/clients
+              - img [ref=e313]
+              - text: Clientes
+          - listitem [ref=e318]:
+            - link "Pipeline" [ref=e319] [cursor=pointer]:
+              - /url: /dashboard/pipeline
+              - img [ref=e320]
+              - text: Pipeline
+          - listitem [ref=e321]:
+            - link "Tratamentos" [ref=e322] [cursor=pointer]:
+              - /url: /dashboard/treatments
+              - img [ref=e323]
+              - text: Tratamentos
+          - listitem [ref=e327]:
+            - link "Tarefas" [ref=e328] [cursor=pointer]:
+              - /url: /dashboard/tasks
+              - img [ref=e329]
+              - text: Tarefas
+          - listitem [ref=e332]:
+            - link "Automatizações" [ref=e333] [cursor=pointer]:
+              - /url: /dashboard/automations
+              - img [ref=e334]
+              - text: Automatizações
+          - listitem [ref=e336]:
+            - link "Serviços" [ref=e337] [cursor=pointer]:
+              - /url: /dashboard/services
+              - img [ref=e338]
+              - text: Serviços
+          - listitem [ref=e344]:
+            - link "Equipe" [ref=e345] [cursor=pointer]:
+              - /url: /dashboard/team
+              - img [ref=e346]
+              - text: Equipe
+          - listitem [ref=e358]:
+            - link "Chatbot" [ref=e359] [cursor=pointer]:
+              - /url: /dashboard/chatbot
+              - img [ref=e360]
+              - text: Chatbot
+          - listitem [ref=e363]:
+            - link "WhatsApp" [ref=e364] [cursor=pointer]:
+              - /url: /dashboard/whatsapp
+              - img [ref=e365]
+              - text: WhatsApp
+          - listitem [ref=e367]:
+            - link "Análises" [ref=e368] [cursor=pointer]:
+              - /url: /dashboard/analytics
+              - img [ref=e369]
+              - text: Análises
+          - listitem [ref=e371]:
+            - link "Configurações" [ref=e372] [cursor=pointer]:
+              - /url: /dashboard/settings
+              - img [ref=e373]
+              - text: Configurações
+          - listitem [ref=e376]:
+            - link "Ajuda" [ref=e377] [cursor=pointer]:
+              - /url: /dashboard/faq
+              - img [ref=e378]
+              - text: Ajuda
+      - button "Sair" [ref=e382] [cursor=pointer]:
+        - img [ref=e383]
+        - text: Sair
+    - main [ref=e386]:
+      - generic [ref=e558]:
+        - generic [ref=e559]:
+          - generic [ref=e560]:
+            - button [ref=e561] [cursor=pointer]:
+              - img [ref=e562]
+            - button [ref=e564] [cursor=pointer]:
+              - img [ref=e565]
+          - heading "18 – 24 de maio 2026" [level=2] [ref=e567]
+          - generic [ref=e568]:
+            - button "Dia" [ref=e569] [cursor=pointer]:
+              - img [ref=e570]
+              - text: Dia
+            - button "Semana" [ref=e571] [cursor=pointer]:
+              - img [ref=e572]
+              - text: Semana
+            - button "Mês" [ref=e574] [cursor=pointer]:
+              - img [ref=e575]
+              - text: Mês
+            - button "Lista" [ref=e580] [cursor=pointer]:
+              - img [ref=e581]
+              - text: Lista
+          - button "Nova consulta" [ref=e582] [cursor=pointer]:
+            - img [ref=e583]
+            - text: Nova consulta
+        - generic [ref=e585]:
+          - generic [ref=e586]:
+            - generic [ref=e588]:
+              - paragraph [ref=e589]: segunda
+              - paragraph [ref=e590]: "18"
+            - generic [ref=e591]:
+              - paragraph [ref=e592]: terça
+              - paragraph [ref=e593]: "19"
+            - generic [ref=e594]:
+              - paragraph [ref=e595]: quarta
+              - paragraph [ref=e596]: "20"
+            - generic [ref=e597]:
+              - paragraph [ref=e598]: quinta
+              - paragraph [ref=e599]: "21"
+            - generic [ref=e600]:
+              - paragraph [ref=e601]: sexta
+              - paragraph [ref=e602]: "22"
+            - generic [ref=e603]:
+              - paragraph [ref=e604]: sábado
+              - paragraph [ref=e605]: "23"
+            - generic [ref=e606]:
+              - paragraph [ref=e607]: domingo
+              - paragraph [ref=e608]: "24"
+          - generic [ref=e610]:
+            - generic [ref=e612]: 06:00
+            - generic [ref=e614]: 07:00
+            - generic [ref=e616]: 08:00
+            - generic [ref=e618]: 09:00
+            - generic [ref=e620]: 10:00
+            - generic [ref=e622]: 11:00
+            - generic [ref=e624]: 12:00
+            - generic [ref=e626]: 13:00
+            - generic [ref=e628]: 14:00
+            - generic [ref=e630]: 15:00
+            - generic [ref=e632]: 16:00
+            - generic [ref=e634]: 17:00
+            - generic [ref=e636]: 18:00
+            - generic [ref=e638]: 19:00
+            - generic [ref=e640]: 20:00
+            - generic [ref=e642]: 21:00
+            - generic [ref=e644]: 22:00
+            - generic [ref=e646]: 23:00

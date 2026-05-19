@@ -1,0 +1,15 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e7]:
+    - generic [ref=e33]:
+      - generic [ref=e34]: S
+      - heading "Salón Playwright QA" [level=1] [ref=e35]
+      - paragraph [ref=e36]: Santo Domingo
+    - generic [ref=e37]:
+      - heading "¿Cuándo quieres tu cita?" [level=2] [ref=e38]
+      - generic [ref=e39]:
+        - generic [ref=e40]: Fecha
+        - textbox "Fecha" [ref=e41]
+      - generic [ref=e42]:
+        - button "← Volver" [ref=e43] [cursor=pointer]
+        - button "Revisar cita" [disabled] [ref=e44]
+  - alert [ref=e6]

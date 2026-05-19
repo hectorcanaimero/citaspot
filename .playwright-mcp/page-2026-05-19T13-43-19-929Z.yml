@@ -1,0 +1,64 @@
+- generic [active] [ref=e1]:
+  - alert [ref=e39]
+  - generic [ref=e59]:
+    - banner [ref=e60]:
+      - generic [ref=e61]:
+        - generic [ref=e62]: A
+        - generic [ref=e63]: CitaSpot
+    - main [ref=e64]:
+      - generic [ref=e117]:
+        - paragraph [ref=e123]: Passo 2 de 4 — Equipe e horários
+        - heading "Quem vai atender os agendamentos?" [level=1] [ref=e124]
+        - paragraph [ref=e125]: Adicione o primeiro profissional e defina em quais dias e horários está disponível.
+        - generic [ref=e126]:
+          - generic [ref=e128]:
+            - generic [ref=e129]: Nome do profissional
+            - textbox "Nome do profissional" [ref=e130]:
+              - /placeholder: Maria Garcia
+          - generic [ref=e131]:
+            - paragraph [ref=e132]: Horários de atendimento
+            - generic [ref=e133]:
+              - generic [ref=e134]:
+                - switch [checked] [ref=e135] [cursor=pointer]
+                - generic [ref=e137]: Seg
+                - generic [ref=e138]:
+                  - textbox [ref=e139]: 08:00
+                  - generic [ref=e140]: —
+                  - textbox [ref=e141]: 18:00
+              - generic [ref=e142]:
+                - switch [checked] [ref=e143] [cursor=pointer]
+                - generic [ref=e145]: Ter
+                - generic [ref=e146]:
+                  - textbox [ref=e147]: 08:00
+                  - generic [ref=e148]: —
+                  - textbox [ref=e149]: 18:00
+              - generic [ref=e150]:
+                - switch [checked] [ref=e151] [cursor=pointer]
+                - generic [ref=e153]: Qua
+                - generic [ref=e154]:
+                  - textbox [ref=e155]: 08:00
+                  - generic [ref=e156]: —
+                  - textbox [ref=e157]: 18:00
+              - generic [ref=e158]:
+                - switch [checked] [ref=e159] [cursor=pointer]
+                - generic [ref=e161]: Qui
+                - generic [ref=e162]:
+                  - textbox [ref=e163]: 08:00
+                  - generic [ref=e164]: —
+                  - textbox [ref=e165]: 18:00
+              - generic [ref=e166]:
+                - switch [checked] [ref=e167] [cursor=pointer]
+                - generic [ref=e169]: Sex
+                - generic [ref=e170]:
+                  - textbox [ref=e171]: 08:00
+                  - generic [ref=e172]: —
+                  - textbox [ref=e173]: 18:00
+              - generic [ref=e174]:
+                - switch [ref=e175] [cursor=pointer]
+                - generic [ref=e177]: Sáb
+              - generic [ref=e178]:
+                - switch [ref=e179] [cursor=pointer]
+                - generic [ref=e181]: Dom
+          - generic [ref=e182]:
+            - button "Voltar" [ref=e183] [cursor=pointer]
+            - button "Continuar" [ref=e184] [cursor=pointer]

@@ -1,0 +1,22 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - generic [ref=e5]: A
+      - heading "CitaSpot" [level=1] [ref=e6]
+      - paragraph [ref=e7]: Inicia sesión en tu cuenta
+    - generic [ref=e8]:
+      - generic [ref=e9]:
+        - generic [ref=e10]:
+          - generic [ref=e11]: Correo electrónico
+          - textbox "Correo electrónico" [ref=e12]:
+            - /placeholder: tu@correo.com
+        - generic [ref=e13]:
+          - generic [ref=e14]: Contraseña
+          - textbox "Contraseña" [ref=e15]:
+            - /placeholder: ••••••••
+        - button "Iniciar sesión" [ref=e16] [cursor=pointer]
+      - paragraph [ref=e17]:
+        - text: ¿Aún no formas parte?
+        - link "Únete a la lista de espera" [ref=e18] [cursor=pointer]:
+          - /url: /waitlist
+  - alert [ref=e19]

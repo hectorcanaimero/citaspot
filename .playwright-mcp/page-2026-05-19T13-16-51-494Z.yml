@@ -1,0 +1,270 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - navigation [ref=e3]:
+      - generic [ref=e4]:
+        - link "CitaSpot." [ref=e5] [cursor=pointer]:
+          - /url: /
+        - generic [ref=e6]:
+          - link "Como funciona" [ref=e7] [cursor=pointer]:
+            - /url: "#como-funciona"
+          - link "Preços" [ref=e8] [cursor=pointer]:
+            - /url: "#precios"
+          - link "Entrar" [ref=e9] [cursor=pointer]:
+            - /url: /login
+          - link "Entre na lista de espera" [ref=e10] [cursor=pointer]:
+            - /url: /waitlist
+            - text: Entre na lista de espera
+            - img [ref=e11]
+    - generic [ref=e15]:
+      - generic [ref=e16]:
+        - generic [ref=e17]: Via WhatsApp · Com Inteligência Artificial
+        - heading "Sua agenda trabalha sozinha. Você recebe." [level=1] [ref=e19]:
+          - text: Sua agenda
+          - text: trabalha sozinha.
+          - text: Você recebe.
+        - paragraph [ref=e20]: CitaSpot responde seus clientes pelo WhatsApp 24 horas por dia, agenda consultas e envia lembretes. Zero intervenção humana.
+        - generic [ref=e21]:
+          - link "Entre na lista de espera" [ref=e22] [cursor=pointer]:
+            - /url: /waitlist
+            - text: Entre na lista de espera
+            - img [ref=e23]
+          - link "Ver como funciona" [ref=e25] [cursor=pointer]:
+            - /url: "#como-funciona"
+        - generic [ref=e26]:
+          - generic [ref=e27]:
+            - generic [ref=e28]: S
+            - generic [ref=e29]: M
+            - generic [ref=e30]: L
+            - generic [ref=e31]: K
+          - generic [ref=e32]:
+            - generic [ref=e33]: ★★★★★
+            - generic [ref=e34]: +200 negócios no LATAM
+      - generic [ref=e36]:
+        - generic [ref=e37]:
+          - generic [ref=e38]: 9:41
+          - generic [ref=e39]: ●●●
+        - generic [ref=e40]:
+          - generic [ref=e41]: 🤖
+          - generic [ref=e42]:
+            - generic [ref=e43]: Assistente CitaSpot
+            - generic [ref=e44]: online
+        - generic [ref=e45]:
+          - generic [ref=e46]:
+            - text: Oi! Quero uma consulta de limpeza facial para amanhã
+            - generic [ref=e47]: 9:41 ✓✓
+          - generic [ref=e52]:
+            - text: Olá! 😊 Tenho disponibilidade amanhã às 10:00 AM ou 15:00. Qual prefere?
+            - generic [ref=e53]: 9:41
+          - generic [ref=e54]:
+            - text: 10 AM, perfeito 👌
+            - generic [ref=e55]: 9:42 ✓✓
+          - generic [ref=e56]:
+            - text: ✅ Pronto! Consulta confirmada amanhã às 10:00 AM. Enviarei um lembrete esta noite.
+            - generic [ref=e57]: 9:42
+        - generic [ref=e58]:
+          - generic [ref=e59]: Escreva uma mensagem...
+          - generic [ref=e61]: →
+    - generic [ref=e63]:
+      - generic [ref=e64]:
+        - generic [ref=e65]: ✦ WhatsApp Oficial
+        - generic [ref=e66]: ✦ Seguro e criptografado
+        - generic [ref=e67]: ✦ Sem código
+        - generic [ref=e68]: ✦ Suporte em português
+        - generic [ref=e69]: ✦ 14 dias grátis
+        - generic [ref=e70]: ✦ Cancele quando quiser
+        - generic [ref=e71]: ✦ Multi-profissional
+        - generic [ref=e72]: ✦ Lembretes automáticos
+      - generic [ref=e73]:
+        - generic [ref=e74]: ✦ WhatsApp Oficial
+        - generic [ref=e75]: ✦ Seguro e criptografado
+        - generic [ref=e76]: ✦ Sem código
+        - generic [ref=e77]: ✦ Suporte em português
+        - generic [ref=e78]: ✦ 14 dias grátis
+        - generic [ref=e79]: ✦ Cancele quando quiser
+        - generic [ref=e80]: ✦ Multi-profissional
+        - generic [ref=e81]: ✦ Lembretes automáticos
+    - generic [ref=e84]:
+      - generic [ref=e85]:
+        - generic [ref=e86]: 94%
+        - generic [ref=e87]: das consultas confirmadas sem intervenção humana
+      - generic [ref=e88]:
+        - generic [ref=e89]: 3h
+        - generic [ref=e90]: economizadas por dia no gerenciamento do WhatsApp
+      - generic [ref=e91]:
+        - generic [ref=e92]: −70%
+        - generic [ref=e93]: em faltas com lembretes automáticos
+    - generic [ref=e96]:
+      - generic [ref=e97]:
+        - generic [ref=e98]:
+          - img [ref=e99]
+          - text: Simples e rápido
+        - heading "Funciona em 3 passos" [level=2] [ref=e101]
+        - paragraph [ref=e102]: Configure uma vez e deixe a IA fazer o resto. Sem código, sem técnicos.
+      - generic [ref=e103]:
+        - generic [ref=e104]:
+          - generic [ref=e105]: "1"
+          - img [ref=e107]
+          - heading "Conecte seu WhatsApp" [level=3] [ref=e109]
+          - paragraph [ref=e110]: Escaneie um QR code e seu número fica vinculado em menos de 2 minutos. Sem APIs complicadas.
+        - generic [ref=e111]:
+          - generic [ref=e112]: "2"
+          - img [ref=e114]
+          - heading "Configure seus serviços" [level=3] [ref=e116]
+          - paragraph [ref=e117]: Faça upload do seu catálogo de serviços, horários e preços. A IA aprende tudo sobre seu negócio.
+        - generic [ref=e118]:
+          - generic [ref=e119]: "3"
+          - img [ref=e121]
+          - heading "Receba consultas sozinho" [level=3] [ref=e123]
+          - paragraph [ref=e124]: Seus clientes conversam, a IA agenda, você aparece no negócio pronto para trabalhar.
+    - generic [ref=e127]:
+      - generic [ref=e128]:
+        - generic [ref=e129]:
+          - img [ref=e130]
+          - text: Tudo incluído
+        - heading "Tudo o que seu negócio precisa" [level=2] [ref=e132]
+      - generic [ref=e133]:
+        - generic [ref=e134]:
+          - img [ref=e136]
+          - heading "Assistente IA 24/7" [level=3] [ref=e146]
+          - paragraph [ref=e147]: Responde perguntas, agenda consultas e gerencia objeções automaticamente, até às 2 da manhã.
+        - generic [ref=e148]:
+          - img [ref=e150]
+          - heading "Agenda inteligente" [level=3] [ref=e152]
+          - paragraph [ref=e153]: Detecta conflitos, sugere horários disponíveis e bloqueia intervalos automaticamente.
+        - generic [ref=e154]:
+          - img [ref=e156]
+          - heading "Lembretes automáticos" [level=3] [ref=e159]
+          - paragraph [ref=e160]: Reduza faltas em até 70% com lembretes personalizados enviados via WhatsApp.
+        - generic [ref=e161]:
+          - img [ref=e163]
+          - heading "Analytics em tempo real" [level=3] [ref=e165]
+          - paragraph [ref=e166]: Métricas de ocupação, receita projetada e comportamento dos seus clientes.
+        - generic [ref=e167]:
+          - img [ref=e169]
+          - heading "Multi-profissional" [level=3] [ref=e171]
+          - paragraph [ref=e172]: Gerencie toda a sua equipe em um painel. Cada profissional, seu próprio calendário.
+        - generic [ref=e173]:
+          - img [ref=e175]
+          - heading "Link de agendamento" [level=3] [ref=e178]
+          - paragraph [ref=e179]: Sua página de agendamento com seu logo. Compartilhe no Instagram, WhatsApp ou Google.
+    - generic [ref=e182]:
+      - generic [ref=e183]:
+        - generic [ref=e184]:
+          - img [ref=e185]
+          - text: Preços
+        - heading "Preço justo, valor real" [level=2] [ref=e187]
+        - paragraph [ref=e188]: 14 dias grátis. Sem cartão de crédito.
+      - generic [ref=e189]:
+        - generic [ref=e190]:
+          - generic [ref=e191]: Starter
+          - generic [ref=e192]:
+            - generic [ref=e193]: $50
+            - generic [ref=e194]: /mês
+          - paragraph [ref=e195]: Para negócios que estão começando.
+          - generic [ref=e197]:
+            - generic [ref=e198]:
+              - img [ref=e200]
+              - text: 1 número de WhatsApp
+            - generic [ref=e202]:
+              - img [ref=e204]
+              - text: Até 200 consultas/mês
+            - generic [ref=e206]:
+              - img [ref=e208]
+              - text: Lembretes automáticos
+            - generic [ref=e210]:
+              - img [ref=e212]
+              - text: Dashboard básico
+            - generic [ref=e214]:
+              - img [ref=e216]
+              - text: Suporte por email
+          - link "Entre na lista de espera" [ref=e218] [cursor=pointer]:
+            - /url: /waitlist
+        - generic [ref=e219]:
+          - generic [ref=e220]: Mais popular
+          - generic [ref=e221]: Profissional
+          - generic [ref=e222]:
+            - generic [ref=e223]: $100
+            - generic [ref=e224]: /mês
+          - paragraph [ref=e225]: Para negócios de alto volume.
+          - generic [ref=e227]:
+            - generic [ref=e228]:
+              - img [ref=e230]
+              - text: 3 números de WhatsApp
+            - generic [ref=e232]:
+              - img [ref=e234]
+              - text: Consultas ilimitadas
+            - generic [ref=e236]:
+              - img [ref=e238]
+              - text: Lembretes + avaliações automáticas
+            - generic [ref=e240]:
+              - img [ref=e242]
+              - text: Analytics avançado
+            - generic [ref=e244]:
+              - img [ref=e246]
+              - text: Multi-profissional
+            - generic [ref=e248]:
+              - img [ref=e250]
+              - text: Suporte prioritário WhatsApp
+          - link "Entre na lista de espera" [ref=e252] [cursor=pointer]:
+            - /url: /waitlist
+            - text: Entre na lista de espera
+            - img [ref=e253]
+    - generic [ref=e257]:
+      - generic [ref=e258]:
+        - generic [ref=e259]:
+          - img [ref=e260]
+          - text: Depoimentos
+        - heading "O que dizem nossos clientes" [level=2] [ref=e262]
+      - generic [ref=e263]:
+        - generic [ref=e264]:
+          - generic [ref=e265]: ★★★★★
+          - paragraph [ref=e266]: “Antes eu perdia 3 horas por dia respondendo WhatsApp. Agora a IA gerencia tudo e eu só reviso o calendário.”
+          - generic [ref=e268]:
+            - generic [ref=e269]: MG
+            - generic [ref=e270]:
+              - generic [ref=e271]: María González
+              - generic [ref=e272]: Salão de Beleza · Santo Domingo
+        - generic [ref=e273]:
+          - generic [ref=e274]: ★★★★★
+          - paragraph [ref=e275]: “Meus clientes acham que tenho uma equipe inteira. Sou só eu e CitaSpot. Recuperei meu investimento na primeira semana.”
+          - generic [ref=e277]:
+            - generic [ref=e278]: LR
+            - generic [ref=e279]:
+              - generic [ref=e280]: Luisa Rodríguez
+              - generic [ref=e281]: Centro de Estética · Caracas
+        - generic [ref=e282]:
+          - generic [ref=e283]: ★★★★★
+          - paragraph [ref=e284]: “O assistente até lembra as preferências de cada cliente. É como ter uma recepcionista que nunca esquece nada.”
+          - generic [ref=e286]:
+            - generic [ref=e287]: VM
+            - generic [ref=e288]:
+              - generic [ref=e289]: Valentina Mora
+              - generic [ref=e290]: Clínica de Fisioterapia · Medellín
+    - generic [ref=e293]:
+      - generic [ref=e294]:
+        - img [ref=e295]
+        - text: Sem cartão de crédito
+      - heading "Comece hoje. Seu primeiro mês, grátis." [level=2] [ref=e297]:
+        - text: Comece hoje.
+        - text: Seu primeiro mês, grátis.
+      - paragraph [ref=e298]: Junte-se a mais de 200 negócios de saúde e beleza que já automatizaram sua agenda.
+      - generic [ref=e299]:
+        - link "Entre na lista de espera" [ref=e300] [cursor=pointer]:
+          - /url: /waitlist
+          - text: Entre na lista de espera
+          - img [ref=e301]
+        - link "Já tenho uma conta" [ref=e303] [cursor=pointer]:
+          - /url: /login
+    - contentinfo [ref=e304]:
+      - generic [ref=e305]:
+        - link "CitaSpot." [ref=e306] [cursor=pointer]:
+          - /url: /
+        - generic [ref=e307]:
+          - link "Privacidade" [ref=e308] [cursor=pointer]:
+            - /url: "#"
+          - link "Termos" [ref=e309] [cursor=pointer]:
+            - /url: "#"
+          - link "hola@citaspot.com" [ref=e310] [cursor=pointer]:
+            - /url: mailto:hola@citaspot.com
+        - generic [ref=e311]: © 2025 CitaSpot
+  - alert [ref=e312]

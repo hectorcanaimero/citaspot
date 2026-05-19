@@ -1,0 +1,218 @@
+- generic [active] [ref=e1]:
+  - alert [ref=e39]
+  - generic [ref=e290]:
+    - complementary [ref=e291]:
+      - generic [ref=e292]:
+        - generic [ref=e293]: CitaSpot
+        - button "Colapsar" [ref=e294] [cursor=pointer]:
+          - img [ref=e295]
+      - navigation [ref=e298]:
+        - list [ref=e299]:
+          - listitem [ref=e300]:
+            - link "Painel" [ref=e301] [cursor=pointer]:
+              - /url: /dashboard
+              - img [ref=e302]
+              - text: Painel
+          - listitem [ref=e307]:
+            - link "Agenda" [ref=e308] [cursor=pointer]:
+              - /url: /dashboard/agenda
+              - img [ref=e309]
+              - text: Agenda
+          - listitem [ref=e311]:
+            - link "Clientes" [ref=e312] [cursor=pointer]:
+              - /url: /dashboard/clients
+              - img [ref=e313]
+              - text: Clientes
+          - listitem [ref=e318]:
+            - link "Pipeline" [ref=e319] [cursor=pointer]:
+              - /url: /dashboard/pipeline
+              - img [ref=e320]
+              - text: Pipeline
+          - listitem [ref=e321]:
+            - link "Tratamentos" [ref=e322] [cursor=pointer]:
+              - /url: /dashboard/treatments
+              - img [ref=e323]
+              - text: Tratamentos
+          - listitem [ref=e327]:
+            - link "Tarefas" [ref=e328] [cursor=pointer]:
+              - /url: /dashboard/tasks
+              - img [ref=e329]
+              - text: Tarefas
+          - listitem [ref=e332]:
+            - link "Automatizações" [ref=e333] [cursor=pointer]:
+              - /url: /dashboard/automations
+              - img [ref=e334]
+              - text: Automatizações
+          - listitem [ref=e336]:
+            - link "Serviços" [ref=e337] [cursor=pointer]:
+              - /url: /dashboard/services
+              - img [ref=e338]
+              - text: Serviços
+          - listitem [ref=e344]:
+            - link "Equipe" [ref=e345] [cursor=pointer]:
+              - /url: /dashboard/team
+              - img [ref=e346]
+              - text: Equipe
+          - listitem [ref=e358]:
+            - link "Chatbot" [ref=e359] [cursor=pointer]:
+              - /url: /dashboard/chatbot
+              - img [ref=e360]
+              - text: Chatbot
+          - listitem [ref=e363]:
+            - link "WhatsApp" [ref=e364] [cursor=pointer]:
+              - /url: /dashboard/whatsapp
+              - img [ref=e365]
+              - text: WhatsApp
+          - listitem [ref=e367]:
+            - link "Análises" [ref=e368] [cursor=pointer]:
+              - /url: /dashboard/analytics
+              - img [ref=e369]
+              - text: Análises
+          - listitem [ref=e371]:
+            - link "Configurações" [ref=e372] [cursor=pointer]:
+              - /url: /dashboard/settings
+              - img [ref=e373]
+              - text: Configurações
+          - listitem [ref=e376]:
+            - link "Ajuda" [ref=e377] [cursor=pointer]:
+              - /url: /dashboard/faq
+              - img [ref=e378]
+              - text: Ajuda
+      - button "Sair" [ref=e382] [cursor=pointer]:
+        - img [ref=e383]
+        - text: Sair
+    - main [ref=e386]:
+      - generic [ref=e387]:
+        - generic [ref=e389]:
+          - generic [ref=e390]:
+            - paragraph [ref=e391]:
+              - img [ref=e392]
+              - text: Bom dia
+            - heading "Salón Playwright QA" [level=1] [ref=e394]
+            - paragraph [ref=e395]: terça-feira 19 de maio, 2026
+          - generic [ref=e396]:
+            - link "WhatsApp" [ref=e397] [cursor=pointer]:
+              - /url: /dashboard/whatsapp
+              - img [ref=e398]
+              - text: WhatsApp
+            - button "Nova consulta" [ref=e400] [cursor=pointer]:
+              - img [ref=e401]
+              - text: Nova consulta
+        - generic [ref=e402]:
+          - generic [ref=e403]:
+            - generic [ref=e404]:
+              - generic [ref=e405]:
+                - generic [ref=e406]: Consultas hoje
+                - img [ref=e408]
+              - paragraph [ref=e410]: "0"
+            - generic [ref=e411]:
+              - generic [ref=e412]:
+                - generic [ref=e413]: Requer ação
+                - img [ref=e415]
+              - paragraph [ref=e417]: "0"
+              - paragraph [ref=e418]: Tudo em dia ✓
+            - generic [ref=e419]:
+              - generic [ref=e420]:
+                - generic [ref=e421]: WhatsApp
+                - img [ref=e423]
+              - paragraph [ref=e432]: Inativo
+              - link "Conectar WhatsApp →" [ref=e433] [cursor=pointer]:
+                - /url: /dashboard/whatsapp
+            - generic [ref=e434]:
+              - generic [ref=e435]:
+                - generic [ref=e436]: Conhecimento IA
+                - img [ref=e438]
+              - paragraph [ref=e441]: "0"
+              - paragraph [ref=e442]: Sem documentos ainda
+          - generic [ref=e443]:
+            - generic [ref=e444]:
+              - generic [ref=e445]:
+                - heading "Agenda de hoje" [level=2] [ref=e446]
+                - generic [ref=e447]:
+                  - button [ref=e448] [cursor=pointer]:
+                    - img [ref=e449]
+                  - button [ref=e451] [cursor=pointer]:
+                    - img [ref=e452]
+              - generic [ref=e454]:
+                - img [ref=e456]
+                - heading "Conecte seu WhatsApp para começar a receber agendamentos" [level=3] [ref=e458]
+                - paragraph [ref=e459]: O assistente de IA agenda automaticamente as reservas que chegam pelo WhatsApp.
+                - link "Conectar WhatsApp" [ref=e460] [cursor=pointer]:
+                  - /url: /dashboard/whatsapp
+                  - img [ref=e461]
+                  - text: Conectar WhatsApp
+                  - img [ref=e463]
+                - link "Ou compartilhe sua página pública de reservas →" [ref=e466] [cursor=pointer]:
+                  - /url: /book/salon-playwright-qa
+            - generic [ref=e467]:
+              - generic [ref=e468]:
+                - generic [ref=e469]:
+                  - heading "WhatsApp" [level=3] [ref=e470]
+                  - img [ref=e471]
+                - generic [ref=e475]: Desconectado
+                - paragraph [ref=e476]: Conecte seu WhatsApp para ativar o assistente de IA.
+                - link "Conectar WhatsApp" [ref=e477] [cursor=pointer]:
+                  - /url: /dashboard/whatsapp
+                  - text: Conectar WhatsApp
+                  - img [ref=e478]
+              - generic [ref=e481]:
+                - generic [ref=e482]:
+                  - heading "Base de conhecimento" [level=3] [ref=e483]
+                  - img [ref=e484]
+                - generic [ref=e487]:
+                  - paragraph [ref=e488]: "0"
+                  - paragraph [ref=e489]: documentos ativos
+                - paragraph [ref=e490]: Adicione documentos para que a IA responda melhor aos seus clientes.
+                - link "Gerenciar documentos" [ref=e491] [cursor=pointer]:
+                  - /url: /dashboard/knowledge
+                  - text: Gerenciar documentos
+                  - img [ref=e492]
+              - generic [ref=e495]:
+                - generic [ref=e496]:
+                  - heading "Equipe ativa" [level=3] [ref=e497]
+                  - generic [ref=e498]:
+                    - img [ref=e499]
+                    - text: "1"
+                - generic [ref=e505]:
+                  - generic [ref=e506]: M
+                  - paragraph [ref=e508]: Maria QA
+                - link "Ver equipe" [ref=e509] [cursor=pointer]:
+                  - /url: /dashboard/team
+                  - text: Ver equipe
+                  - img [ref=e510]
+              - generic [ref=e513]:
+                - generic [ref=e514]:
+                  - heading "CRM" [level=3] [ref=e515]
+                  - img [ref=e516]
+                - generic [ref=e518]:
+                  - generic [ref=e519]:
+                    - paragraph [ref=e520]: Tratamentos ativos
+                    - paragraph [ref=e521]: "0"
+                  - generic [ref=e522]:
+                    - paragraph [ref=e523]: Tarefas pendentes
+                    - paragraph [ref=e524]: "0"
+                  - generic [ref=e525]:
+                    - paragraph [ref=e526]: Regras executadas (30d)
+                    - paragraph [ref=e527]: "0"
+                  - generic [ref=e528]:
+                    - paragraph [ref=e529]: Taxa de sucesso
+                    - paragraph [ref=e530]: 0%
+                - generic [ref=e531]:
+                  - paragraph [ref=e532]: Pipeline
+                  - generic [ref=e533]:
+                    - generic [ref=e534]:
+                      - generic [ref=e535]: Lead
+                      - generic [ref=e538]: "0"
+                    - generic [ref=e539]:
+                      - generic [ref=e540]: Interesado
+                      - generic [ref=e543]: "0"
+                    - generic [ref=e544]:
+                      - generic [ref=e545]: Cliente activo
+                      - generic [ref=e548]: "0"
+                    - generic [ref=e549]:
+                      - generic [ref=e550]: Cliente recurrente
+                      - generic [ref=e553]: "0"
+                - link "Ver CRM" [ref=e554] [cursor=pointer]:
+                  - /url: /dashboard/crm
+                  - text: Ver CRM
+                  - img [ref=e555]

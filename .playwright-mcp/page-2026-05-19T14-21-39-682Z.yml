@@ -1,0 +1,38 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e7]:
+    - generic [ref=e47]:
+      - generic [ref=e48]: S
+      - heading "Salón Playwright QA" [level=1] [ref=e49]
+      - paragraph [ref=e50]: Santo Domingo
+    - generic [ref=e37]:
+      - heading "¿Cuándo quieres tu cita?" [level=2] [ref=e38]
+      - generic [ref=e39]:
+        - generic [ref=e40]: Fecha
+        - textbox "Fecha" [ref=e41]: 2026-05-20
+      - generic [ref=e51]:
+        - paragraph [ref=e52]: Horarios disponibles
+        - generic [ref=e53]:
+          - button "8:00 AM" [ref=e54] [cursor=pointer]
+          - button "8:30 AM" [ref=e55] [cursor=pointer]
+          - button "9:00 AM" [ref=e56] [cursor=pointer]
+          - button "9:30 AM" [ref=e57] [cursor=pointer]
+          - button "10:00 AM" [ref=e58] [cursor=pointer]
+          - button "10:30 AM" [ref=e59] [cursor=pointer]
+          - button "11:00 AM" [ref=e60] [cursor=pointer]
+          - button "11:30 AM" [ref=e61] [cursor=pointer]
+          - button "12:00 PM" [ref=e62] [cursor=pointer]
+          - button "12:30 PM" [ref=e63] [cursor=pointer]
+          - button "1:00 PM" [ref=e64] [cursor=pointer]
+          - button "1:30 PM" [ref=e65] [cursor=pointer]
+          - button "2:00 PM" [ref=e66] [cursor=pointer]
+          - button "2:30 PM" [ref=e67] [cursor=pointer]
+          - button "3:00 PM" [ref=e68] [cursor=pointer]
+          - button "3:30 PM" [ref=e69] [cursor=pointer]
+          - button "4:00 PM" [ref=e70] [cursor=pointer]
+          - button "4:30 PM" [ref=e71] [cursor=pointer]
+          - button "5:00 PM" [ref=e72] [cursor=pointer]
+          - button "5:30 PM" [ref=e73] [cursor=pointer]
+      - generic [ref=e42]:
+        - button "← Volver" [ref=e43] [cursor=pointer]
+        - button "Revisar cita" [disabled] [ref=e44]
+  - alert [ref=e6]
