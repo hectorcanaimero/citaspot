@@ -142,7 +142,7 @@ func main() {
 
 	// ── Servicios ─────────────────────────────────────────────────────────────
 	authSvc    := service.NewAuthService(authRepo, cfg)
-	profSvc    := service.NewProfessionalService(profRepo, scheduleRepo, publisher)
+	profSvc    := service.NewProfessionalService(profRepo, scheduleRepo, serviceRepo, publisher)
 	serviceSvc := service.NewServiceSvc(serviceRepo, publisher)
 	availSvc   := service.NewAvailabilityService(scheduleRepo, serviceRepo)
 	apptSvc    := service.NewAppointmentSvc(apptRepo, serviceRepo, customerRepo, profRepo, authRepo, waClient, notifRepo, publisher, eventRepo)
@@ -480,6 +480,13 @@ func main() {
 		}
 		if err := authRepo.CompleteOnboarding(c.Context(), tenantID); err != nil {
 			return fiber.NewError(500, "error interno")
+		}
+
+		// Auto-asigna servicios al primer profesional para que /book/{slug} funcione tras onboarding.
+		if n, err := profSvc.AutoAssignAllServicesToFirstProfessional(c.Context(), tenantID); err != nil {
+			slog.Warn("onboarding: auto-asignación falló", "tenant_id", tenantID, "error", err)
+		} else if n > 0 {
+			slog.Info("onboarding: servicios auto-asignados", "tenant_id", tenantID, "count", n)
 		}
 
 		// Auto-seed CRM por business_type — pipeline aplica a todos los verticales

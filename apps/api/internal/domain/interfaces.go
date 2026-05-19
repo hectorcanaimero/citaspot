@@ -63,6 +63,10 @@ type ProfessionalRepository interface {
 	AssignService(ctx context.Context, tenantID, professionalID, serviceID uuid.UUID) error
 	RemoveService(ctx context.Context, tenantID, professionalID, serviceID uuid.UUID) error
 	ListServiceLinks(ctx context.Context, tenantID uuid.UUID) ([]ServiceProfessionalLink, error)
+	// BulkAssignServicesToProfessional inserta múltiples vínculos en una sola transacción.
+	// Solo asigna servicios activos del mismo tenant. Idempotente (ON CONFLICT DO NOTHING).
+	// Retorna la cantidad de filas insertadas.
+	BulkAssignServicesToProfessional(ctx context.Context, tenantID, professionalID uuid.UUID, serviceIDs []uuid.UUID) (int, error)
 }
 
 // ProfessionalSvc lógica de negocio para profesionales.
@@ -77,6 +81,10 @@ type ProfessionalSvc interface {
 	ListServices(ctx context.Context, tenantID, professionalID uuid.UUID) ([]*Service, error)
 	AssignService(ctx context.Context, tenantID, professionalID, serviceID uuid.UUID) error
 	RemoveService(ctx context.Context, tenantID, professionalID, serviceID uuid.UUID) error
+	// AutoAssignAllServicesToFirstProfessional asigna todos los servicios activos del tenant
+	// al primer profesional (orden alfabético). Usado al completar el onboarding para que el
+	// link público /book/{slug} funcione sin asignación manual. Retorna filas insertadas.
+	AutoAssignAllServicesToFirstProfessional(ctx context.Context, tenantID uuid.UUID) (int, error)
 }
 
 // ── Services ──────────────────────────────────────────────────────────────────

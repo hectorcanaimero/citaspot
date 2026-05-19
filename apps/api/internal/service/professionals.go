@@ -15,14 +15,16 @@ import (
 type professionalService struct {
 	profRepo     domain.ProfessionalRepository
 	scheduleRepo domain.ScheduleRepository
+	serviceRepo  domain.ServiceRepository
 	publisher    domain.MessagePublisher
 }
 
 // NewProfessionalService crea el servicio de profesionales.
-func NewProfessionalService(profRepo domain.ProfessionalRepository, scheduleRepo domain.ScheduleRepository, publisher domain.MessagePublisher) domain.ProfessionalSvc {
+func NewProfessionalService(profRepo domain.ProfessionalRepository, scheduleRepo domain.ScheduleRepository, serviceRepo domain.ServiceRepository, publisher domain.MessagePublisher) domain.ProfessionalSvc {
 	return &professionalService{
 		profRepo:     profRepo,
 		scheduleRepo: scheduleRepo,
+		serviceRepo:  serviceRepo,
 		publisher:    publisher,
 	}
 }
@@ -168,6 +170,32 @@ func (s *professionalService) RemoveService(ctx context.Context, tenantID, profe
 		return fmt.Errorf("professionalService.RemoveService: %w", err)
 	}
 	return nil
+}
+
+// AutoAssignAllServicesToFirstProfessional asigna todos los servicios activos al primer
+// profesional (orden alfabético via profRepo.List). Sin error si no hay profesionales o servicios.
+func (s *professionalService) AutoAssignAllServicesToFirstProfessional(
+	ctx context.Context, tenantID uuid.UUID,
+) (int, error) {
+	profs, err := s.profRepo.List(ctx, tenantID, false)
+	if err != nil {
+		return 0, fmt.Errorf("professionalService.AutoAssignAllServicesToFirstProfessional: list profs: %w", err)
+	}
+	if len(profs) == 0 {
+		return 0, nil
+	}
+	services, err := s.serviceRepo.ListActive(ctx, tenantID)
+	if err != nil {
+		return 0, fmt.Errorf("professionalService.AutoAssignAllServicesToFirstProfessional: list services: %w", err)
+	}
+	if len(services) == 0 {
+		return 0, nil
+	}
+	ids := make([]uuid.UUID, len(services))
+	for i, svc := range services {
+		ids[i] = svc.ID
+	}
+	return s.profRepo.BulkAssignServicesToProfessional(ctx, tenantID, profs[0].ID, ids)
 }
 
 // SetSchedule reemplaza los horarios semanales de un profesional.

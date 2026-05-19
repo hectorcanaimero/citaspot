@@ -248,6 +248,42 @@ func (r *professionalRepository) AssignService(ctx context.Context, tenantID, pr
 	})
 }
 
+// BulkAssignServicesToProfessional inserta múltiples vínculos profesional-servicio en una sola tx.
+// Filtra por servicios activos del mismo tenant (ANY($2::uuid[])) y es idempotente.
+func (r *professionalRepository) BulkAssignServicesToProfessional(
+	ctx context.Context, tenantID, professionalID uuid.UUID, serviceIDs []uuid.UUID,
+) (int, error) {
+	if len(serviceIDs) == 0 {
+		return 0, nil
+	}
+	var inserted int
+	err := withTenant(ctx, r.db, tenantID, func(tx pgx.Tx) error {
+		var exists bool
+		if err := tx.QueryRow(ctx,
+			`SELECT EXISTS(SELECT 1 FROM professionals WHERE id=$1 AND tenant_id=$2)`,
+			professionalID, tenantID,
+		).Scan(&exists); err != nil {
+			return fmt.Errorf("professionalRepository.BulkAssignServicesToProfessional: check prof: %w", err)
+		}
+		if !exists {
+			return domain.ErrNotFound
+		}
+
+		tag, err := tx.Exec(ctx, `
+			INSERT INTO professional_services (professional_id, service_id)
+			SELECT $1, s.id FROM services s
+			WHERE s.id = ANY($2::uuid[]) AND s.tenant_id = $3 AND s.is_active = TRUE
+			ON CONFLICT DO NOTHING
+		`, professionalID, serviceIDs, tenantID)
+		if err != nil {
+			return fmt.Errorf("professionalRepository.BulkAssignServicesToProfessional: insert: %w", err)
+		}
+		inserted = int(tag.RowsAffected())
+		return nil
+	})
+	return inserted, err
+}
+
 // RemoveService elimina la asignación de un servicio a un profesional.
 func (r *professionalRepository) RemoveService(ctx context.Context, tenantID, professionalID, serviceID uuid.UUID) error {
 	return withTenant(ctx, r.db, tenantID, func(tx pgx.Tx) error {
