@@ -653,18 +653,36 @@ async def _handle_slot_selection(
         state["pending_service_name"] = service["name"]
         state["booking_turns_without_service"] = 0
 
-        # Si hay más de un profesional, preguntar
-        professionals = profile.get("professionals", [])
+        # Filtrar profesionales por los que efectivamente ofrecen el servicio elegido.
+        # El mapping vive en profile["service_professionals"] como
+        # [{"service_id": ..., "professional_id": ...}, ...].
+        # Si el mapping no está cargado (tenant viejo / payload incompleto),
+        # caemos al comportamiento previo: todos los profesionales del tenant.
+        all_professionals = profile.get("professionals", [])
+        svc_prof_links = profile.get("service_professionals") or []
+        if svc_prof_links:
+            eligible_prof_ids = {
+                link.get("professional_id")
+                for link in svc_prof_links
+                if link.get("service_id") == service["id"]
+            }
+            professionals = [p for p in all_professionals if p.get("id") in eligible_prof_ids]
+        else:
+            professionals = all_professionals
+
+        # Si después de filtrar no queda nadie elegible, avisar y NO crashear.
+        if not professionals:
+            return _m("no_professionals_for_service", service=service["name"])
+
+        # Si hay más de un profesional elegible, preguntar
         if len(professionals) > 1:
             lines = [f"{i+1}. {p['name']}" for i, p in enumerate(professionals)]
             state["professionals"] = professionals
             await save_state(tenant_id, conversation_id, state)
             return _m("choose_professional", service=service["name"]) + "\n\n" + "\n".join(lines)
-        elif professionals:
+        else:
             state["pending_professional_id"] = professionals[0]["id"]
             state["pending_professional_name"] = professionals[0]["name"]
-        else:
-            return _m("no_professionals")
 
         await save_state(tenant_id, conversation_id, state)
         return _m(

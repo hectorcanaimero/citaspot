@@ -14,6 +14,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "invalid_option": "Por favor elige una opción válida:",
         "choose_professional": "¿Con qué profesional prefieres tu {service}?",
         "no_professionals": "Lo siento, no hay profesionales disponibles en este momento.",
+        "no_professionals_for_service": "Lo siento, no hay profesionales que ofrezcan {service} en este momento. ¿Querés elegir otro servicio?",
         "choose_date_with_prof": (
             "¿Para qué fecha quieres tu {service} con {professional}? "
             "Dime el día y mes (ej: 15-01 o 15/01)."
@@ -110,6 +111,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "invalid_option": "Please choose a valid option:",
         "choose_professional": "Which professional would you prefer for your {service}?",
         "no_professionals": "Sorry, there are no professionals available at the moment.",
+        "no_professionals_for_service": "Sorry, no professionals offer {service} at the moment. Would you like to choose another service?",
         "choose_date_with_prof": (
             "What date would you like your {service} with {professional}? "
             "Tell me the day and month (e.g., 15-01 or 15/01)."
@@ -206,6 +208,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "invalid_option": "Por favor escolha uma opção válida:",
         "choose_professional": "Com qual profissional você prefere seu {service}?",
         "no_professionals": "Desculpe, não há profissionais disponíveis no momento.",
+        "no_professionals_for_service": "Desculpe, não há profissionais que ofereçam {service} no momento. Quer escolher outro serviço?",
         "choose_date_with_prof": (
             "Para qual data você quer seu {service} com {professional}? "
             "Me diga o dia e mês (ex: 15-01 ou 15/01)."
