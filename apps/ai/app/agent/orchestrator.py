@@ -27,6 +27,7 @@ from app.agent.tools import OPENAI_TOOLS
 from app.core.config import settings
 from app.core.rabbitmq import publish
 from app.llm.router import chat_with_tools
+from app.rag.store import search as rag_search
 
 log = structlog.get_logger(__name__)
 
@@ -817,11 +818,61 @@ async def _handle_name_collection(
     return await _confirm_booking(tenant_id, tenant_slug, wa_phone, conversation_id, state)
 
 
-def _build_query_system_prompt(tenant_slug: str, is_first_turn: bool) -> str:
+def _format_kb_context(results: list[dict[str, Any]]) -> str:
+    """Formatea chunks RAG como bloque legible para inyectar en el system prompt.
+
+    Cada chunk se separa con un divisor y mantiene título + categoría para que el
+    LLM entienda qué tipo de información tiene a mano. Cierre con una directiva
+    fuerte: usar esta info ANTES de responder "no tengo".
+    """
+    if not results:
+        return ""
+
+    if _LANG == "en":
+        header = "Relevant info from the business knowledge base:"
+        footer = (
+            "Use this information FIRST to answer. If the answer is here, "
+            "do NOT invent and do NOT reply with 'I don't have that info'."
+        )
+    elif _LANG == "pt":
+        header = "Informações relevantes da base de conhecimento do negócio:"
+        footer = (
+            "Use esta informação PRIMEIRO para responder. Se a resposta estiver aqui, "
+            "NÃO invente nem responda com 'não tenho essa informação'."
+        )
+    else:
+        header = "Información relevante de la base de conocimiento del negocio:"
+        footer = (
+            "Usá esta información PRIMERO para responder. Si la respuesta está acá, "
+            "NO inventes ni respondas con 'no tengo esa info'."
+        )
+
+    parts: list[str] = [header, "---"]
+    for r in results:
+        title = r.get("title") or "Documento"
+        category = r.get("category") or "general"
+        content = (r.get("content") or "").strip()
+        # Encabezado de chunk: título + categoría entre paréntesis
+        parts.append(f"[{title}] (categoría: {category})")
+        parts.append(content)
+        parts.append("---")
+    parts.append(footer)
+    return "\n".join(parts)
+
+
+def _build_query_system_prompt(
+    tenant_slug: str,
+    is_first_turn: bool,
+    kb_context: str = "",
+) -> str:
     """System prompt corto y duro para el handler de QUERY con tool-calling.
 
     Sin catálogo inyectado: el LLM debe pedir info via tools (list_services,
     get_business_info, search_knowledge, etc.) y NUNCA inventar datos.
+
+    Si `kb_context` no está vacío, se inyecta como bloque adicional al final
+    del prompt para pre-cargar contexto RAG y evitar alucinaciones cuando el
+    LLM no encadena tools por su cuenta.
     """
     msgs = get_messages(_LANG)
     greeting_rule = (
@@ -829,6 +880,9 @@ def _build_query_system_prompt(tenant_slug: str, is_first_turn: bool) -> str:
         if is_first_turn
         else msgs.get("greeting_continuation", "Mid-conversation — no greeting.")
     )
+
+    # Bloque de KB opcional: si hay contexto pre-cargado del RAG, lo agregamos al final
+    kb_block = f"\n\n{kb_context}\n" if kb_context else ""
 
     if _LANG == "en":
         return (
@@ -849,6 +903,7 @@ def _build_query_system_prompt(tenant_slug: str, is_first_turn: bool) -> str:
             "- Don't use numbered lists with more than 3 items. "
             "  Prefer inline 'A, B and C'.\n"
             "- Max 400 characters total. Be conversational, not formal.\n"
+            f"{kb_block}"
         )
     if _LANG == "pt":
         return (
@@ -869,6 +924,7 @@ def _build_query_system_prompt(tenant_slug: str, is_first_turn: bool) -> str:
             "- Não use listas numeradas com mais de 3 itens. "
             "  Prefira 'A, B e C' em linha.\n"
             "- Máximo 400 caracteres no total. Seja conversacional, não formal.\n"
+            f"{kb_block}"
         )
     # Default: español rioplatense neutro LATAM
     return (
@@ -889,6 +945,7 @@ def _build_query_system_prompt(tenant_slug: str, is_first_turn: bool) -> str:
         "- No uses listas numeradas con más de 3 ítems. "
         "  Preferí 'A, B y C' en línea.\n"
         "- Máximo 400 caracteres en total. Sé conversacional, no formal.\n"
+        f"{kb_block}"
     )
 
 
@@ -903,9 +960,39 @@ async def _handle_query(
     Anti-hallucination: NO inyectamos catálogo en el prompt. Si el LLM necesita
     datos del tenant los pide via list_services / get_business_info /
     search_knowledge / check_availability.
+
+    Pre-carga RAG: además, hacemos un search en la knowledge base ANTES del
+    LLM y le pasamos los chunks relevantes en el system prompt. Esto evita
+    el patrón observado donde DeepSeek invoca una sola tool y no encadena
+    con search_knowledge. La tool sigue disponible por si quiere refinar.
     """
     is_first_turn = len(history) == 0
-    system = _build_query_system_prompt(tenant_slug, is_first_turn)
+
+    # Pre-cargar contexto del RAG: hacemos best-effort. Si falla, seguimos sin KB.
+    kb_context_block = ""
+    try:
+        kb_results = await rag_search(tenant_id, message_text)
+        if kb_results:
+            kb_context_block = _format_kb_context(kb_results)
+            log.info(
+                "orchestrator._handle_query: kb_context inyectado",
+                chunks=len(kb_results),
+                tenant=tenant_id,
+            )
+        else:
+            log.info(
+                "orchestrator._handle_query: kb sin matches",
+                tenant=tenant_id,
+            )
+    except Exception as e:
+        # No rompemos el flujo: si el RAG falla, el LLM aún tiene las tools.
+        log.warning(
+            "orchestrator._handle_query: kb search falló, continuando sin contexto",
+            error=str(e),
+            tenant=tenant_id,
+        )
+
+    system = _build_query_system_prompt(tenant_slug, is_first_turn, kb_context_block)
     messages: list[dict[str, Any]] = [{"role": "system", "content": system}]
 
     for h in history[-8:]:
