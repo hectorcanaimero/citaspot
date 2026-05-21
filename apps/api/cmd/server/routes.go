@@ -59,6 +59,7 @@ type RouteDeps struct {
 	ClinicalFileHandler     *handler.ClinicalFileHandler
 	ChatbotHandler          *handler.ChatbotHandler
 	WaitlistHandler         *handler.WaitlistHandler
+	RealtimeHandler         *handler.RealtimeHandler
 
 	// Override del stack de auth para tests.
 	// Si es nil, se construye la cadena real: JWT + Tenant + PlanCheck.
@@ -266,6 +267,7 @@ func SetupRoutes(app *fiber.App, deps *RouteDeps) {
 	appts := protected.Group("/appointments")
 	appts.Get("/availability", deps.ApptHandler.Availability)
 	appts.Get("/search", deps.ApptHandler.ListFiltered)
+	appts.Get("/upcoming", deps.ApptHandler.Upcoming)
 	appts.Get("/", deps.ApptHandler.List)
 	appts.Post("/", deps.ApptHandler.Create)
 	appts.Get("/:id", deps.ApptHandler.GetByID)
@@ -409,4 +411,33 @@ func SetupRoutes(app *fiber.App, deps *RouteDeps) {
 
 	// CRM Metrics
 	protected.Get("/crm/metrics", deps.CrmHandler.Metrics)
+
+	// Realtime (SSE) — Phase C: grupo dedicado con JWTMiddlewareWithQuery
+	// porque EventSource no permite setear cabeceras custom (Authorization),
+	// así que el token viaja como ?token=<jwt>. SEGURIDAD: el token en la URL
+	// queda expuesto si se loguea — el access logger global salta /realtime/*
+	// (ver main.go: `fiberlogger.New(...)` con `Next:`), y el scrubber de abajo
+	// loguea SOLO method/path/ip/status sin query string.
+	if deps.RealtimeHandler != nil {
+		// Scrubber primero para que TODOS los requests (incluso 401/403) queden
+		// registrados sin el query string ?token=...
+		realtimeScrubber := func(c *fiber.Ctx) error {
+			err := c.Next()
+			slog.Info("realtime request",
+				slog.String("method", c.Method()),
+				slog.String("path", c.Path()),
+				slog.String("ip", c.IP()),
+				slog.Int("status", c.Response().StatusCode()),
+			)
+			return err
+		}
+		realtime := api.Group("/realtime",
+			realtimeScrubber,
+			apiLimiter,
+			middleware.JWTMiddlewareWithQuery(deps.Cfg.JWTSecret, deps.Cfg.SupabaseURL),
+			middleware.TenantMiddleware(deps.AuthRepo, deps.Pool),
+			middleware.PlanCheckMiddleware(),
+		)
+		realtime.Get("/appointments", deps.RealtimeHandler.Appointments)
+	}
 }

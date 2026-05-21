@@ -114,6 +114,27 @@ func (h *AppointmentHandler) ListFiltered(c *fiber.Ctx) error {
 	return c.JSON(result)
 }
 
+// Upcoming GET /appointments/upcoming?limit=10
+// Retorna citas futuras (pending/confirmed) del tenant, ordenadas por starts_at ASC.
+// Default limit = 10, max = 50 (clamping en el service).
+func (h *AppointmentHandler) Upcoming(c *fiber.Ctx) error {
+	tenantID := middleware.TenantIDFromContext(c)
+	if tenantID == uuid.Nil {
+		return c.Status(http.StatusForbidden).JSON(errorResponse{Error: "tenant no identificado"})
+	}
+
+	limit, err := strconv.Atoi(c.Query("limit", "10"))
+	if err != nil {
+		return c.Status(http.StatusBadRequest).JSON(errorResponse{Error: "limit inválido"})
+	}
+
+	items, err := h.apptSvc.ListUpcoming(c.Context(), tenantID, limit)
+	if err != nil {
+		return handleServiceError(c, err)
+	}
+	return c.JSON(fiber.Map{"data": items})
+}
+
 // Create POST /appointments
 func (h *AppointmentHandler) Create(c *fiber.Ctx) error {
 	tenantID := middleware.TenantIDFromContext(c)

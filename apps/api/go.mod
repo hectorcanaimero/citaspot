@@ -3,6 +3,7 @@ module github.com/citaspot/api
 go 1.25
 
 require (
+	github.com/alicebob/miniredis/v2 v2.38.0
 	github.com/go-playground/validator/v10 v10.30.1
 	github.com/gofiber/contrib/swagger v1.3.0
 	github.com/gofiber/fiber/v2 v2.52.6
@@ -14,6 +15,7 @@ require (
 	github.com/rabbitmq/amqp091-go v1.10.0
 	github.com/redis/go-redis/v9 v9.18.0
 	github.com/stripe/stripe-go/v76 v76.25.0
+	github.com/valyala/fasthttp v1.51.0
 )
 
 require (
@@ -57,8 +59,8 @@ require (
 	github.com/rs/xid v1.6.0 // indirect
 	github.com/tinylib/msgp v1.6.1 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
-	github.com/valyala/fasthttp v1.51.0 // indirect
 	github.com/valyala/tcplisten v1.0.0 // indirect
+	github.com/yuin/gopher-lua v1.1.1 // indirect
 	github.com/zeebo/xxh3 v1.1.0 // indirect
 	go.mongodb.org/mongo-driver v1.13.1 // indirect
 	go.uber.org/atomic v1.11.0 // indirect

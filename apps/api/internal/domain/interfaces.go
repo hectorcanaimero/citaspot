@@ -159,6 +159,9 @@ type AppointmentRepository interface {
 	ListFiltered(ctx context.Context, tenantID uuid.UUID, q *AppointmentListQuery) (*PaginatedAppointments, error)
 	// ListUpcomingByCustomer retorna citas futuras (pending/confirmed) de un cliente, ordenadas por starts_at ASC.
 	ListUpcomingByCustomer(ctx context.Context, tenantID, customerID uuid.UUID) ([]*AppointmentWithDetails, error)
+	// ListUpcoming retorna citas futuras del tenant filtradas por statuses, ordenadas por starts_at ASC.
+	// Usado por el dashboard en tiempo real para hidratar el "próximas citas" sin filtrar por cliente.
+	ListUpcoming(ctx context.Context, tenantID uuid.UUID, limit int, statuses []string) ([]*AppointmentWithDetails, error)
 	UpdateStatus(ctx context.Context, tenantID, id uuid.UUID, req *UpdateAppointmentRequest) error
 	CheckConflict(ctx context.Context, tenantID, professionalID uuid.UUID, startsAt, endsAt time.Time, excludeID *uuid.UUID) (bool, error)
 	Reschedule(ctx context.Context, tenantID, id, professionalID uuid.UUID, startsAt, endsAt time.Time) error
@@ -170,6 +173,9 @@ type AppointmentSvc interface {
 	ListFiltered(ctx context.Context, tenantID uuid.UUID, q *AppointmentListQuery) (*PaginatedAppointments, error)
 	// ListUpcomingByCustomer retorna citas futuras (pending/confirmed) de un cliente.
 	ListUpcomingByCustomer(ctx context.Context, tenantID, customerID uuid.UUID) ([]*AppointmentWithDetails, error)
+	// ListUpcoming retorna citas futuras (pending/confirmed) del tenant, ordenadas por starts_at ASC.
+	// El service clampa limit a [1,50] con default 10.
+	ListUpcoming(ctx context.Context, tenantID uuid.UUID, limit int) ([]*AppointmentWithDetails, error)
 	GetByID(ctx context.Context, tenantID, id uuid.UUID) (*AppointmentWithDetails, error)
 	Create(ctx context.Context, tenantID uuid.UUID, req *CreateAppointmentRequest) (*Appointment, error)
 	Update(ctx context.Context, tenantID, id uuid.UUID, req *UpdateAppointmentRequest) error

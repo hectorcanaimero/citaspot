@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 	_ "time/tzdata" // Embebe la base de datos de timezones en el binario (Alpine/scratch no la incluyen)
@@ -142,7 +143,7 @@ func main() {
 	profSvc    := service.NewProfessionalService(profRepo, scheduleRepo, serviceRepo, publisher)
 	serviceSvc := service.NewServiceSvc(serviceRepo, publisher)
 	availSvc   := service.NewAvailabilityService(scheduleRepo, serviceRepo)
-	apptSvc    := service.NewAppointmentSvc(apptRepo, serviceRepo, customerRepo, profRepo, authRepo, waClient, notifRepo, publisher, eventRepo)
+	apptSvc    := service.NewAppointmentSvc(apptRepo, serviceRepo, customerRepo, profRepo, authRepo, waClient, notifRepo, publisher, eventRepo, rdb)
 	publicSvc  := service.NewPublicSvc(authRepo, profRepo, serviceRepo, availSvc, apptSvc, customerRepo, treatmentRepo, tenantModuleRepo)
 
 	var waSvc domain.WhatsAppSvc
@@ -226,6 +227,9 @@ func main() {
 	clinicalFileHandler := handler.NewClinicalFileHandler(clinicalFileSvc)
 	chatbotHandler      := handler.NewChatbotHandler(chatbotSvc)
 	waitlistHandler     := handler.NewWaitlistHandler(waitlistSvc)
+	// Realtime (SSE) — Phase C: suscripción por conexión a Redis Pub/Sub.
+	// Si rdb es nil (Redis no disponible al startup), el handler responde 503.
+	realtimeHandler     := handler.NewRealtimeHandler(rdb)
 
 	// ── Workers background ────────────────────────────────────────────────────
 	reminderWorker := worker.NewReminderWorker(reminderRepo, notifRepo, waClient, publisher)
@@ -314,7 +318,15 @@ func main() {
 		AllowCredentials: allowCreds,
 	}))
 	if cfg.AppEnv != "production" {
-		app.Use(fiberlogger.New())
+		// El access logger por defecto incluye el query string en la URL — eso
+		// expondría el JWT pasado como ?token=... en los endpoints SSE. Saltamos
+		// /realtime/* aquí; el grupo realtime tiene su propio scrubber que loguea
+		// SOLO method/path/ip/status sin query string. Ver cmd/server/routes.go.
+		app.Use(fiberlogger.New(fiberlogger.Config{
+			Next: func(c *fiber.Ctx) bool {
+				return strings.HasPrefix(c.Path(), "/api/v1/realtime/")
+			},
+		}))
 	}
 
 	// ── Documentación API (Swagger UI + ReDoc) ─────────────────────────────────
@@ -401,6 +413,7 @@ func main() {
 		ClinicalFileHandler:     clinicalFileHandler,
 		ChatbotHandler:          chatbotHandler,
 		WaitlistHandler:         waitlistHandler,
+		RealtimeHandler:         realtimeHandler,
 	})
 
 	// ── Arrancar servidor ─────────────────────────────────────────────────────

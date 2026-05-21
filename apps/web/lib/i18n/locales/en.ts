@@ -19,6 +19,7 @@ export const en = {
     active: 'Active',
     inactive: 'Inactive',
     today: 'Today',
+    tomorrow: 'Tomorrow',
     search: 'Search',
     min: 'min',
     activate: 'Activate',
@@ -111,6 +112,13 @@ export const en = {
     pipelineDistribution: 'Pipeline',
     noMetricsYet: 'No CRM data yet',
     viewCRM: 'View CRM',
+    // Realtime upcoming appointments widget
+    upcomingAppointments: 'Upcoming appointments',
+    upcomingEmpty: 'No upcoming appointments.',
+    upcomingEmptyCTA: 'Open agenda',
+    soundOn: 'Notifications on',
+    soundOff: 'Notifications muted',
+    newAppointmentToast: 'New appointment: {clientName}',
   },
   agenda: {
     newAppointment: 'New appointment',

@@ -425,6 +425,68 @@ func (r *appointmentRepository) ListUpcomingByCustomer(ctx context.Context, tena
 	return result, err
 }
 
+// ListUpcoming retorna citas futuras del tenant filtradas por statuses, ordenadas
+// por starts_at ASC y limitadas. Usado por el dashboard para hidratar la lista
+// inicial antes de suscribirse al stream SSE.
+func (r *appointmentRepository) ListUpcoming(ctx context.Context, tenantID uuid.UUID, limit int, statuses []string) ([]*domain.AppointmentWithDetails, error) {
+	result := make([]*domain.AppointmentWithDetails, 0)
+	err := withTenant(ctx, r.db, tenantID, func(tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `
+			SELECT
+				ap.id, ap.tenant_id, ap.customer_id, ap.professional_id, ap.service_id,
+				ap.treatment_id,
+				ap.starts_at, ap.ends_at, ap.status, ap.source, ap.price, ap.notes,
+				ap.internal_notes, ap.confirmed_at, ap.cancelled_at, ap.cancellation_reason,
+				ap.created_at, ap.updated_at,
+				c.name, c.phone,
+				p.name,
+				s.name, s.duration_min
+			FROM appointments ap
+			JOIN customers     c ON c.id = ap.customer_id
+			JOIN professionals p ON p.id = ap.professional_id
+			JOIN services      s ON s.id = ap.service_id
+			WHERE ap.tenant_id = $1
+			  AND ap.status = ANY($2::text[])
+			  AND ap.starts_at > NOW()
+			ORDER BY ap.starts_at ASC
+			LIMIT $3
+		`, tenantID, statuses, limit)
+		if err != nil {
+			return fmt.Errorf("appointmentRepository.ListUpcoming: query: %w", err)
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			a := &domain.AppointmentWithDetails{}
+			var notes, internalNotes, cancellationReason *string
+			if err := rows.Scan(
+				&a.ID, &a.TenantID, &a.CustomerID, &a.ProfessionalID, &a.ServiceID,
+				&a.TreatmentID,
+				&a.StartsAt, &a.EndsAt, &a.Status, &a.Source, &a.Price, &notes,
+				&internalNotes, &a.ConfirmedAt, &a.CancelledAt, &cancellationReason,
+				&a.CreatedAt, &a.UpdatedAt,
+				&a.CustomerName, &a.CustomerPhone,
+				&a.ProfessionalName,
+				&a.ServiceName, &a.ServiceDuration,
+			); err != nil {
+				return fmt.Errorf("appointmentRepository.ListUpcoming: scan: %w", err)
+			}
+			if notes != nil {
+				a.Notes = *notes
+			}
+			if internalNotes != nil {
+				a.InternalNotes = *internalNotes
+			}
+			if cancellationReason != nil {
+				a.CancellationReason = *cancellationReason
+			}
+			result = append(result, a)
+		}
+		return rows.Err()
+	})
+	return result, err
+}
+
 // UpdateStatus actualiza el estado y notas de una cita.
 // Si el appointment está vinculado a un tratamiento y el status cambia a
 // completed/cancelled, sincroniza la treatment_session correspondiente en

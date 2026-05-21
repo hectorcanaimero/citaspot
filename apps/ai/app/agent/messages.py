@@ -14,7 +14,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "invalid_option": "Por favor elige una opción válida:",
         "choose_professional": "¿Con qué profesional prefieres tu {service}?",
         "no_professionals": "Lo siento, no hay profesionales disponibles en este momento.",
-        "no_professionals_for_service": "Lo siento, no hay profesionales que ofrezcan {service} en este momento. ¿Querés elegir otro servicio?",
+        "no_professionals_for_service": "Lo siento, no hay profesionales que ofrezcan {service} en este momento. ¿Quieres elegir otro servicio?",
         "choose_date_with_prof": (
             "¿Para qué fecha quieres tu {service} con {professional}? "
             "Dime el día y mes (ej: 15-01 o 15/01)."
@@ -50,23 +50,23 @@ MESSAGES: dict[str, dict[str, str]] = {
             "- Respuestas cortas (1–3 oraciones). Sin párrafos largos.\n"
             "- Sin repetir el nombre del negocio en cada respuesta.\n"
             "- Sin saludos genéricos tipo \"¡Hola! ¿En qué puedo ayudarte?\" en mitad de la conversación.\n"
-            "- Si el cliente quiere agendar, guialo paso a paso (servicio → profesional → fecha → confirmar).\n"
-            "- Si no podés resolver algo, ofrecé escalar a un humano."
+            "- Si el cliente quiere agendar, guíalo paso a paso (servicio → profesional → fecha → confirmar).\n"
+            "- Si no puedes resolver algo, ofrece escalar a un humano."
         ),
-        "greeting_first_turn": "Es el PRIMER mensaje del cliente — podés saludar brevemente una sola vez.",
-        "greeting_continuation": "Ya estás en medio de la conversación — NO saludes, continuá directo al punto.",
+        "greeting_first_turn": "Es el PRIMER mensaje del cliente — puedes saludar brevemente una sola vez.",
+        "greeting_continuation": "Ya estás en medio de la conversación — NO saludes, continúa directo al punto.",
         "system_services_header": "Servicios disponibles:",
         "system_professionals_header": "Equipo profesional:",
         "system_mapping_header": "Profesionales por servicio:",
         "system_rag_header": (
             "Información oficial del negocio (USAR ESTO PRIMERO antes de responder cualquier "
-            "pregunta del cliente — si la respuesta está acá, citala directamente):"
+            "pregunta del cliente — si la respuesta está aquí, cítala directamente):"
         ),
         "system_warning": "IMPORTANTE: Nunca inventes información. Si no sabes algo, di que vas a verificarlo.",
         "system_no_catalog": (
             "ATENCIÓN: Este negocio NO tiene servicios ni catálogo cargado en el sistema. "
             "Si el cliente pregunta por servicios, precios, horarios o cualquier oferta concreta, "
-            "NO inventes nada bajo ningún concepto. Decile amablemente que el equipo aún está "
+            "NO inventes nada bajo ningún concepto. Dile amablemente que el equipo aún está "
             "terminando de configurar la información del negocio y que un humano lo va a contactar. "
             "NUNCA respondas con servicios genéricos del rubro."
         ),
@@ -75,30 +75,37 @@ MESSAGES: dict[str, dict[str, str]] = {
         "my_appointments_header": "Tus próximas citas:",
         "appointment_line": "{idx}. *{service}* — {datetime} con {professional}",
         # Flujo de cancelación
-        "cancel_which": "¿Cuál cita querés cancelar?",
-        "cancel_confirm": "¿Confirmas que querés cancelar tu cita de *{service}* el {datetime}?",
+        "cancel_which": "¿Cuál cita quieres cancelar?",
+        "cancel_confirm": "¿Confirmas que quieres cancelar tu cita de *{service}* el {datetime}?",
         "cancel_success": "Tu cita ha sido cancelada. ¿Puedo ayudarte con algo más?",
         "cancel_failed": "No pude cancelar la cita. Por favor intenta de nuevo o escríbenos.",
         "no_appointments_cancel": "No encontré citas pendientes para cancelar.",
         # Flujo de reagendamiento
-        "reschedule_which": "¿Cuál cita querés reagendar?",
-        "reschedule_date": "¿Para qué fecha querés mover tu *{service}*? Dime día y mes (ej: 23-05).",
+        "reschedule_which": "¿Cuál cita quieres reagendar?",
+        "reschedule_date": "¿Para qué fecha quieres mover tu *{service}*? Dime día y mes (ej: 23-05).",
         "reschedule_confirm": "¿Confirmas mover tu *{service}* al {datetime}?",
         "reschedule_success": "¡Listo! Tu cita fue movida al {datetime}. ¡Nos vemos! 🙌",
         "reschedule_failed": "No pude reagendar la cita. Por favor intenta de nuevo.",
         "no_appointments_reschedule": "No encontré citas pendientes para reagendar.",
         # Smart booking link
         "booking_link": "Tenemos varias opciones disponibles. Te comparto este link para que elijas cómodamente:\n{url}",
-        # Saludo determinista de primer turno
+        # Saludo determinista de primer turno (sin bot_name configurado).
         "first_turn_greeting": (
             "¡Hola! Soy el asistente de *{business_name}*. 👋\n\n"
             "Estos son nuestros servicios:\n{services_list}\n\n"
-            "Decime el servicio que querés agendar, o si preferís te mando el link para reservar online."
+            "Dime el servicio que quieres agendar, o si prefieres te envío el link para reservar online."
+        ),
+        # Saludo determinista de primer turno cuando el bot tiene nombre propio.
+        # bot_name es el nombre del asistente (ej: "SarAI"), business_name es el negocio.
+        "first_turn_greeting_with_bot_name": (
+            "¡Hola! Soy *{bot_name}*, asistente de *{business_name}*. 👋\n\n"
+            "Estos son nuestros servicios:\n{services_list}\n\n"
+            "Dime el servicio que quieres agendar, o si prefieres te envío el link para reservar online."
         ),
         # Oferta suave del link (cuando el flujo se estanca o fallan las tools)
-        "booking_link_soft": "Si te resulta más cómodo, también podés agendar desde la web:\n{url}",
+        "booking_link_soft": "Si te resulta más cómodo, también puedes agendar desde la web:\n{url}",
         # Respuesta a pedido explícito del link
-        "booking_link_explicit": "¡Claro! Acá tenés el link para reservar:\n{url}",
+        "booking_link_explicit": "¡Claro! Aquí tienes el link para reservar:\n{url}",
     },
     "en": {
         "slow_response": "One moment, I'm looking that up... ⏳",
@@ -186,9 +193,16 @@ MESSAGES: dict[str, dict[str, str]] = {
         "no_appointments_reschedule": "I didn't find any pending appointments to reschedule.",
         # Smart booking link
         "booking_link": "We have several options available. Here's a link so you can choose at your convenience:\n{url}",
-        # Deterministic first-turn greeting
+        # Deterministic first-turn greeting (no bot_name configured).
         "first_turn_greeting": (
             "Hi! I'm the assistant for *{business_name}*. 👋\n\n"
+            "Here are our services:\n{services_list}\n\n"
+            "Tell me which service you'd like to book, or if you prefer I can send you the link to book online."
+        ),
+        # Deterministic first-turn greeting when the bot has its own name.
+        # bot_name is the assistant's name, business_name is the business.
+        "first_turn_greeting_with_bot_name": (
+            "Hi! I'm *{bot_name}*, the assistant for *{business_name}*. 👋\n\n"
             "Here are our services:\n{services_list}\n\n"
             "Tell me which service you'd like to book, or if you prefer I can send you the link to book online."
         ),
@@ -283,9 +297,16 @@ MESSAGES: dict[str, dict[str, str]] = {
         "no_appointments_reschedule": "Não encontrei consultas pendentes para reagendar.",
         # Smart booking link
         "booking_link": "Temos várias opções disponíveis. Compartilho este link para que escolha com calma:\n{url}",
-        # Saudação determinística de primeiro turno
+        # Saudação determinística de primeiro turno (sem bot_name configurado).
         "first_turn_greeting": (
             "Olá! Sou o assistente de *{business_name}*. 👋\n\n"
+            "Estes são nossos serviços:\n{services_list}\n\n"
+            "Me diga qual serviço você quer agendar, ou se preferir eu te mando o link para reservar online."
+        ),
+        # Saudação determinística de primeiro turno quando o bot tem nome próprio.
+        # bot_name é o nome do assistente, business_name é o nome do negócio.
+        "first_turn_greeting_with_bot_name": (
+            "Olá! Sou *{bot_name}*, assistente de *{business_name}*. 👋\n\n"
             "Estes são nossos serviços:\n{services_list}\n\n"
             "Me diga qual serviço você quer agendar, ou se preferir eu te mando o link para reservar online."
         ),

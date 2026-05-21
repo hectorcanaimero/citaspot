@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 
 	"github.com/citaspot/api/internal/domain"
 )
@@ -22,9 +23,14 @@ type appointmentSvc struct {
 	notifRepo    domain.NotificationRepository
 	publisher    domain.MessagePublisher
 	events       domain.EventRepository
+	// rdb es opcional — si es nil, publishRealtime es no-op. Permite degradar
+	// el realtime dashboard sin tirar el servicio cuando Redis no está disponible.
+	rdb *redis.Client
 }
 
 // NewAppointmentSvc crea el servicio de citas.
+// El parametro rdb es opcional (puede ser nil) — habilita el publish de eventos
+// a Redis Pub/Sub para el dashboard SSE. Si es nil, publishRealtime es no-op.
 func NewAppointmentSvc(
 	apptRepo domain.AppointmentRepository,
 	serviceRepo domain.ServiceRepository,
@@ -35,6 +41,7 @@ func NewAppointmentSvc(
 	notifRepo domain.NotificationRepository,
 	publisher domain.MessagePublisher,
 	events domain.EventRepository,
+	rdb *redis.Client,
 ) domain.AppointmentSvc {
 	return &appointmentSvc{
 		apptRepo:     apptRepo,
@@ -46,6 +53,7 @@ func NewAppointmentSvc(
 		notifRepo:    notifRepo,
 		publisher:    publisher,
 		events:       events,
+		rdb:          rdb,
 	}
 }
 
@@ -62,6 +70,19 @@ func (s *appointmentSvc) ListFiltered(ctx context.Context, tenantID uuid.UUID, q
 // ListUpcomingByCustomer retorna citas futuras (pending/confirmed) de un cliente.
 func (s *appointmentSvc) ListUpcomingByCustomer(ctx context.Context, tenantID, customerID uuid.UUID) ([]*domain.AppointmentWithDetails, error) {
 	return s.apptRepo.ListUpcomingByCustomer(ctx, tenantID, customerID)
+}
+
+// ListUpcoming retorna citas futuras (pending/confirmed) del tenant.
+// Clampa limit a [1,50] con default 10 para proteger la DB ante valores hostiles.
+func (s *appointmentSvc) ListUpcoming(ctx context.Context, tenantID uuid.UUID, limit int) ([]*domain.AppointmentWithDetails, error) {
+	if limit < 1 {
+		limit = 10
+	}
+	if limit > 50 {
+		limit = 50
+	}
+	statuses := []string{"pending", "confirmed"}
+	return s.apptRepo.ListUpcoming(ctx, tenantID, limit, statuses)
 }
 
 // GetByID retorna una cita por ID con detalles del cliente/profesional/servicio.
@@ -140,6 +161,9 @@ func (s *appointmentSvc) Create(ctx context.Context, tenantID uuid.UUID, req *do
 	// Emitir evento para el Rules Engine (único canal de notificaciones)
 	s.emitAppointmentEvent(ctx, tenantID, appt.ID, "created")
 
+	// Notificación realtime al dashboard vía Redis Pub/Sub (best-effort, post-commit).
+	s.publishRealtime(ctx, tenantID, appt.ID, "appointment.created")
+
 	return appt, nil
 }
 
@@ -169,6 +193,10 @@ func (s *appointmentSvc) Update(ctx context.Context, tenantID, id uuid.UUID, req
 	if req.Status != "" {
 		s.emitAppointmentEvent(ctx, tenantID, id, req.Status)
 	}
+
+	// Notificación realtime al dashboard vía Redis Pub/Sub (best-effort, post-commit).
+	s.publishRealtime(ctx, tenantID, id, "appointment.updated")
+
 	return nil
 }
 
@@ -198,6 +226,10 @@ func (s *appointmentSvc) Cancel(ctx context.Context, tenantID, id uuid.UUID, rea
 		return err
 	}
 	s.emitAppointmentEvent(ctx, tenantID, id, "cancelled")
+
+	// Notificación realtime al dashboard vía Redis Pub/Sub (best-effort, post-commit).
+	s.publishRealtime(ctx, tenantID, id, "appointment.cancelled")
+
 	return nil
 }
 
@@ -237,7 +269,45 @@ func (s *appointmentSvc) Reschedule(ctx context.Context, tenantID, id uuid.UUID,
 	}
 
 	s.emitAppointmentEvent(ctx, tenantID, id, "rescheduled")
+
+	// Notificación realtime al dashboard vía Redis Pub/Sub (best-effort, post-commit).
+	s.publishRealtime(ctx, tenantID, id, "appointment.rescheduled")
+
 	return nil
+}
+
+// publishRealtime publica un evento al canal Redis `tenant:{id}:appointments`
+// para que los suscriptores SSE del dashboard reciban el cambio en vivo.
+//
+// Best-effort: nunca retorna error y nunca panic. Se invoca SIEMPRE post-commit
+// (después de que el repo confirmó la transacción) — el dashboard puede recibir
+// notificación de un cambio que falle? NO: si el commit no pasó, esta función
+// no se llama. Si el publish a Redis falla, el cambio en DB ya está persistido
+// y el dashboard se reconcilia en la próxima carga.
+//
+// Si rdb es nil (Redis no disponible al startup), no-op silencioso.
+func (s *appointmentSvc) publishRealtime(ctx context.Context, tenantID, apptID uuid.UUID, eventType string) {
+	if s.rdb == nil {
+		return
+	}
+	appt, err := s.apptRepo.GetByID(ctx, tenantID, apptID)
+	if err != nil {
+		slog.Warn("appointmentSvc.publishRealtime: load appointment", "appt_id", apptID, "error", err)
+		return
+	}
+	payload, err := json.Marshal(map[string]any{
+		"event": eventType,
+		"data":  appt,
+		"ts":    time.Now().UTC().Format(time.RFC3339),
+	})
+	if err != nil {
+		slog.Warn("appointmentSvc.publishRealtime: marshal", "error", err)
+		return
+	}
+	channel := fmt.Sprintf("tenant:%s:appointments", tenantID)
+	if err := s.rdb.Publish(ctx, channel, payload).Err(); err != nil {
+		slog.Warn("appointmentSvc.publishRealtime: publish", "channel", channel, "error", err)
+	}
 }
 
 // publishRuleEvent publica un evento de dominio en la cola rules.events.

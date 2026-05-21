@@ -85,7 +85,11 @@ def _first_turn_greeting(profile: dict[str, Any]) -> str:
     Trunca la lista a 5 servicios máximo para respetar el límite de 400 chars
     de WhatsApp. Formato: '1. {name} — ${price} ({duration_min} min)'.
     """
-    business_name = profile.get("bot_name") or profile.get("name") or "el negocio"
+    # Resolver bot_name y business_name por separado: bot_name es el nombre
+    # del asistente (ej: "SarAI") y business_name es el nombre del negocio
+    # (ej: "Clínica Dental"). NUNCA mezclarlos.
+    bot_name = profile.get("bot_name")
+    business_name = profile.get("name") or "el negocio"
     services = profile.get("services", [])[:5]
     lines = []
     for i, s in enumerate(services):
@@ -98,7 +102,15 @@ def _first_turn_greeting(profile: dict[str, Any]) -> str:
         else:
             lines.append(f"{i+1}. {s['name']} ({duration} min)")
     services_list = "\n".join(lines)
-    return _m("first_turn_greeting", business_name=business_name, services_list=services_list)
+    # Si tenemos bot_name, el asistente se presenta por su nombre.
+    # Si no, fallback al saludo genérico "asistente de {business_name}".
+    template_key = "first_turn_greeting_with_bot_name" if bot_name else "first_turn_greeting"
+    return _m(
+        template_key,
+        bot_name=bot_name or "",
+        business_name=business_name,
+        services_list=services_list,
+    )
 
 
 def _parse_flexible_date(text: str) -> str | None:
@@ -219,22 +231,22 @@ async def _publish_reply(
 # Mapeo de tone a instrucciones de comunicación
 _TONE_INSTRUCTIONS: dict[str, dict[str, str]] = {
     "friendly": {
-        "es": "Usá un tono amigable y cercano. Podés usar emojis con moderación. Tuteá al cliente.",
+        "es": "Usa un tono amigable y cercano. Puedes usar emojis con moderación. Tutea al cliente.",
         "en": "Use a friendly and warm tone. You can use emojis sparingly. Address the client informally.",
         "pt": "Use um tom amigável e próximo. Pode usar emojis com moderação. Trate o cliente por você.",
     },
     "professional": {
-        "es": "Mantené un tono profesional y respetuoso. Evitá emojis. Usá usted.",
+        "es": "Mantén un tono profesional y respetuoso. Evita emojis. Usa usted.",
         "en": "Maintain a professional and respectful tone. Avoid emojis. Use formal address.",
         "pt": "Mantenha um tom profissional e respeitoso. Evite emojis. Trate o cliente por senhor(a).",
     },
     "premium": {
-        "es": "Usá un tono cálido pero elegante. Transmití exclusividad y cuidado personalizado.",
+        "es": "Usa un tono cálido pero elegante. Transmite exclusividad y cuidado personalizado.",
         "en": "Use a warm but elegant tone. Convey exclusivity and personalized care.",
         "pt": "Use um tom caloroso mas elegante. Transmita exclusividade e cuidado personalizado.",
     },
     "casual": {
-        "es": "Sé directo y relajado. Podés usar expresiones coloquiales. Tuteá al cliente.",
+        "es": "Sé directo y relajado. Puedes usar expresiones coloquiales. Tutea al cliente.",
         "en": "Be direct and relaxed. You can use colloquial expressions. Address the client casually.",
         "pt": "Seja direto e descontraído. Pode usar expressões coloquiais. Trate o cliente por você.",
     },
@@ -861,7 +873,7 @@ def _format_kb_context(results: list[dict[str, Any]]) -> str:
     else:
         header = "Información relevante de la base de conocimiento del negocio:"
         footer = (
-            "Usá esta información PRIMERO para responder. Si la respuesta está acá, "
+            "Usa esta información PRIMERO para responder. Si la respuesta está aquí, "
             "NO inventes ni respondas con 'no tengo esa info'."
         )
 
@@ -944,24 +956,24 @@ def _build_query_system_prompt(
             "- Máximo 400 caracteres no total. Seja conversacional, não formal.\n"
             f"{kb_block}"
         )
-    # Default: español rioplatense neutro LATAM
+    # Default: español LATAM neutro (tú)
     return (
-        f"Sos el asistente de WhatsApp del negocio `{tenant_slug}`.\n\n"
+        f"Eres el asistente de WhatsApp del negocio `{tenant_slug}`.\n\n"
         f"{greeting_rule}\n\n"
         "REGLAS:\n"
-        "- Solo respondé con información que obtuviste de las tools.\n"
-        "- Si una tool no devuelve el dato, decí 'No tengo esa información' "
-        "  y ofrecé escalar a un humano.\n"
+        "- Solo responde con información que obtengas de las tools.\n"
+        "- Si una tool no devuelve el dato, di 'No tengo esa información' "
+        "  y ofrece escalar a un humano.\n"
         "- NUNCA inventes servicios, precios, horarios, profesionales ni políticas.\n"
         "- Estilo WhatsApp: máximo 2-3 oraciones cortas. Sin párrafos largos.\n"
         "- No repitas el nombre del negocio en cada respuesta.\n"
-        "- Usá las tools proactivamente: list_services para precios/catálogo, "
+        "- Usa las tools proactivamente: list_services para precios/catálogo, "
         "  get_business_info para ubicación/contacto, search_knowledge para FAQs/políticas, "
         "  check_availability solo cuando el cliente pregunte por una fecha concreta.\n"
         "- No uses encabezados markdown (#). No uses **asteriscos dobles** — "
         "  WhatsApp usa *asterisco simple* para negrita.\n"
         "- No uses listas numeradas con más de 3 ítems. "
-        "  Preferí 'A, B y C' en línea.\n"
+        "  Prefiere 'A, B y C' en línea.\n"
         "- Máximo 400 caracteres en total. Sé conversacional, no formal.\n"
         f"{kb_block}"
     )

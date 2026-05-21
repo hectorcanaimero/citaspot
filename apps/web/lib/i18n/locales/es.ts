@@ -14,6 +14,7 @@ export const es = {
     active: 'Activo',
     inactive: 'Inactivo',
     today: 'Hoy',
+    tomorrow: 'Mañana',
     search: 'Buscar',
     min: 'min',
     activate: 'Activar',
@@ -106,6 +107,13 @@ export const es = {
     pipelineDistribution: 'Pipeline',
     noMetricsYet: 'Sin datos de CRM aun',
     viewCRM: 'Ver CRM',
+    // Widget de próximas citas en tiempo real
+    upcomingAppointments: 'Próximas citas',
+    upcomingEmpty: 'No tenés citas próximas.',
+    upcomingEmptyCTA: 'Ir a la agenda',
+    soundOn: 'Notificaciones activadas',
+    soundOff: 'Notificaciones silenciadas',
+    newAppointmentToast: 'Nueva cita: {clientName}',
   },
   agenda: {
     newAppointment: 'Nueva cita',

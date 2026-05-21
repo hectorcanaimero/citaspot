@@ -39,6 +39,16 @@ async function getToken(): Promise<string | null> {
   return refreshed?.access_token ?? null;
 }
 
+// Export público del getter de token — útil para clientes que abren conexiones
+// custom (e.g. SSE/EventSource) y necesitan inyectar el access_token en la URL.
+export const getSupabaseAccessToken = getToken;
+
+// Construye la URL del stream SSE de appointments en tiempo real.
+// EventSource no soporta headers custom; por eso el token va como query string.
+export function realtimeAppointmentsUrl(token: string): string {
+  return `${API_URL}/api/v1/realtime/appointments?token=${encodeURIComponent(token)}`;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const token = await getToken();
   const res = await fetch(`${API_URL}${path}`, {
@@ -251,6 +261,12 @@ export const auth = {
 export const appointments = {
   async list(date: string, timezone: string): Promise<{ data: Appointment[] }> {
     return request(`/api/v1/appointments?date=${date}&timezone=${encodeURIComponent(timezone)}`);
+  },
+
+  // Próximas N citas confirmadas/pending desde "ahora" — para el widget del dashboard.
+  // El backend ordena por starts_at ASC y devuelve los campos expandidos (customer/professional/service).
+  async upcoming(limit: number): Promise<{ data: Appointment[] }> {
+    return request(`/api/v1/appointments/upcoming?limit=${limit}`);
   },
 
   async listFiltered(params: AppointmentListParams): Promise<PaginatedAppointments> {

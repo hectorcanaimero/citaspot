@@ -19,6 +19,7 @@ export const pt = {
     active: 'Ativo',
     inactive: 'Inativo',
     today: 'Hoje',
+    tomorrow: 'Amanhã',
     search: 'Buscar',
     min: 'min',
     activate: 'Ativar',
@@ -111,6 +112,13 @@ export const pt = {
     pipelineDistribution: 'Pipeline',
     noMetricsYet: 'Sem dados de CRM ainda',
     viewCRM: 'Ver CRM',
+    // Widget de próximos agendamentos em tempo real
+    upcomingAppointments: 'Próximos agendamentos',
+    upcomingEmpty: 'Sem agendamentos próximos.',
+    upcomingEmptyCTA: 'Abrir agenda',
+    soundOn: 'Notificações ativas',
+    soundOff: 'Notificações silenciadas',
+    newAppointmentToast: 'Novo agendamento: {clientName}',
   },
   agenda: {
     newAppointment: 'Nova consulta',

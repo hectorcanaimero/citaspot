@@ -156,3 +156,23 @@ func JWTMiddleware(jwtSecret, supabaseURL string) fiber.Handler {
 		return c.Next()
 	}
 }
+
+// JWTMiddlewareWithQuery es idéntico a JWTMiddleware pero acepta el JWT vía
+// el query param `token` como fallback cuando el header Authorization no está
+// presente. Los navegadores no pueden setear cabeceras custom en EventSource,
+// por lo que los endpoints SSE dependen de este fallback.
+//
+// SEGURIDAD: Montar SOLO en rutas /realtime/*. El token en la URL queda
+// expuesto en logs de acceso — el grupo de rutas debe configurar un middleware
+// de logging que NO incluya el query string (ver routes.go).
+func JWTMiddlewareWithQuery(jwtSecret, supabaseURL string) fiber.Handler {
+	inner := JWTMiddleware(jwtSecret, supabaseURL)
+	return func(c *fiber.Ctx) error {
+		if c.Get("Authorization") == "" {
+			if t := c.Query("token"); t != "" {
+				c.Request().Header.Set("Authorization", "Bearer "+t)
+			}
+		}
+		return inner(c)
+	}
+}

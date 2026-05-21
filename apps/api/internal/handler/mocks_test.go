@@ -104,6 +104,10 @@ func (m *mockProfessionalSvc) RemoveService(ctx context.Context, tenantID, profe
 	return nil
 }
 
+func (m *mockProfessionalSvc) AutoAssignAllServicesToFirstProfessional(ctx context.Context, tenantID uuid.UUID) (int, error) {
+	return 0, nil
+}
+
 // ── ServiceSvc ────────────────────────────────────────────────────────────────
 
 type mockServiceSvc struct {
@@ -148,11 +152,12 @@ func (m *mockServiceSvc) Delete(ctx context.Context, tenantID, id uuid.UUID) err
 // ── AppointmentSvc ────────────────────────────────────────────────────────────
 
 type mockAppointmentSvc struct {
-	listFn    func(context.Context, uuid.UUID, string, string) ([]*domain.AppointmentWithDetails, error)
-	getByIDFn func(context.Context, uuid.UUID, uuid.UUID) (*domain.AppointmentWithDetails, error)
-	createFn  func(context.Context, uuid.UUID, *domain.CreateAppointmentRequest) (*domain.Appointment, error)
-	updateFn  func(context.Context, uuid.UUID, uuid.UUID, *domain.UpdateAppointmentRequest) error
-	cancelFn  func(context.Context, uuid.UUID, uuid.UUID, string) error
+	listFn         func(context.Context, uuid.UUID, string, string) ([]*domain.AppointmentWithDetails, error)
+	getByIDFn      func(context.Context, uuid.UUID, uuid.UUID) (*domain.AppointmentWithDetails, error)
+	createFn       func(context.Context, uuid.UUID, *domain.CreateAppointmentRequest) (*domain.Appointment, error)
+	updateFn       func(context.Context, uuid.UUID, uuid.UUID, *domain.UpdateAppointmentRequest) error
+	cancelFn       func(context.Context, uuid.UUID, uuid.UUID, string) error
+	listUpcomingFn func(context.Context, uuid.UUID, int) ([]*domain.AppointmentWithDetails, error)
 }
 
 func (m *mockAppointmentSvc) List(ctx context.Context, tenantID uuid.UUID, date, timezone string) ([]*domain.AppointmentWithDetails, error) {
@@ -195,6 +200,13 @@ func (m *mockAppointmentSvc) ListFiltered(ctx context.Context, tenantID uuid.UUI
 }
 
 func (m *mockAppointmentSvc) ListUpcomingByCustomer(ctx context.Context, tenantID, customerID uuid.UUID) ([]*domain.AppointmentWithDetails, error) {
+	return []*domain.AppointmentWithDetails{}, nil
+}
+
+func (m *mockAppointmentSvc) ListUpcoming(ctx context.Context, tenantID uuid.UUID, limit int) ([]*domain.AppointmentWithDetails, error) {
+	if m.listUpcomingFn != nil {
+		return m.listUpcomingFn(ctx, tenantID, limit)
+	}
 	return []*domain.AppointmentWithDetails{}, nil
 }
 
@@ -559,6 +571,10 @@ func (m *mockPublicSvc) RescheduleAppointment(ctx context.Context, slug string, 
 		return m.rescheduleAppointmentFn(ctx, slug, appointmentID, phone, startsAt)
 	}
 	return nil
+}
+
+func (m *mockPublicSvc) ListMyTreatments(ctx context.Context, slug, phone string) ([]*domain.CustomerTreatmentSummary, error) {
+	return []*domain.CustomerTreatmentSummary{}, nil
 }
 
 // ── PipelineStageSvc ─────────────────────────────────────────────────────────
