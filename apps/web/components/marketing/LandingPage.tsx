@@ -41,13 +41,15 @@ function PhoneMockup() {
 
   const runAnimation = useCallback(() => {
     setStep(0);
-    const t1 = setTimeout(() => setStep(1), 700);
+    const t1 = setTimeout(() => setStep(1), 600);
     const t2 = setTimeout(() => setStep(2), 1800);
     const t3 = setTimeout(() => setStep(3), 3000);
-    const t4 = setTimeout(() => setStep(4), 4000);
-    const t5 = setTimeout(() => setStep(5), 5500);
-    const t6 = setTimeout(runAnimation, 9500);
-    return [t1, t2, t3, t4, t5, t6];
+    const t4 = setTimeout(() => setStep(4), 4200);
+    const t5 = setTimeout(() => setStep(5), 5400);
+    const t6 = setTimeout(() => setStep(6), 6600);
+    const t7 = setTimeout(() => setStep(7), 7800);
+    const t8 = setTimeout(runAnimation, 11000);
+    return [t1, t2, t3, t4, t5, t6, t7, t8];
   }, []);
 
   useEffect(() => {
@@ -58,7 +60,7 @@ function PhoneMockup() {
   return (
     <div style={{
       width: 272,
-      height: 560,
+      height: 620,
       background: '#0E0E0E',
       borderRadius: 44,
       border: '9px solid #1C1C1E',
@@ -83,9 +85,9 @@ function PhoneMockup() {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: 17, flexShrink: 0,
         }}>🤖</div>
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: 'white' }}>{l.phoneAgentName}</div>
-          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.7)' }}>{l.phoneOnline}</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'white', lineHeight: 1.2 }}>{l.phoneAgentName}</div>
+          <div style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.75)', lineHeight: 1.25, marginTop: 2 }}>{l.phoneOnline}</div>
         </div>
       </div>
 
@@ -93,79 +95,114 @@ function PhoneMockup() {
       <div style={{
         background: '#ECE5DD',
         flex: 1,
-        padding: '12px 8px',
+        padding: '12px 10px',
         display: 'flex',
         flexDirection: 'column',
-        gap: 6,
+        gap: 7,
         overflow: 'hidden',
       }}>
-        {/* Msg 1 — out */}
+        {/* Msg 1 — bot (in) */}
         <div style={{
-          maxWidth: '82%', alignSelf: 'flex-end',
-          background: '#DCF8C6', borderRadius: '8px 8px 2px 8px',
+          maxWidth: '88%', alignSelf: 'flex-start',
+          background: 'white', borderRadius: '12px 12px 12px 4px',
           padding: '7px 10px', fontSize: 12, color: '#111', lineHeight: 1.4,
+          boxShadow: '0 1px 0.5px rgba(0,0,0,0.08)',
           opacity: step >= 1 ? 1 : 0,
           transform: step >= 1 ? 'translateY(0)' : 'translateY(8px)',
           transition: 'opacity 0.3s ease, transform 0.3s ease',
         }}>
           {l.phoneMsg1}
-          <div style={{ fontSize: 10, color: '#999', textAlign: 'right', marginTop: 2 }}>9:41 ✓✓</div>
+          <div style={{ fontSize: 10, color: '#999', textAlign: 'right', marginTop: 3 }}>9:41</div>
         </div>
 
-        {/* Typing indicator */}
+        {/* Msg 2 — user (out) */}
         <div style={{
-          alignSelf: 'flex-start',
-          background: 'white', borderRadius: '8px 8px 8px 2px',
-          padding: '10px 14px', display: 'flex', gap: 4, width: 'fit-content',
-          opacity: step === 2 ? 1 : 0,
-          transition: 'opacity 0.25s ease',
-        }}>
-          {[0, 1, 2].map(i => (
-            <span key={i} style={{
-              width: 6, height: 6, background: '#888', borderRadius: '50%',
-              display: 'block',
-              animation: step === 2 ? `typing 1.1s ${i * 0.18}s infinite` : 'none',
-            }} />
-          ))}
-        </div>
-
-        {/* Msg 2 — in */}
-        <div style={{
-          maxWidth: '86%', alignSelf: 'flex-start',
-          background: 'white', borderRadius: '8px 8px 8px 2px',
+          maxWidth: '78%', alignSelf: 'flex-end',
+          background: '#DCF8C6', borderRadius: '12px 12px 4px 12px',
           padding: '7px 10px', fontSize: 12, color: '#111', lineHeight: 1.4,
+          boxShadow: '0 1px 0.5px rgba(0,0,0,0.08)',
+          marginTop: 5,
+          opacity: step >= 2 ? 1 : 0,
+          transform: step >= 2 ? 'translateY(0)' : 'translateY(8px)',
+          transition: 'opacity 0.3s ease, transform 0.3s ease',
+        }}>
+          {l.phoneMsg2}
+          <div style={{ fontSize: 10, color: '#7BAE7E', textAlign: 'right', marginTop: 3 }}>9:41 ✓✓</div>
+        </div>
+
+        {/* Msg 3 — bot (in) */}
+        <div style={{
+          maxWidth: '82%', alignSelf: 'flex-start',
+          background: 'white', borderRadius: '12px 12px 12px 4px',
+          padding: '7px 10px', fontSize: 12, color: '#111', lineHeight: 1.4,
+          boxShadow: '0 1px 0.5px rgba(0,0,0,0.08)',
+          marginTop: 5,
           opacity: step >= 3 ? 1 : 0,
           transform: step >= 3 ? 'translateY(0)' : 'translateY(8px)',
           transition: 'opacity 0.3s ease, transform 0.3s ease',
         }}>
-          {l.phoneMsg2}
-          <div style={{ fontSize: 10, color: '#999', textAlign: 'right', marginTop: 2 }}>9:41</div>
+          {l.phoneMsg3}
+          <div style={{ fontSize: 10, color: '#999', textAlign: 'right', marginTop: 3 }}>9:41</div>
         </div>
 
-        {/* Msg 3 — out */}
+        {/* Msg 4 — user (out) */}
         <div style={{
-          maxWidth: '78%', alignSelf: 'flex-end',
-          background: '#DCF8C6', borderRadius: '8px 8px 2px 8px',
+          maxWidth: '58%', alignSelf: 'flex-end',
+          background: '#DCF8C6', borderRadius: '12px 12px 4px 12px',
           padding: '7px 10px', fontSize: 12, color: '#111', lineHeight: 1.4,
+          boxShadow: '0 1px 0.5px rgba(0,0,0,0.08)',
+          marginTop: 5,
           opacity: step >= 4 ? 1 : 0,
           transform: step >= 4 ? 'translateY(0)' : 'translateY(8px)',
           transition: 'opacity 0.3s ease, transform 0.3s ease',
         }}>
-          {l.phoneMsg3}
-          <div style={{ fontSize: 10, color: '#999', textAlign: 'right', marginTop: 2 }}>9:42 ✓✓</div>
+          {l.phoneMsg4}
+          <div style={{ fontSize: 10, color: '#7BAE7E', textAlign: 'right', marginTop: 3 }}>9:42 ✓✓</div>
         </div>
 
-        {/* Msg 4 — in */}
+        {/* Msg 5 — bot (in) */}
         <div style={{
-          maxWidth: '90%', alignSelf: 'flex-start',
-          background: 'white', borderRadius: '8px 8px 8px 2px',
+          maxWidth: '80%', alignSelf: 'flex-start',
+          background: 'white', borderRadius: '12px 12px 12px 4px',
           padding: '7px 10px', fontSize: 12, color: '#111', lineHeight: 1.4,
+          boxShadow: '0 1px 0.5px rgba(0,0,0,0.08)',
+          marginTop: 5,
           opacity: step >= 5 ? 1 : 0,
           transform: step >= 5 ? 'translateY(0)' : 'translateY(8px)',
           transition: 'opacity 0.3s ease, transform 0.3s ease',
         }}>
-          {l.phoneMsg4}
-          <div style={{ fontSize: 10, color: '#999', textAlign: 'right', marginTop: 2 }}>9:42</div>
+          {l.phoneMsg5}
+          <div style={{ fontSize: 10, color: '#999', textAlign: 'right', marginTop: 3 }}>9:42</div>
+        </div>
+
+        {/* Msg 6 — user (out) */}
+        <div style={{
+          maxWidth: '62%', alignSelf: 'flex-end',
+          background: '#DCF8C6', borderRadius: '12px 12px 4px 12px',
+          padding: '7px 10px', fontSize: 12, color: '#111', lineHeight: 1.4,
+          boxShadow: '0 1px 0.5px rgba(0,0,0,0.08)',
+          marginTop: 5,
+          opacity: step >= 6 ? 1 : 0,
+          transform: step >= 6 ? 'translateY(0)' : 'translateY(8px)',
+          transition: 'opacity 0.3s ease, transform 0.3s ease',
+        }}>
+          {l.phoneMsg6}
+          <div style={{ fontSize: 10, color: '#7BAE7E', textAlign: 'right', marginTop: 3 }}>9:42 ✓✓</div>
+        </div>
+
+        {/* Msg 7 — bot (in) */}
+        <div style={{
+          maxWidth: '92%', alignSelf: 'flex-start',
+          background: 'white', borderRadius: '12px 12px 12px 4px',
+          padding: '7px 10px', fontSize: 12, color: '#111', lineHeight: 1.4,
+          boxShadow: '0 1px 0.5px rgba(0,0,0,0.08)',
+          marginTop: 5,
+          opacity: step >= 7 ? 1 : 0,
+          transform: step >= 7 ? 'translateY(0)' : 'translateY(8px)',
+          transition: 'opacity 0.3s ease, transform 0.3s ease',
+        }}>
+          {l.phoneMsg7}
+          <div style={{ fontSize: 10, color: '#999', textAlign: 'right', marginTop: 3 }}>9:42</div>
         </div>
       </div>
 
