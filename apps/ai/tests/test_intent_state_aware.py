@@ -41,6 +41,17 @@ from app.agent.state import ConvState
         ("quiero agendar un corte", ConvState.IDLE, None),
         # Edge: empty
         ("", ConvState.IDLE, None),
+        # BOOKING condicional (fase C — issue #39): formas comunes en español neutro
+        ("me gustaría agendar", ConvState.IDLE, Intent.BOOKING),
+        ("me gustaria agendar", ConvState.IDLE, Intent.BOOKING),  # sin tilde
+        ("quisiera reservar", ConvState.IDLE, Intent.BOOKING),
+        ("me encantaría una cita", ConvState.IDLE, Intent.BOOKING),
+        ("estaría bien agendar", ConvState.IDLE, Intent.BOOKING),
+        ("podrías agendarme", ConvState.IDLE, Intent.BOOKING),  # voseo
+        ("gustaría tomar una hora", ConvState.IDLE, Intent.BOOKING),  # sin "me"
+        ("quisiera sacar una cita", ConvState.IDLE, Intent.BOOKING),
+        # Condicionales NO deben disparar BOOKING en estados de confirmación
+        ("me gustaría", ConvState.AWAITING_CONFIRM, None),  # ambiguo en confirm → al LLM
     ],
 )
 def test_pattern_match_cases(msg: str, state: ConvState | None, expected):

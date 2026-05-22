@@ -33,6 +33,8 @@ Debes clasificar el mensaje del usuario en una de estas categorías:
   "reservá por mi", "hazlo tú por mi", "hacelo vos", "hazlo por mi",
   "puedes agendar por mi", "podés agendar por mi", "agendá vos", "agenda tú".
   También: "quiero una cita", "necesito reservar", "quiero agendar".
+  Condicionales (forma muy común): "me gustaría agendar", "quisiera reservar",
+  "me encantaría una cita", "estaría bien agendar", "estaría bueno reservar".
 - QUERY: pregunta sobre servicios, precios, horarios, ubicación, equipo, políticas.
   Ejemplos: "qué servicios ofrecen", "qué servicios agendan ustedes", "cuánto cuesta",
   "cómo agendo" (pregunta el procedimiento, NO delega).
@@ -145,6 +147,22 @@ _BOOKING_IMPERATIVE_PATTERN = re.compile(
 )
 
 
+# 3) Condicionales: "me gustaría/quisiera/me encantaría + agendar/reservar/...".
+#    Formas extremadamente comunes en español neutro (RD/VE) y voseo (AR).
+#    El "me" pronominal es opcional ("gustaría agendar" también vale).
+#    El infinitivo cubre: agendar, reservar, sacar (cita), pedir (cita), tomar (cita).
+_BOOKING_CONDITIONAL_PATTERN = re.compile(
+    r"\b(?:me\s+)?"
+    r"(?:gustar[íi]a|quisiera|encantar[íi]a|"
+    r"estar[íi]a\s+(?:bien|bueno|genial|perfecto)|"
+    r"podr[íi]a(?:s)?)"
+    r"\s+(?:tener|tomar|pedir|sacar|hacer|"
+    r"agendar(?:me)?|reservar(?:me)?|"
+    r"una?\s+(?:cita|hora|turno|reserva))",
+    re.IGNORECASE | re.UNICODE,
+)
+
+
 def _pattern_match(message: str, conv_state: "ConvState | None") -> Intent | None:
     """
     Layer 1 sin LLM: si el mensaje es una confirmación/negación inequívoca,
@@ -184,8 +202,11 @@ def _pattern_match(message: str, conv_state: "ConvState | None") -> Intent | Non
         _ConvState.AWAITING_CANCEL_CONFIRM,
         _ConvState.AWAITING_RESCHEDULE_CONFIRM,
     }
-    if conv_state not in confirm_states and _BOOKING_IMPERATIVE_PATTERN.search(message):
-        return Intent.BOOKING
+    if conv_state not in confirm_states:
+        if _BOOKING_IMPERATIVE_PATTERN.search(message):
+            return Intent.BOOKING
+        if _BOOKING_CONDITIONAL_PATTERN.search(message):
+            return Intent.BOOKING
 
     return None
 
