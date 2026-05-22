@@ -2,10 +2,11 @@
 
 // Dashboard principal — vista general de operaciones del negocio.
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { format } from 'date-fns';
 import { formatInTimeZone } from 'date-fns-tz';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import {
   CalendarDays, AlertCircle, ChevronLeft, ChevronRight,
   Wifi, WifiOff, BookOpen, Users, Plus, ArrowUpRight,
@@ -19,7 +20,11 @@ import {
 } from '@/lib/api';
 import { useTranslations, useDateLocale } from '@/lib/i18n';
 import { useTenantStore, useTenantTimezone } from '@/store/tenant';
+import { useNotifications } from '@/store/notifications';
+import { useAppointmentEvents } from '@/hooks/useAppointmentEvents';
 import NewAppointmentModal from '@/components/dashboard/NewAppointmentModal';
+import UpcomingAppointmentsCard from '@/components/dashboard/UpcomingAppointmentsCard';
+import SoundToggle from '@/components/dashboard/SoundToggle';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -91,8 +96,68 @@ export default function DashboardPage() {
 
   const [showNewAppt, setShowNewAppt] = useState(false);
 
+  // Real-time: tick fuerza refetch del widget de próximas citas, audioRef toca el sonido.
+  const [tick, setTick] = useState(0);
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const soundEnabled = useNotifications((s) => s.soundEnabled);
+
   const dateStr = toDateStr(date);
   const isToday = dateStr === toDateStr(new Date());
+
+  // Warm-up del elemento <audio> en la primera interacción para evitar el
+  // bloqueo de autoplay de los navegadores: cargamos, reproducimos en volumen 0
+  // y volvemos a estado inicial. Después podemos reproducir programáticamente.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    let warmed = false;
+    const warm = () => {
+      if (warmed || !audioRef.current) return;
+      warmed = true;
+      audioRef.current.load();
+      audioRef.current.volume = 0;
+      audioRef.current.play().catch(() => {}).finally(() => {
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current.currentTime = 0;
+          audioRef.current.volume = 1;
+        }
+      });
+      document.removeEventListener('click', warm);
+      document.removeEventListener('keydown', warm);
+      document.removeEventListener('touchstart', warm);
+    };
+    document.addEventListener('click', warm, { once: true });
+    document.addEventListener('keydown', warm, { once: true });
+    document.addEventListener('touchstart', warm, { once: true, passive: true });
+    return () => {
+      document.removeEventListener('click', warm);
+      document.removeEventListener('keydown', warm);
+      document.removeEventListener('touchstart', warm);
+    };
+  }, []);
+
+  // Suscripción al stream SSE de eventos de citas.
+  useAppointmentEvents((envelope) => {
+    // Cualquier evento dispara refetch del widget de próximas citas.
+    setTick((n) => n + 1);
+
+    // Toast + sonido sólo para creaciones nuevas.
+    if (envelope.event === 'appointment.created') {
+      const clientName = envelope.data.customer_name ?? 'Cliente';
+      toast.success(
+        t.dashboard.newAppointmentToast.replace('{clientName}', clientName),
+        {
+          description: envelope.data.service_name ?? '',
+        },
+      );
+      if (soundEnabled && audioRef.current) {
+        audioRef.current.currentTime = 0;
+        audioRef.current.play().catch(() => {
+          // Autoplay puede bloquear antes del warm-up; fallar silenciosamente.
+        });
+      }
+    }
+  });
 
   // Saludo según la hora del día
   useEffect(() => {
@@ -179,10 +244,7 @@ export default function DashboardPage() {
     finally { setUpdating(null); }
   }
 
-  const total     = appts.length;
-  const pending   = appts.filter((a) => a.status === 'pending').length;
-  const confirmed = appts.filter((a) => a.status === 'confirmed').length;
-  const completed = appts.filter((a) => a.status === 'completed').length;
+  const pending = appts.filter((a) => a.status === 'pending').length;
 
   const activeDocs  = docs.filter((d) => d.is_active).length;
   const categories  = Array.from(new Set(docs.map((d) => d.category)));
@@ -222,6 +284,7 @@ export default function DashboardPage() {
           </div>
 
           <div className="flex items-center gap-2">
+            <SoundToggle />
             <Link
               href="/dashboard/whatsapp"
               className="flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-2 text-xs font-semibold text-white backdrop-blur-sm transition-all hover:bg-white/20"
@@ -243,38 +306,7 @@ export default function DashboardPage() {
       <div className="p-6">
 
         {/* ── KPIs ──────────────────────────────────────────────────────────── */}
-        <div className="mb-6 grid grid-cols-4 gap-3">
-
-          {/* Citas del día */}
-          <div className="rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
-            <div className="mb-2 flex items-center justify-between">
-              <span className="text-xs font-medium text-neutral-500">
-                {t.dashboard.appointmentsCount} {isToday ? t.common.today.toLowerCase() : format(date, 'd MMM', { locale: dateLocale })}
-              </span>
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary-50">
-                <CalendarDays className="h-4 w-4 text-primary-600" />
-              </span>
-            </div>
-            {apptLoading ? <KPISkeleton /> : (
-              <p className="text-4xl font-black text-primary-600">{total}</p>
-            )}
-            {!apptLoading && total > 0 && (
-              <div className="mt-2 flex gap-3 text-xs text-neutral-500">
-                <span className="flex items-center gap-1">
-                  <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-                  {pending} pend.
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="h-1.5 w-1.5 rounded-full bg-primary-500" />
-                  {confirmed} conf.
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                  {completed} comp.
-                </span>
-              </div>
-            )}
-          </div>
+        <div className="mb-6 grid grid-cols-3 gap-3">
 
           {/* Requieren acción */}
           <div className="rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
@@ -482,6 +514,9 @@ export default function DashboardPage() {
 
           {/* Widgets */}
           <div className="col-span-2 space-y-3">
+
+            {/* Próximas citas — refetcha en vivo vía SSE */}
+            <UpcomingAppointmentsCard refreshKey={tick} />
 
             {/* Widget WhatsApp */}
             <div className="rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
@@ -709,6 +744,14 @@ export default function DashboardPage() {
             .catch(() => {});
         }}
         defaultDate={dateStr}
+      />
+
+      {/* Elemento de audio oculto para notificaciones sonoras de nuevas citas. */}
+      <audio
+        ref={audioRef}
+        preload="auto"
+        src="/sounds/notification.mp3"
+        style={{ display: 'none' }}
       />
     </div>
   );

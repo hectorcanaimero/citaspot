@@ -587,10 +587,10 @@ async def _handle(
         return await _start_cancel_flow(tenant_id, tenant_slug, conversation_id, state, wa_phone)
 
     if intent == Intent.QUERY:
-        return await _handle_query(tenant_id, tenant_slug, message_text, history)
+        return await _handle_query(tenant_id, tenant_slug, message_text, history, wa_phone=wa_phone)
 
     # UNKNOWN — respuesta general con RAG
-    return await _handle_query(tenant_id, tenant_slug, message_text, history)
+    return await _handle_query(tenant_id, tenant_slug, message_text, history, wa_phone=wa_phone)
 
 
 async def _start_booking_flow(
@@ -928,6 +928,11 @@ def _build_query_system_prompt(
             "- Use the tools proactively: list_services for prices/catalog, "
             "  get_business_info for location/contact, search_knowledge for FAQs/policies, "
             "  check_availability only when the user asks about a specific date.\n"
+            "- BOOKING: Only call book_appointment AFTER you (1) got a real slot "
+            "  from check_availability, (2) have service_id and professional_id "
+            "  from the list tools, (3) asked the user for their name, AND "
+            "  (4) showed them the summary 'service + professional + date/time + name' "
+            "  and got an EXPLICIT yes. If anything is missing, ask — don't book.\n"
             "- Don't use markdown headers (#). Don't use **double asterisks** — "
             "  WhatsApp uses *single* asterisks for bold.\n"
             "- Don't use numbered lists with more than 3 items. "
@@ -949,6 +954,11 @@ def _build_query_system_prompt(
             "- Use as tools proativamente: list_services para preços/catálogo, "
             "  get_business_info para localização/contato, search_knowledge para FAQs/políticas, "
             "  check_availability apenas quando o cliente perguntar por uma data específica.\n"
+            "- RESERVAS: Só chame book_appointment DEPOIS de (1) obter um slot real "
+            "  via check_availability, (2) ter service_id e professional_id das tools "
+            "  de listagem, (3) pedir o nome ao cliente, E (4) mostrar o resumo "
+            "  'serviço + profissional + data/hora + nome' e obter um SIM EXPLÍCITO. "
+            "  Se faltar algo, pergunte — não reserve.\n"
             "- Não use cabeçalhos markdown (#). Não use **asteriscos duplos** — "
             "  WhatsApp usa *asterisco simples* para negrito.\n"
             "- Não use listas numeradas com mais de 3 itens. "
@@ -970,6 +980,13 @@ def _build_query_system_prompt(
         "- Usa las tools proactivamente: list_services para precios/catálogo, "
         "  get_business_info para ubicación/contacto, search_knowledge para FAQs/políticas, "
         "  check_availability solo cuando el cliente pregunte por una fecha concreta.\n"
+        "- RESERVAS: Solo llama a book_appointment DESPUÉS de (1) obtener un slot real "
+        "  vía check_availability, (2) tener service_id y professional_id de las tools "
+        "  de listado, (3) preguntar el nombre del cliente, Y (4) mostrarle el resumen "
+        "  'servicio + profesional + fecha/hora + nombre' y obtener un SÍ EXPLÍCITO. "
+        "  Si falta algo, pregunta — no reserves todavía.\n"
+        "- Si book_appointment devuelve 'slot_no_longer_available', pide disculpas "
+        "  y llama de nuevo a check_availability para ofrecer otro horario.\n"
         "- No uses encabezados markdown (#). No uses **asteriscos dobles** — "
         "  WhatsApp usa *asterisco simple* para negrita.\n"
         "- No uses listas numeradas con más de 3 ítems. "
@@ -984,6 +1001,7 @@ async def _handle_query(
     tenant_slug: str,
     message_text: str,
     history: list[dict[str, Any]],
+    wa_phone: str = "",
 ) -> str:
     """Responde preguntas vía tool-calling: el LLM decide qué tools invocar.
 
@@ -1033,7 +1051,14 @@ async def _handle_query(
         result = await chat_with_tools(
             messages=messages,
             tools=OPENAI_TOOLS,
-            ctx={"tenant_slug": tenant_slug, "tenant_id": tenant_id},
+            # customer_phone se inyecta para que la tool book_appointment
+            # pueda reservar sin que el LLM lo controle. Si llega vacío
+            # (p.ej. tests), la tool fallará con "missing_customer_phone".
+            ctx={
+                "tenant_slug": tenant_slug,
+                "tenant_id": tenant_id,
+                "customer_phone": wa_phone,
+            },
             temperature=0.2,
             max_tokens=800,
             max_iterations=3,

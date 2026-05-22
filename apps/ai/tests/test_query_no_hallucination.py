@@ -60,13 +60,18 @@ async def test_handle_query_passes_tools_and_ctx(monkeypatch: pytest.MonkeyPatch
         history=[],
     )
 
-    # Las 6 tools del registry deben estar disponibles para el LLM
+    # Todas las tools del registry deben estar disponibles para el LLM
+    from app.agent.tools import TOOL_REGISTRY
     assert captured["tools"] is OPENAI_TOOLS
-    assert len(captured["tools"]) == 6
+    assert len(captured["tools"]) == len(TOOL_REGISTRY)
 
-    # ctx debe incluir AMBOS identificadores (tenant_slug para perfiles públicos,
-    # tenant_id para RAG)
-    assert captured["ctx"] == {"tenant_slug": "demo", "tenant_id": "tid-1"}
+    # ctx debe incluir tenant_slug (perfiles públicos), tenant_id (RAG) y
+    # customer_phone (book_appointment lo inyecta desde el wa_phone del runtime).
+    assert captured["ctx"] == {
+        "tenant_slug": "demo",
+        "tenant_id": "tid-1",
+        "customer_phone": "",
+    }
 
     # max_iterations debe estar acotado (anti-loop)
     assert captured["max_iterations"] == 3

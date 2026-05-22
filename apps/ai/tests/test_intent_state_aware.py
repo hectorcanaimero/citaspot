@@ -139,6 +139,111 @@ async def test_detect_returns_unknown_on_llm_exception(
     assert result == Intent.UNKNOWN
 
 
+# ---------------------------------------------------------------------------
+# BOOKING imperativo + delegación — Plan B del issue #38
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "msg",
+    [
+        # Verbos pronominales (RD/VE — tú)
+        "agéndame",
+        "agéndame una cita",
+        "agendame",
+        "agéndamelo",
+        "resérvame",
+        "resérvame esa hora",
+        "reservame",
+        "házmelo",
+        "hazmelo tú",
+        "hacémelo",
+        "hacemelo vos",
+        # Imperativo + "por mi"
+        "agendá por mi",
+        "agenda por mi",
+        "agendalo por mi",
+        "agéndalo por mi",
+        "reservá por mi",
+        "reserva por mi",
+        "hazlo por mi",
+        "házlo por mi",
+        "hacelo por mi",
+        "hacé tú por mi",
+        # Modal + delegación
+        "puedes agendar por mi?",
+        "puede agendar por mi",
+        "podés agendar por mi",
+        "podrías reservar por mi",
+        # Imperativo + pronombre de delegación (sin "por mi")
+        "agendá vos",
+        "agenda tú",
+        # Frase compuesta del issue real
+        "hazlo tú por mi",
+        "hazlo por mi",
+        "puedes agendar tu por mi",
+    ],
+)
+def test_pattern_match_booking_imperative_delegation(msg: str):
+    """Patrones de delegación imperativa deben caer en BOOKING desde el layer 1."""
+    assert _pattern_match(msg, ConvState.IDLE) == Intent.BOOKING
+
+
+@pytest.mark.parametrize(
+    "msg",
+    [
+        # Tercera persona plural — pregunta sobre quién agenda
+        "qué servicios agendan ustedes",
+        "¿qué servicios agendan?",
+        # Primera persona — pregunta cómo
+        "cómo agendo",
+        "cómo reservo",
+        # Pretérito — narración
+        "ya agendé ayer",
+        "reservé el lunes",
+        # Pregunta sobre disponibilidad sin delegación
+        "tienen hora mañana",
+        "hay disponibilidad",
+        # Saludos
+        "hola",
+        "buenos días",
+    ],
+)
+def test_pattern_match_booking_imperative_no_false_positive(msg: str):
+    """Frases que NO son delegación imperativa NO deben matchear el patrón nuevo."""
+    # No matchea el patrón BOOKING imperativo → cae al LLM (None) o a otro patrón.
+    # Lo importante: el layer 1 NO devuelve BOOKING aquí.
+    result = _pattern_match(msg, ConvState.IDLE)
+    assert result != Intent.BOOKING
+
+
+def test_pattern_match_booking_imperative_respects_confirm_state():
+    """
+    En AWAITING_CONFIRM no debemos disparar BOOKING desde el patrón imperativo;
+    el LLM debe decidir (puede ser CONFIRM si el usuario reafirma).
+    """
+    # En estado de confirmación, "agendá por mi" no debería forzar BOOKING en layer 1.
+    result = _pattern_match("agendá por mi", ConvState.AWAITING_CONFIRM)
+    assert result is None
+
+
+def test_pattern_match_booking_imperative_works_in_awaiting_slot():
+    """En AWAITING_SLOT el imperativo + delegación SÍ debe poder cortar a BOOKING."""
+    # El usuario en medio de elegir slot dice "hazlo tú por mi" → BOOKING (delega).
+    assert _pattern_match("hazlo tú por mi", ConvState.AWAITING_SLOT) == Intent.BOOKING
+
+
+async def test_detect_booking_imperative_skips_llm(monkeypatch: pytest.MonkeyPatch):
+    """detect() con frase de delegación NO llama al LLM (resuelve en layer 1)."""
+    fake_llm = AsyncMock(return_value="HANDOFF")
+    monkeypatch.setattr(intent_module, "chat_lite", fake_llm)
+
+    result = await detect("hazlo tú por mi", history=[], conv_state=ConvState.IDLE)
+
+    assert result == Intent.BOOKING
+    fake_llm.assert_not_called()
+
+
 async def test_detect_passes_history_to_llm(monkeypatch: pytest.MonkeyPatch):
     """Los últimos 3 mensajes del historial deben llegar al LLM."""
     captured: dict = {}

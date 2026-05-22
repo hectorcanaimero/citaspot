@@ -28,8 +28,14 @@ class Intent(str, Enum):
 
 _SYSTEM_PROMPT = """Eres un clasificador de intenciones para un asistente de agenda.
 Debes clasificar el mensaje del usuario en una de estas categorías:
-- BOOKING: quiere agendar, reservar o pedir una cita
-- QUERY: pregunta sobre servicios, precios, horarios, ubicación, equipo, políticas
+- BOOKING: quiere agendar, reservar o pedir una cita. INCLUYE delegación al bot:
+  "agéndame", "agendame", "reservame", "resérvame", "agendá por mi", "agenda por mi",
+  "reservá por mi", "hazlo tú por mi", "hacelo vos", "hazlo por mi",
+  "puedes agendar por mi", "podés agendar por mi", "agendá vos", "agenda tú".
+  También: "quiero una cita", "necesito reservar", "quiero agendar".
+- QUERY: pregunta sobre servicios, precios, horarios, ubicación, equipo, políticas.
+  Ejemplos: "qué servicios ofrecen", "qué servicios agendan ustedes", "cuánto cuesta",
+  "cómo agendo" (pregunta el procedimiento, NO delega).
 - CONFIRM: confirma algo (sí, ok, perfecto, acepto, ese horario, la primera opción, etc.)
 - CANCEL: quiere cancelar una cita existente o cancelar el flujo actual (no, cancelar, no gracias, etc.)
 - MY_APPOINTMENTS: quiere consultar, ver o saber sobre sus citas existentes (¿cuándo es mi cita?, mis citas, qué tengo agendado, tengo algo agendado)
@@ -37,6 +43,9 @@ Debes clasificar el mensaje del usuario en una de estas categorías:
 - HANDOFF: quiere hablar con un humano (agente, persona, asesor, etc.)
 - SEND_BOOKING_LINK: pide explícitamente el link de reserva por la web (mándame el link, pásame el link, mejor por la página, send me the booking link, etc.)
 - UNKNOWN: no puedes determinar la intención
+
+REGLA CRÍTICA: imperativo + delegación = BOOKING, no HANDOFF.
+"hazlo tú por mi" significa "agendá la cita tú", NO "pasame con un humano".
 
 Responde ÚNICAMENTE con una de las palabras clave: BOOKING, QUERY, CONFIRM, CANCEL, MY_APPOINTMENTS, RESCHEDULE, HANDOFF, SEND_BOOKING_LINK, UNKNOWN.
 No incluyas explicaciones ni puntuación."""
@@ -81,6 +90,61 @@ _LINK_PATTERN = re.compile(
 )
 
 
+# --- BOOKING imperativo + delegación ---
+# Frases donde el usuario delega la acción al bot ("agéndame", "hazlo tú por mi",
+# "reservá por mi", "puedes agendar por mi"). Mercados RD/VE (tú) + voseo AR (vos).
+#
+# Dos sub-patrones combinados con OR para mantener legibilidad:
+#
+# 1) Verbos pronominales/enclíticos: el pronombre va pegado al verbo.
+#    Cubre: agéndame, agendame, agéndamelo, agendamela, reservame, resérvame,
+#           reservámelo, házmelo, hazmelo, hacémelo, hacemelo.
+#    Estos por sí solos ya implican delegación al bot, no necesitan "por mi".
+_BOOKING_PRONOMINAL = (
+    r"\b(?:"
+    r"ag[eé]ndame(?:l[oa]s?)?|"          # agéndame, agendamelo, agéndamela...
+    r"res[eé]rvame(?:l[oa]s?)?|"         # resérvame, reservamelo...
+    r"h[aá]zmel[oa]s?|"                  # házmelo, hazmela
+    r"hac[eé]mel[oa]s?"                  # hacémelo, hacemela
+    r")\b"
+)
+
+# 2) Verbo imperativo (o modal + infinitivo) + frase de delegación.
+#    Verbos imperativos: agenda, agendá, agéndalo, agendalo, reserva, reservá,
+#                       reservalo, hazlo, házlo, hacelo, hacé.
+#    Modales + infinitivo: puedes/podés/puede/podrías agendar/reservar/hacer.
+#    Delegación: "por mí" (con/sin tilde), "tú", "vos", "usted", "ud".
+#
+# Nota sobre tildes: en voseo argentino las formas son "agendá", "reservá", "hacé"
+# (acento en la última sílaba). Hay que aceptar tilde tanto en la "e" interna
+# (forma tú: "agéndalo", "házlo") como en la "a" final (voseo: "agendá", "reservá").
+_BOOKING_IMPERATIVE_VERB = (
+    r"(?:"
+    r"ag[eé]nd[aá](?:l[oa]s?)?|"         # agenda, agendá, agéndalo, agendalos
+    r"res[eé]rv[aá](?:l[oa]s?)?|"        # reserva, reservá, reservalo, resérvalo
+    r"h[aá]zlo|"                         # hazlo, házlo
+    r"hac[eé](?:l[oa]s?)?|"              # hacé, hace, hacelo, hacélo, hacelos
+    r"(?:puedes?|pod[eé]s|podr[ií]as?)\s+(?:t[uú]\s+)?(?:ag[eé]ndar(?:m[ei])?|"
+    r"reservar(?:m[ei])?|hacer(?:l[oa])?|hacerlo)"
+    r")"
+)
+
+_BOOKING_DELEGATION_PHRASE = (
+    r"(?:\bpor\s+m[ií]\b|\bt[uú]\s+por\s+m[ií]\b|"
+    r"\bvos\s+por\s+m[ií]\b|"
+    r"\b(?:t[uú]|vos|usted|ud\.?)\b)"
+)
+
+_BOOKING_IMPERATIVE_PATTERN = re.compile(
+    rf"(?:{_BOOKING_PRONOMINAL})"
+    rf"|"
+    rf"{_BOOKING_IMPERATIVE_VERB}[\s,.!¡]*{_BOOKING_DELEGATION_PHRASE}"
+    rf"|"
+    rf"{_BOOKING_DELEGATION_PHRASE}[\s,.!¡]+{_BOOKING_IMPERATIVE_VERB}",
+    re.IGNORECASE | re.UNICODE,
+)
+
+
 def _pattern_match(message: str, conv_state: "ConvState | None") -> Intent | None:
     """
     Layer 1 sin LLM: si el mensaje es una confirmación/negación inequívoca,
@@ -110,6 +174,18 @@ def _pattern_match(message: str, conv_state: "ConvState | None") -> Intent | Non
 
     if _LINK_PATTERN.search(message):
         return Intent.SEND_BOOKING_LINK
+
+    # BOOKING imperativo + delegación ("agéndame", "hazlo tú por mi", "reservá por mi").
+    # Importante: en estados de confirmación NO disparamos esto, porque allí
+    # "dale agendá" podría leerse como confirmación de la acción ya propuesta y
+    # debe dejarse al LLM con state-hint para decidir CONFIRM vs nueva intención.
+    confirm_states = {
+        _ConvState.AWAITING_CONFIRM,
+        _ConvState.AWAITING_CANCEL_CONFIRM,
+        _ConvState.AWAITING_RESCHEDULE_CONFIRM,
+    }
+    if conv_state not in confirm_states and _BOOKING_IMPERATIVE_PATTERN.search(message):
+        return Intent.BOOKING
 
     return None
 

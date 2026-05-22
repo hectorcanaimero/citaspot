@@ -7,13 +7,16 @@
 # del catálogo del tenant, debe pedirla vía estas tools.
 from __future__ import annotations
 
+import re
 from contextvars import ContextVar
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any, Awaitable, Callable
 
 import structlog
 
 from app.agent.actions import (
+    book_appointment,
     get_availability,
     get_tenant_profile,
     rag_query,
@@ -278,6 +281,121 @@ async def _tool_list_my_treatments(tenant_slug: str, phone: str) -> dict[str, An
     return _ok(data)
 
 
+# Regex de UUID v4 (case-insensitive). Validamos antes de llamar al endpoint
+# para no quemar una llamada HTTP si el LLM alucinó un id mal formado.
+_UUID_RE = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+    re.IGNORECASE,
+)
+
+
+def _is_valid_iso8601(s: str) -> bool:
+    """True si `s` es ISO 8601 parseable por datetime.fromisoformat.
+
+    Acepta el sufijo 'Z' (UTC) que fromisoformat históricamente no soportaba
+    antes de Python 3.11, normalizándolo a '+00:00'. Rechaza strings sin info
+    de zona horaria — el endpoint Core espera timestamp con timezone.
+    """
+    if not s or not isinstance(s, str):
+        return False
+    try:
+        normalized = s.replace("Z", "+00:00") if s.endswith("Z") else s
+        dt = datetime.fromisoformat(normalized)
+    except ValueError:
+        return False
+    # Exigir tzinfo: starts_at sin zona horaria es ambiguo y produce
+    # comportamiento inconsistente entre tenants en distintos timezones.
+    return dt.tzinfo is not None
+
+
+async def _tool_book_appointment(
+    tenant_slug: str,
+    customer_phone: str,
+    professional_id: str,
+    service_id: str,
+    starts_at: str,
+    customer_name: str,
+) -> dict[str, Any]:
+    """Crea una cita vía el endpoint público del Core API.
+
+    Diseñada para que el LLM la invoque en el handler QUERY UNA VEZ que ya
+    confirmó verbalmente con el usuario los 4 datos (servicio, profesional,
+    slot, nombre). El LLM NO controla customer_phone ni tenant_slug — esos
+    se inyectan desde el contexto del runtime.
+
+    Validaciones defensivas:
+      - UUIDs bien formados (regex) → evita una llamada HTTP fallida.
+      - starts_at ISO 8601 con timezone → el endpoint Core lo exige.
+      - customer_name no vacío → el endpoint también lo requiere.
+
+    Mapeo de errores HTTP a strings que el LLM puede razonar:
+      - 409 conflict → "slot_no_longer_available" (sugerir otro horario).
+      - 400/422 → "invalid_data" (revisar inputs antes de reintentar).
+      - 404 → "tenant_not_found" (no debería ocurrir si el slug viene del ctx).
+      - 0/network → "network_error" (best-effort retry o handoff).
+
+    Returns:
+        dict {"ok": True, "data": {"appointment_id": str, "starts_at": str,
+              "status": str}} en éxito.
+        dict {"ok": False, "error": <code>} en fallo. Nunca lanza excepción.
+    """
+    # Validaciones de input — fallar rápido sin llamar al API
+    if not _UUID_RE.match(professional_id or ""):
+        return _err("invalid_professional_id")
+    if not _UUID_RE.match(service_id or ""):
+        return _err("invalid_service_id")
+    if not _is_valid_iso8601(starts_at):
+        return _err("invalid_starts_at_format")
+    if not customer_name or not customer_name.strip():
+        return _err("missing_customer_name")
+    if not customer_phone or not customer_phone.strip():
+        return _err("missing_customer_phone")
+
+    # Loguear sin PII: nada de nombre/teléfono en logs
+    log.info(
+        "tools.book_appointment: invocando action",
+        tenant_slug=tenant_slug,
+        service_id=service_id,
+        professional_id=professional_id,
+    )
+
+    result = await book_appointment(
+        slug=tenant_slug,
+        professional_id=professional_id,
+        service_id=service_id,
+        starts_at=starts_at,
+        customer_name=customer_name.strip(),
+        customer_phone=customer_phone.strip(),
+        source="whatsapp",
+        return_error_details=True,
+    )
+
+    if result is None:
+        # No debería ocurrir con return_error_details=True, pero por seguridad.
+        return _err("booking_failed")
+
+    if result.get("_error"):
+        status = result.get("status", 0)
+        if status == 409:
+            return _err("slot_no_longer_available")
+        if status in (400, 422):
+            return _err("invalid_data")
+        if status == 404:
+            return _err("tenant_not_found")
+        if status == 0:
+            return _err("network_error")
+        return _err(f"booking_failed_http_{status}")
+
+    # Éxito — devolver al LLM solo lo esencial para confirmar al usuario.
+    # No filtramos `result` completo para no exponer campos internos por error.
+    return _ok({
+        "appointment_id": result.get("id") or result.get("appointment_id"),
+        "starts_at": result.get("starts_at"),
+        "ends_at": result.get("ends_at"),
+        "status": result.get("status"),
+    })
+
+
 # ---------------------------------------------------------------------------
 # Schemas (parameters) — JSON Schema subset común OpenAI/Gemini
 # ---------------------------------------------------------------------------
@@ -355,6 +473,45 @@ _LIST_MY_TREATMENTS_PARAMS = {
         },
     },
     "required": ["phone"],
+}
+
+_BOOK_APPOINTMENT_PARAMS = {
+    "type": "object",
+    "properties": {
+        "professional_id": {
+            "type": "string",
+            "description": (
+                "UUID del profesional. DEBES haberlo obtenido previamente vía "
+                "list_professionals o get_service_professionals. NUNCA inventar."
+            ),
+        },
+        "service_id": {
+            "type": "string",
+            "description": (
+                "UUID del servicio. DEBES haberlo obtenido previamente vía "
+                "list_services. NUNCA inventar."
+            ),
+        },
+        "starts_at": {
+            "type": "string",
+            "description": (
+                "Inicio de la cita en ISO 8601 CON timezone (ej: "
+                "'2026-06-12T14:30:00-04:00' o '2026-06-12T18:30:00Z'). "
+                "DEBES tomarlo de un slot devuelto por check_availability. "
+                "NUNCA inventar un horario."
+            ),
+        },
+        "customer_name": {
+            "type": "string",
+            "description": (
+                "Nombre del cliente tal como lo dijo en la conversación. "
+                "Si no lo dio, primero preguntarlo — no completarlo con el "
+                "push_name de WhatsApp sin confirmación."
+            ),
+        },
+    },
+    "required": ["professional_id", "service_id", "starts_at", "customer_name"],
+    "additionalProperties": False,
 }
 
 
@@ -442,6 +599,30 @@ TOOL_REGISTRY: dict[str, ToolSpec] = {
         fn=_tool_list_my_treatments,
         parameters=_LIST_MY_TREATMENTS_PARAMS,
         context_args=("tenant_slug",),
+    ),
+    "book_appointment": ToolSpec(
+        name="book_appointment",
+        description=(
+            "Books an appointment for the customer in ONE shot. Use this ONLY when "
+            "ALL of the following are true:\n"
+            "1. You already called check_availability and have a real slot "
+            "   (starts_at) returned by it — NEVER invent a time slot.\n"
+            "2. You already know the service_id (from list_services) and the "
+            "   professional_id (from list_professionals or get_service_professionals).\n"
+            "3. You asked the customer for their name and they gave it to you.\n"
+            "4. You presented the 4 data points (service, professional, date/time, "
+            "   name) back to the customer in your previous turn AND got an "
+            "   EXPLICIT confirmation (e.g. 'sí', 'dale', 'confirmo', 'ok agenda').\n"
+            "If ANY of those is missing, DO NOT call this tool — ask the user or "
+            "call the appropriate read tool first.\n"
+            "On 'slot_no_longer_available' error, apologize and call "
+            "check_availability again to offer alternative slots."
+        ),
+        fn=_tool_book_appointment,
+        parameters=_BOOK_APPOINTMENT_PARAMS,
+        # customer_phone y tenant_slug se inyectan desde el ctx; el LLM nunca
+        # los controla. Ver execute_tool() — orden de inyección.
+        context_args=("tenant_slug", "customer_phone"),
     ),
 }
 

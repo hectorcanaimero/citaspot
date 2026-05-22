@@ -15,7 +15,7 @@ from app.agent.tools import OPENAI_TOOLS, TOOL_REGISTRY, execute_tool
 # ---------------------------------------------------------------------------
 
 
-def test_registry_has_six_tools():
+def test_registry_has_expected_tools():
     expected = {
         "list_services",
         "list_professionals",
@@ -23,12 +23,14 @@ def test_registry_has_six_tools():
         "check_availability",
         "search_knowledge",
         "get_business_info",
+        "list_my_treatments",
+        "book_appointment",
     }
     assert set(TOOL_REGISTRY.keys()) == expected
 
 
 def test_openai_tools_shape():
-    assert len(OPENAI_TOOLS) == 6
+    assert len(OPENAI_TOOLS) == len(TOOL_REGISTRY)
     names_in_registry = set(TOOL_REGISTRY.keys())
     seen = set()
     for entry in OPENAI_TOOLS:
@@ -357,3 +359,198 @@ async def test_execute_tool_never_raises_on_internal_exception(
     res = await execute_tool("list_services", {}, {"tenant_slug": "demo"})
     assert res["ok"] is False
     assert "tool_failed" in res["error"]
+
+
+# ---------------------------------------------------------------------------
+# book_appointment — registro, schema, happy path y manejo de errores HTTP
+# ---------------------------------------------------------------------------
+
+
+_VALID_PROF_ID = "11111111-1111-4111-8111-111111111111"
+_VALID_SVC_ID = "22222222-2222-4222-8222-222222222222"
+_VALID_STARTS_AT = "2026-06-12T14:30:00-04:00"
+
+
+def test_book_appointment_registered():
+    """La tool book_appointment debe estar en el registry y en OPENAI_TOOLS."""
+    assert "book_appointment" in TOOL_REGISTRY
+    names_in_openai = {t["function"]["name"] for t in OPENAI_TOOLS}
+    assert "book_appointment" in names_in_openai
+
+
+def test_book_appointment_schema_required_params():
+    """El schema OpenAI debe exigir los 4 params del LLM, y NO incluir los del ctx.
+
+    customer_phone y tenant_slug se inyectan desde el runtime — el LLM NO debe
+    poder controlarlos via tool args, eso permitiría alucinaciones peligrosas
+    (booking en otro tenant, reemplazo de número).
+    """
+    spec = TOOL_REGISTRY["book_appointment"]
+    props = spec.parameters["properties"]
+    required = set(spec.parameters["required"])
+
+    assert required == {"professional_id", "service_id", "starts_at", "customer_name"}
+    assert set(props.keys()) == required
+    # Los context_args declaran exactamente lo que la tool exige del runtime.
+    assert set(spec.context_args) == {"tenant_slug", "customer_phone"}
+    # Verificación explícita: el schema no expone customer_phone ni tenant_slug.
+    assert "customer_phone" not in props
+    assert "tenant_slug" not in props
+
+
+async def test_book_appointment_happy_path(monkeypatch: pytest.MonkeyPatch):
+    """Llamada exitosa: devuelve {ok: True, data: {appointment_id, ...}}."""
+    fake_response = {
+        "id": "appt-uuid-123",
+        "starts_at": _VALID_STARTS_AT,
+        "ends_at": "2026-06-12T15:00:00-04:00",
+        "status": "scheduled",
+    }
+    mock_book = AsyncMock(return_value=fake_response)
+    monkeypatch.setattr(tools_module, "book_appointment", mock_book)
+
+    res = await execute_tool(
+        "book_appointment",
+        {
+            "professional_id": _VALID_PROF_ID,
+            "service_id": _VALID_SVC_ID,
+            "starts_at": _VALID_STARTS_AT,
+            "customer_name": "Juan Pérez",
+        },
+        {"tenant_slug": "demo", "customer_phone": "+584241234567"},
+    )
+
+    assert res["ok"] is True
+    assert res["data"]["appointment_id"] == "appt-uuid-123"
+    assert res["data"]["starts_at"] == _VALID_STARTS_AT
+    # Verificar que el ctx se inyectó correctamente en la llamada subyacente.
+    mock_book.assert_awaited_once()
+    kwargs = mock_book.await_args.kwargs
+    assert kwargs["slug"] == "demo"
+    assert kwargs["customer_phone"] == "+584241234567"
+    assert kwargs["source"] == "whatsapp"
+    assert kwargs["return_error_details"] is True
+
+
+async def test_book_appointment_slot_taken_409(monkeypatch: pytest.MonkeyPatch):
+    """Si el endpoint responde 409, la tool devuelve un error accionable sin lanzar."""
+    mock_book = AsyncMock(return_value={
+        "_error": True,
+        "status": 409,
+        "message": "slot no disponible",
+    })
+    monkeypatch.setattr(tools_module, "book_appointment", mock_book)
+
+    res = await execute_tool(
+        "book_appointment",
+        {
+            "professional_id": _VALID_PROF_ID,
+            "service_id": _VALID_SVC_ID,
+            "starts_at": _VALID_STARTS_AT,
+            "customer_name": "Juan",
+        },
+        {"tenant_slug": "demo", "customer_phone": "+584241234567"},
+    )
+
+    assert res["ok"] is False
+    assert res["error"] == "slot_no_longer_available"
+
+
+async def test_book_appointment_invalid_uuid_short_circuits(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Si el LLM alucina un UUID inválido, no llamamos al endpoint."""
+    mock_book = AsyncMock()
+    monkeypatch.setattr(tools_module, "book_appointment", mock_book)
+
+    res = await execute_tool(
+        "book_appointment",
+        {
+            "professional_id": "not-a-uuid",
+            "service_id": _VALID_SVC_ID,
+            "starts_at": _VALID_STARTS_AT,
+            "customer_name": "Juan",
+        },
+        {"tenant_slug": "demo", "customer_phone": "+584241234567"},
+    )
+
+    assert res["ok"] is False
+    assert res["error"] == "invalid_professional_id"
+    mock_book.assert_not_awaited()
+
+
+async def test_book_appointment_invalid_starts_at_no_tz(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """starts_at sin timezone es ambiguo → rechazar antes del HTTP."""
+    mock_book = AsyncMock()
+    monkeypatch.setattr(tools_module, "book_appointment", mock_book)
+
+    res = await execute_tool(
+        "book_appointment",
+        {
+            "professional_id": _VALID_PROF_ID,
+            "service_id": _VALID_SVC_ID,
+            "starts_at": "2026-06-12T14:30:00",  # sin tz
+            "customer_name": "Juan",
+        },
+        {"tenant_slug": "demo", "customer_phone": "+584241234567"},
+    )
+
+    assert res["ok"] is False
+    assert res["error"] == "invalid_starts_at_format"
+    mock_book.assert_not_awaited()
+
+
+async def test_book_appointment_missing_customer_phone_in_ctx(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Sin customer_phone en ctx, execute_tool corta antes de ejecutar la tool."""
+    mock_book = AsyncMock()
+    monkeypatch.setattr(tools_module, "book_appointment", mock_book)
+
+    res = await execute_tool(
+        "book_appointment",
+        {
+            "professional_id": _VALID_PROF_ID,
+            "service_id": _VALID_SVC_ID,
+            "starts_at": _VALID_STARTS_AT,
+            "customer_name": "Juan",
+        },
+        {"tenant_slug": "demo"},  # falta customer_phone
+    )
+
+    assert res["ok"] is False
+    assert "missing_context" in res["error"]
+    assert "customer_phone" in res["error"]
+    mock_book.assert_not_awaited()
+
+
+async def test_book_appointment_filters_phone_from_llm_args(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Aunque el LLM intente pasar customer_phone, se filtra y se usa el del ctx."""
+    captured = {}
+
+    async def fake_book(**kwargs):
+        captured.update(kwargs)
+        return {"id": "x", "starts_at": _VALID_STARTS_AT}
+
+    monkeypatch.setattr(tools_module, "book_appointment", fake_book)
+
+    await execute_tool(
+        "book_appointment",
+        {
+            "professional_id": _VALID_PROF_ID,
+            "service_id": _VALID_SVC_ID,
+            "starts_at": _VALID_STARTS_AT,
+            "customer_name": "Juan",
+            # Si el LLM trata de inyectar un phone, debe filtrarse: solo entran
+            # los args declarados en el schema.
+            "customer_phone": "+10000000000",
+        },
+        {"tenant_slug": "demo", "customer_phone": "+584241234567"},
+    )
+
+    # El phone que llegó a la action HTTP es el del ctx, NO el del LLM.
+    assert captured["customer_phone"] == "+584241234567"

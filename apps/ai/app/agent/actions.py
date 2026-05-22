@@ -69,12 +69,23 @@ async def book_appointment(
     customer_name: str,
     customer_phone: str,
     source: str = "whatsapp",
+    return_error_details: bool = False,
 ) -> dict[str, Any] | None:
     """
     Crea una cita vía el endpoint público del Core API.
 
+    Args:
+        return_error_details: Si True, en lugar de retornar None ante un fallo
+            HTTP, retorna un dict {"_error": True, "status": int, "message": str}.
+            Pensado para callers que necesitan distinguir 409 (slot tomado) de
+            422 (validación) — p.ej. la tool `book_appointment` del LLM agent.
+            Si False (default), preserva el contrato histórico: None en fallo.
+            En éxito siempre retorna el dict de la cita creada.
+
     Returns:
-        Dict con la cita creada o None si falla.
+        Dict con la cita creada en caso de éxito.
+        None si falla y return_error_details=False.
+        Dict con _error=True si falla y return_error_details=True.
     """
     body = {
         "professional_id": professional_id,
@@ -87,10 +98,32 @@ async def book_appointment(
     async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
         try:
             r = await client.post(_core_url(f"/public/{slug}/book"), json=body)
-            r.raise_for_status()
+            if r.status_code >= 400:
+                # Loguear sin PII: solo status y slug
+                log.error(
+                    "actions.book_appointment: http %s en %s",
+                    r.status_code, slug,
+                )
+                if return_error_details:
+                    # Intentar leer el mensaje del body (Fiber retorna {"error": "..."})
+                    err_msg = ""
+                    try:
+                        body_json = r.json()
+                        if isinstance(body_json, dict):
+                            err_msg = body_json.get("error") or body_json.get("message") or ""
+                    except Exception:
+                        err_msg = ""
+                    return {
+                        "_error": True,
+                        "status": r.status_code,
+                        "message": err_msg,
+                    }
+                return None
             return r.json()
         except Exception as e:
             log.error("actions.book_appointment: %s", e)
+            if return_error_details:
+                return {"_error": True, "status": 0, "message": str(e)}
             return None
 
 

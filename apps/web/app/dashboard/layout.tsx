@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Toaster } from 'sonner';
 import { Sidebar } from '@/components/dashboard/sidebar';
 import { auth, APIError } from '@/lib/api';
 import { useTranslations, useLanguage } from '@/lib/i18n';
@@ -68,6 +69,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="md:hidden h-12" />
         {children}
       </main>
+      <Toaster position="bottom-right" richColors />
     </div>
   );
 }
