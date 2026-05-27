@@ -58,6 +58,40 @@ var DefaultGenericRuleTemplates = []struct {
 		TemplateKey:  "generic_post_appointment_24h",
 		ActionsJSON:  `[{"type":"send_whatsapp","template":"Hola {{customer_name}}! Gracias por venir hoy a {{tenant_name}}. Como te fue? Responde del 1 al 5 para calificarnos. Para agendar tu proxima cita responde CITA.","params":{}}]`,
 	},
+	// Reglas para notificar al PROFESIONAL — mismos templates que migración 040.
+	// El action resuelve el teléfono vía recipient=professional → context["professional_phone"].
+	{
+		Name:         "Profesional — nueva reserva pendiente",
+		Description:  "Notifica al profesional cuando un cliente reserva una cita (status pending)",
+		TriggerType:  "event",
+		TriggerEvent: "appointment.created",
+		TemplateKey:  "prof_appointment_created",
+		ActionsJSON:  `[{"type":"send_whatsapp","template":"📋 *Nueva reserva pendiente*\n\n👤 {{customer_name}}\n📌 {{service_name}}\n📅 {{starts_at}}\n\nConfirma o ajusta desde tu panel.","params":{"recipient":"professional"}}]`,
+	},
+	{
+		Name:         "Profesional — cita confirmada",
+		Description:  "Notifica al profesional cuando una cita es confirmada",
+		TriggerType:  "event",
+		TriggerEvent: "appointment.confirmed",
+		TemplateKey:  "prof_appointment_confirmed",
+		ActionsJSON:  `[{"type":"send_whatsapp","template":"✅ *Cita confirmada*\n\n👤 {{customer_name}}\n📌 {{service_name}}\n📅 {{starts_at}}\n\nTe esperamos en tu agenda.","params":{"recipient":"professional"}}]`,
+	},
+	{
+		Name:         "Profesional — cita cancelada",
+		Description:  "Notifica al profesional cuando una cita es cancelada",
+		TriggerType:  "event",
+		TriggerEvent: "appointment.cancelled",
+		TemplateKey:  "prof_appointment_cancelled",
+		ActionsJSON:  `[{"type":"send_whatsapp","template":"❌ *Cita cancelada*\n\n👤 {{customer_name}} canceló su cita.\n📌 {{service_name}}\n📅 {{starts_at}}\n\nEse horario queda libre.","params":{"recipient":"professional"}}]`,
+	},
+	{
+		Name:         "Profesional — cita reagendada",
+		Description:  "Notifica al profesional cuando una cita es reagendada",
+		TriggerType:  "event",
+		TriggerEvent: "appointment.rescheduled",
+		TemplateKey:  "prof_appointment_rescheduled",
+		ActionsJSON:  `[{"type":"send_whatsapp","template":"🔄 *Cita reagendada*\n\n👤 {{customer_name}}\n📌 {{service_name}}\n📅 Nuevo horario: {{starts_at}}","params":{"recipient":"professional"}}]`,
+	},
 }
 
 // DefaultAppointmentRuleKeys son los template_keys de reglas de notificación
@@ -67,6 +101,10 @@ var DefaultAppointmentRuleKeys = []string{
 	"generic_appointment_confirmed",
 	"generic_appointment_cancelled",
 	"generic_appointment_rescheduled",
+	"prof_appointment_created",
+	"prof_appointment_confirmed",
+	"prof_appointment_cancelled",
+	"prof_appointment_rescheduled",
 }
 
 // SeedAppointmentRulesForTenant copia las reglas de notificación de citas
