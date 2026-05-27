@@ -736,6 +736,8 @@ export const en = {
     phoneInvalid: 'Phone number does not have the correct number of digits',
     phoneCountryLabel: 'Country code',
     emailOptionalLabel: 'Email (optional)',
+    notesOptionalLabel: 'Notes (optional)',
+    notesPlaceholder: 'Anything the professional should know before your appointment',
     reviewAppointment: 'Review appointment',
     confirmAppointment: 'Confirm your appointment',
     confirmedTitle: 'Appointment confirmed!',

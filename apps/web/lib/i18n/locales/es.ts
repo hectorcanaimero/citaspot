@@ -731,6 +731,8 @@ export const es = {
     phoneInvalid: 'El numero de telefono no tiene la cantidad correcta de digitos',
     phoneCountryLabel: 'Codigo de pais',
     emailOptionalLabel: 'Correo electrónico (opcional)',
+    notesOptionalLabel: 'Notas (opcional)',
+    notesPlaceholder: 'Algo que el profesional deba saber antes de tu cita',
     reviewAppointment: 'Revisar cita',
     confirmAppointment: 'Confirma tu cita',
     confirmedTitle: '¡Cita confirmada!',

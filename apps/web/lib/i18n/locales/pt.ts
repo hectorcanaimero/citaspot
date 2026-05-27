@@ -736,6 +736,8 @@ export const pt = {
     phoneInvalid: 'O numero de telefone nao tem a quantidade correta de digitos',
     phoneCountryLabel: 'Codigo do pais',
     emailOptionalLabel: 'E-mail (opcional)',
+    notesOptionalLabel: 'Observações (opcional)',
+    notesPlaceholder: 'Algo que o profissional deva saber antes da sua consulta',
     reviewAppointment: 'Revisar consulta',
     confirmAppointment: 'Confirme sua consulta',
     confirmedTitle: 'Consulta confirmada!',

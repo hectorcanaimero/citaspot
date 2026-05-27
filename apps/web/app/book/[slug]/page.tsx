@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { formatInTimeZone } from 'date-fns-tz';
-import { CheckCircle2, Calendar, Clock, User, Phone } from 'lucide-react';
+import { CheckCircle2, Calendar, Clock, User, Phone, FileText } from 'lucide-react';
 import { Button }  from '@/components/ui/button';
 import { Input }   from '@/components/ui/input';
 import { PhoneInput, validatePhone, CountryCode, PHONE_COUNTRIES } from '@/components/ui/PhoneInput';
@@ -369,6 +369,17 @@ export default function BookingPage() {
               />
               <Input label={t.booking.emailOptionalLabel} type="email" placeholder="tu@correo.com"
                 value={email} onChange={(e) => setEmail(e.target.value)} />
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-neutral-700">{t.booking.notesOptionalLabel}</label>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder={t.booking.notesPlaceholder}
+                  rows={3}
+                  maxLength={500}
+                  className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                />
+              </div>
               <div className="flex gap-3">
                 <Button variant="ghost" size="sm" onClick={() => setStep('datetime')}>
                   {t.booking.backButton}
@@ -421,6 +432,12 @@ export default function BookingPage() {
                   <Phone className="h-4 w-4 text-primary-500" />
                   <span>+{phone}</span>
                 </div>
+                {notes && (
+                  <div className="flex items-start gap-2 text-neutral-700">
+                    <FileText className="mt-0.5 h-4 w-4 shrink-0 text-primary-500" />
+                    <span className="whitespace-pre-wrap break-words">{notes}</span>
+                  </div>
+                )}
               </div>
               {bookError && (
                 <p className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{bookError}</p>
