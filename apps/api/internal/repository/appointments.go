@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/google/uuid"
@@ -589,6 +590,80 @@ func (r *appointmentRepository) CheckConflict(ctx context.Context, tenantID, pro
 		return row.Scan(&conflict)
 	})
 	return conflict, err
+}
+
+// ListDistinctCustomersByProfessional retorna los customers únicos que el profesional
+// ha atendido (al menos 1 appointment con status='completed'). Ordenados por
+// last_visit_at DESC NULLS LAST. Usa DISTINCT ON (c.id) — por eso el ORDER BY
+// debe empezar por c.id; el ordenamiento final por last_visit_at se aplica en
+// memoria tras desduplicar.
+func (r *appointmentRepository) ListDistinctCustomersByProfessional(
+	ctx context.Context, tenantID, professionalID uuid.UUID,
+) ([]*domain.Customer, error) {
+	result := make([]*domain.Customer, 0)
+	err := withTenant(ctx, r.db, tenantID, func(tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `
+			SELECT DISTINCT ON (c.id)
+			       c.id, c.tenant_id, c.name, c.phone, c.email,
+			       c.notes, c.tags, c.wa_opt_in, c.total_visits,
+			       c.stage_id, c.last_visit_at, c.next_recall_at,
+			       c.lifetime_value, c.acquisition_source, c.created_at
+			FROM customers c
+			JOIN appointments a ON a.customer_id = c.id
+			WHERE a.tenant_id       = $1
+			  AND a.professional_id = $2
+			  AND a.status          = 'completed'
+			ORDER BY c.id, a.starts_at DESC
+		`, tenantID, professionalID)
+		if err != nil {
+			return fmt.Errorf("appointmentRepository.ListDistinctCustomersByProfessional: query: %w", err)
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			c := &domain.Customer{}
+			var email, notes, acquisitionSource *string
+			if err := rows.Scan(
+				&c.ID, &c.TenantID, &c.Name, &c.Phone, &email,
+				&notes, &c.Tags, &c.WaOptIn, &c.TotalVisits,
+				&c.StageID, &c.LastVisitAt, &c.NextRecallAt,
+				&c.LifetimeValue, &acquisitionSource, &c.CreatedAt,
+			); err != nil {
+				return fmt.Errorf("appointmentRepository.ListDistinctCustomersByProfessional: scan: %w", err)
+			}
+			if email != nil {
+				c.Email = *email
+			}
+			if notes != nil {
+				c.Notes = *notes
+			}
+			if acquisitionSource != nil {
+				c.AcquisitionSource = *acquisitionSource
+			}
+			result = append(result, c)
+		}
+		return rows.Err()
+	})
+	if err != nil {
+		return nil, err
+	}
+	// Reordenar en memoria por last_visit_at DESC NULLS LAST para presentación.
+	// DISTINCT ON obliga a que el ORDER BY empiece por c.id, así que el orden
+	// final lo aplicamos aquí.
+	sort.SliceStable(result, func(i, j int) bool {
+		// nil last_visit_at va al final
+		if result[i].LastVisitAt == nil && result[j].LastVisitAt == nil {
+			return result[i].Name < result[j].Name
+		}
+		if result[i].LastVisitAt == nil {
+			return false
+		}
+		if result[j].LastVisitAt == nil {
+			return true
+		}
+		return result[i].LastVisitAt.After(*result[j].LastVisitAt)
+	})
+	return result, nil
 }
 
 // Reschedule actualiza el profesional y horario de una cita existente.

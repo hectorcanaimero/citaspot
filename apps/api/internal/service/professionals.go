@@ -16,15 +16,23 @@ type professionalService struct {
 	profRepo     domain.ProfessionalRepository
 	scheduleRepo domain.ScheduleRepository
 	serviceRepo  domain.ServiceRepository
+	apptRepo     domain.AppointmentRepository
 	publisher    domain.MessagePublisher
 }
 
 // NewProfessionalService crea el servicio de profesionales.
-func NewProfessionalService(profRepo domain.ProfessionalRepository, scheduleRepo domain.ScheduleRepository, serviceRepo domain.ServiceRepository, publisher domain.MessagePublisher) domain.ProfessionalSvc {
+func NewProfessionalService(
+	profRepo domain.ProfessionalRepository,
+	scheduleRepo domain.ScheduleRepository,
+	serviceRepo domain.ServiceRepository,
+	apptRepo domain.AppointmentRepository,
+	publisher domain.MessagePublisher,
+) domain.ProfessionalSvc {
 	return &professionalService{
 		profRepo:     profRepo,
 		scheduleRepo: scheduleRepo,
 		serviceRepo:  serviceRepo,
+		apptRepo:     apptRepo,
 		publisher:    publisher,
 	}
 }
@@ -53,6 +61,7 @@ func (s *professionalService) Create(ctx context.Context, tenantID uuid.UUID, in
 		Bio:       input.Bio,
 		AvatarURL: input.AvatarURL,
 		Phone:     input.Phone,
+		Email:     input.Email,
 		Color:     color,
 		IsActive:  isActive,
 	}
@@ -106,6 +115,9 @@ func (s *professionalService) Update(ctx context.Context, tenantID, id uuid.UUID
 	}
 	if input.Phone != "" {
 		p.Phone = input.Phone
+	}
+	if input.Email != "" {
+		p.Email = input.Email
 	}
 	if input.Color != "" {
 		p.Color = input.Color
@@ -170,6 +182,20 @@ func (s *professionalService) RemoveService(ctx context.Context, tenantID, profe
 		return fmt.Errorf("professionalService.RemoveService: %w", err)
 	}
 	return nil
+}
+
+// ListCustomers retorna los clientes únicos atendidos por el profesional
+// (al menos una appointment con status='completed'). Valida primero que el
+// profesional pertenezca al tenant.
+func (s *professionalService) ListCustomers(ctx context.Context, tenantID, professionalID uuid.UUID) ([]*domain.Customer, error) {
+	if _, err := s.profRepo.GetByID(ctx, tenantID, professionalID); err != nil {
+		return nil, err
+	}
+	customers, err := s.apptRepo.ListDistinctCustomersByProfessional(ctx, tenantID, professionalID)
+	if err != nil {
+		return nil, fmt.Errorf("professionalService.ListCustomers: %w", err)
+	}
+	return customers, nil
 }
 
 // AutoAssignAllServicesToFirstProfessional asigna todos los servicios activos al primer

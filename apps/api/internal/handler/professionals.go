@@ -155,6 +155,25 @@ func (h *ProfessionalHandler) RemoveService(c *fiber.Ctx) error {
 	return c.Status(http.StatusNoContent).Send(nil)
 }
 
+// ListCustomers GET /professionals/:id/customers
+// Devuelve los clientes únicos que el profesional ha atendido (citas completed).
+func (h *ProfessionalHandler) ListCustomers(c *fiber.Ctx) error {
+	tenantID := middleware.TenantIDFromContext(c)
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(http.StatusBadRequest).JSON(errorResponse{Error: "ID inválido"})
+	}
+
+	customers, err := h.svc.ListCustomers(c.Context(), tenantID, id)
+	if err != nil {
+		return handleServiceError(c, err)
+	}
+	if customers == nil {
+		customers = []*domain.Customer{}
+	}
+	return c.JSON(fiber.Map{"data": customers, "total": len(customers)})
+}
+
 // SetSchedule PUT /professionals/:id/schedule
 func (h *ProfessionalHandler) SetSchedule(c *fiber.Ctx) error {
 	tenantID := middleware.TenantIDFromContext(c)

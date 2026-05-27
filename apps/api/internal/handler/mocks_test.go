@@ -108,6 +108,10 @@ func (m *mockProfessionalSvc) AutoAssignAllServicesToFirstProfessional(ctx conte
 	return 0, nil
 }
 
+func (m *mockProfessionalSvc) ListCustomers(ctx context.Context, tenantID, professionalID uuid.UUID) ([]*domain.Customer, error) {
+	return []*domain.Customer{}, nil
+}
+
 // ── ServiceSvc ────────────────────────────────────────────────────────────────
 
 type mockServiceSvc struct {

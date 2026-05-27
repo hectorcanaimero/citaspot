@@ -20,10 +20,10 @@ type professionalRepository struct {
 func scanProfessional(row interface {
 	Scan(dest ...any) error
 }, p *domain.Professional) error {
-	var specialty, bio, avatarURL, phone *string
+	var specialty, bio, avatarURL, phone, email *string
 	if err := row.Scan(
 		&p.ID, &p.TenantID, &p.UserID, &p.Name, &specialty,
-		&bio, &avatarURL, &phone, &p.Color, &p.IsActive, &p.IsArchived, &p.CreatedAt,
+		&bio, &avatarURL, &phone, &email, &p.Color, &p.IsActive, &p.IsArchived, &p.CreatedAt,
 	); err != nil {
 		return err
 	}
@@ -38,6 +38,9 @@ func scanProfessional(row interface {
 	}
 	if phone != nil {
 		p.Phone = *phone
+	}
+	if email != nil {
+		p.Email = *email
 	}
 	return nil
 }
@@ -70,7 +73,7 @@ func (r *professionalRepository) List(ctx context.Context, tenantID uuid.UUID, i
 	var result []*domain.Professional
 	err := withTenant(ctx, r.db, tenantID, func(tx pgx.Tx) error {
 		rows, err := tx.Query(ctx, `
-			SELECT id, tenant_id, user_id, name, specialty, bio, avatar_url, phone, color, is_active, is_archived, created_at
+			SELECT id, tenant_id, user_id, name, specialty, bio, avatar_url, phone, email, color, is_active, is_archived, created_at
 			FROM professionals
 			WHERE tenant_id = $1 AND (is_archived = FALSE OR $2 = TRUE)
 			ORDER BY name ASC
@@ -96,9 +99,9 @@ func (r *professionalRepository) List(ctx context.Context, tenantID uuid.UUID, i
 func (r *professionalRepository) Create(ctx context.Context, p *domain.Professional) error {
 	return withTenant(ctx, r.db, p.TenantID, func(tx pgx.Tx) error {
 		_, err := tx.Exec(ctx, `
-			INSERT INTO professionals (id, tenant_id, name, specialty, bio, avatar_url, phone, color, is_active, is_archived, created_at)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, FALSE, NOW())
-		`, p.ID, p.TenantID, p.Name, p.Specialty, p.Bio, p.AvatarURL, p.Phone, p.Color, p.IsActive)
+			INSERT INTO professionals (id, tenant_id, name, specialty, bio, avatar_url, phone, email, color, is_active, is_archived, created_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, FALSE, NOW())
+		`, p.ID, p.TenantID, p.Name, p.Specialty, p.Bio, p.AvatarURL, p.Phone, p.Email, p.Color, p.IsActive)
 		if err != nil {
 			return fmt.Errorf("professionalRepository.Create: %w", err)
 		}
@@ -112,7 +115,7 @@ func (r *professionalRepository) GetByID(ctx context.Context, tenantID, id uuid.
 	err := withTenant(ctx, r.db, tenantID, func(tx pgx.Tx) error {
 		p = &domain.Professional{}
 		row := tx.QueryRow(ctx, `
-			SELECT id, tenant_id, user_id, name, specialty, bio, avatar_url, phone, color, is_active, is_archived, created_at
+			SELECT id, tenant_id, user_id, name, specialty, bio, avatar_url, phone, email, color, is_active, is_archived, created_at
 			FROM professionals
 			WHERE tenant_id = $1 AND id = $2
 		`, tenantID, id)
@@ -135,9 +138,9 @@ func (r *professionalRepository) Update(ctx context.Context, p *domain.Professio
 	return withTenant(ctx, r.db, p.TenantID, func(tx pgx.Tx) error {
 		tag, err := tx.Exec(ctx, `
 			UPDATE professionals
-			SET name = $3, specialty = $4, bio = $5, avatar_url = $6, phone = $7, color = $8, is_active = $9, is_archived = $10
+			SET name = $3, specialty = $4, bio = $5, avatar_url = $6, phone = $7, email = $8, color = $9, is_active = $10, is_archived = $11
 			WHERE tenant_id = $1 AND id = $2
-		`, p.TenantID, p.ID, p.Name, p.Specialty, p.Bio, p.AvatarURL, p.Phone, p.Color, p.IsActive, p.IsArchived)
+		`, p.TenantID, p.ID, p.Name, p.Specialty, p.Bio, p.AvatarURL, p.Phone, p.Email, p.Color, p.IsActive, p.IsArchived)
 		if err != nil {
 			return fmt.Errorf("professionalRepository.Update: %w", err)
 		}
@@ -314,7 +317,7 @@ func (r *professionalRepository) ListByTenantPublic(ctx context.Context, tenantI
 	var result []*domain.Professional
 	err := withTenant(ctx, r.db, tenantID, func(tx pgx.Tx) error {
 		rows, err := tx.Query(ctx, `
-			SELECT id, tenant_id, user_id, name, specialty, bio, avatar_url, phone, color, is_active, is_archived, created_at
+			SELECT id, tenant_id, user_id, name, specialty, bio, avatar_url, phone, email, color, is_active, is_archived, created_at
 			FROM professionals
 			WHERE tenant_id = $1 AND is_active = TRUE AND is_archived = FALSE
 			ORDER BY name ASC

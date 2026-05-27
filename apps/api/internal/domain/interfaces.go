@@ -85,6 +85,9 @@ type ProfessionalSvc interface {
 	// al primer profesional (orden alfabético). Usado al completar el onboarding para que el
 	// link público /book/{slug} funcione sin asignación manual. Retorna filas insertadas.
 	AutoAssignAllServicesToFirstProfessional(ctx context.Context, tenantID uuid.UUID) (int, error)
+	// ListCustomers retorna los clientes únicos atendidos por el profesional
+	// (citas con status='completed'). Usado por la vista 360 del profesional.
+	ListCustomers(ctx context.Context, tenantID, professionalID uuid.UUID) ([]*Customer, error)
 }
 
 // ── Services ──────────────────────────────────────────────────────────────────
@@ -165,6 +168,10 @@ type AppointmentRepository interface {
 	UpdateStatus(ctx context.Context, tenantID, id uuid.UUID, req *UpdateAppointmentRequest) error
 	CheckConflict(ctx context.Context, tenantID, professionalID uuid.UUID, startsAt, endsAt time.Time, excludeID *uuid.UUID) (bool, error)
 	Reschedule(ctx context.Context, tenantID, id, professionalID uuid.UUID, startsAt, endsAt time.Time) error
+	// ListDistinctCustomersByProfessional retorna los customers únicos que el
+	// profesional ha atendido (al menos 1 appointment con status='completed').
+	// Ordenado por last_visit_at DESC NULLS LAST.
+	ListDistinctCustomersByProfessional(ctx context.Context, tenantID, professionalID uuid.UUID) ([]*Customer, error)
 }
 
 // AppointmentSvc lógica de negocio para citas.

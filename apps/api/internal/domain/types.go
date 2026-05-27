@@ -145,6 +145,7 @@ type Professional struct {
 	Bio       string     `json:"bio,omitempty"`
 	AvatarURL string     `json:"avatar_url,omitempty"`
 	Phone     string     `json:"phone,omitempty"`
+	Email     string     `json:"email,omitempty"`
 	Color     string     `json:"color"`
 	IsActive   bool       `json:"is_active"`
 	IsArchived bool       `json:"is_archived"`
@@ -158,6 +159,7 @@ type ProfessionalInput struct {
 	Bio       string `json:"bio"`
 	AvatarURL string `json:"avatar_url"`
 	Phone     string `json:"phone"     validate:"omitempty,min=8,max=20"`
+	Email     string `json:"email"     validate:"omitempty,email"`
 	Color     string `json:"color"     validate:"omitempty,len=7"`
 	IsActive   *bool `json:"is_active"`
 	IsArchived *bool `json:"is_archived"`

@@ -140,7 +140,7 @@ func main() {
 
 	// ── Servicios ─────────────────────────────────────────────────────────────
 	authSvc    := service.NewAuthService(authRepo, cfg)
-	profSvc    := service.NewProfessionalService(profRepo, scheduleRepo, serviceRepo, publisher)
+	profSvc    := service.NewProfessionalService(profRepo, scheduleRepo, serviceRepo, apptRepo, publisher)
 	serviceSvc := service.NewServiceSvc(serviceRepo, publisher)
 	availSvc   := service.NewAvailabilityService(scheduleRepo, serviceRepo)
 	apptSvc    := service.NewAppointmentSvc(apptRepo, serviceRepo, customerRepo, profRepo, authRepo, waClient, notifRepo, publisher, eventRepo, rdb)

@@ -143,6 +143,8 @@ export interface Professional {
   id: string;
   name: string;
   specialty?: string;
+  bio?: string;
+  email?: string;
   phone?: string;
   color: string;
   is_active: boolean;
@@ -342,6 +344,7 @@ export interface ProfessionalInput {
   name: string;
   specialty?: string;
   bio?: string;
+  email?: string;
   phone?: string;
   color?: string;
   is_active?: boolean;
@@ -393,6 +396,11 @@ export const professionals = {
     return request(`/api/v1/professionals/${id}/services/${serviceId}`, {
       method: 'DELETE',
     });
+  },
+
+  // Clientes únicos que el profesional ha atendido (al menos 1 cita 'completed').
+  async listCustomers(id: string): Promise<{ data: Customer[]; total: number }> {
+    return request(`/api/v1/professionals/${id}/customers`);
   },
 };
 

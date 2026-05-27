@@ -256,6 +256,7 @@ func SetupRoutes(app *fiber.App, deps *RouteDeps) {
 	profs.Get("/:id/services", deps.ProfHandler.ListServices)
 	profs.Post("/:id/services/:serviceID", deps.ProfHandler.AssignService)
 	profs.Delete("/:id/services/:serviceID", deps.ProfHandler.RemoveService)
+	profs.Get("/:id/customers", deps.ProfHandler.ListCustomers)
 
 	srvs := protected.Group("/services")
 	srvs.Get("/", deps.SvcHandler.List)

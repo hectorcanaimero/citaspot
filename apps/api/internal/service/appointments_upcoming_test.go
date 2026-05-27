@@ -49,6 +49,9 @@ func (s *stubApptRepo) CheckConflict(ctx context.Context, tenantID, professional
 func (s *stubApptRepo) Reschedule(ctx context.Context, tenantID, id, professionalID uuid.UUID, startsAt, endsAt time.Time) error {
 	return nil
 }
+func (s *stubApptRepo) ListDistinctCustomersByProfessional(ctx context.Context, tenantID, professionalID uuid.UUID) ([]*domain.Customer, error) {
+	return nil, nil
+}
 
 // newApptSvcWithRepo construye un appointmentSvc apuntando al stub. Solo
 // el campo apptRepo se usa en ListUpcoming, los demas quedan nil.
