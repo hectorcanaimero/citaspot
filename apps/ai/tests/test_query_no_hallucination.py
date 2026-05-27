@@ -177,3 +177,135 @@ def test_query_system_prompt_forbids_invention():
     prompt = _build_query_system_prompt("demo", is_first_turn=True).lower()
     # Buscamos términos en es/en/pt que prohíban inventar
     assert any(term in prompt for term in ("nunca inventes", "never invent", "nunca invente"))
+
+
+# ---------------------------------------------------------------------------
+# Reglas anti-pregunta-redundante (Plane #40)
+# Si el LLM pregunta "¿te muestro X?" en vez de llamar la tool, perdemos un
+# turno y rompemos el flujo: el "si" del usuario no tiene tracking de qué
+# fue ofrecido. Estas pruebas garantizan que las 4 reglas críticas estén
+# presentes y bien posicionadas en el prompt.
+# ---------------------------------------------------------------------------
+
+
+def test_query_system_prompt_forbids_permission_questions():
+    """Regla ACCIÓN DIRECTA: prohibir preguntas tipo '¿te muestro X?'."""
+    prompt = _build_query_system_prompt("demo", is_first_turn=False).lower()
+    # Debe contener la regla (en alguno de los 3 idiomas)
+    assert any(
+        term in prompt
+        for term in ("acción directa", "ação direta", "direct action")
+    )
+    # Debe incluir el ejemplo de pregunta prohibida o la mención de "permiso/permission"
+    assert any(
+        term in prompt
+        for term in ("¿te muestro", "should i show", "quer que eu mostre")
+    )
+    # Debe ordenar llamar la tool inmediatamente
+    assert any(
+        term in prompt
+        for term in ("inmediatamente", "imediatamente", "immediately")
+    )
+
+
+def test_query_system_prompt_handles_affirmative_continuity():
+    """Regla CONTINUIDAD: si el bot ofreció algo y el usuario dice 'si',
+    el LLM debe ejecutar la acción ofrecida, no repreguntar."""
+    prompt = _build_query_system_prompt("demo", is_first_turn=False).lower()
+    assert any(
+        term in prompt
+        for term in ("continuidad", "continuidade", "continuity")
+    )
+    # Debe mencionar al menos una afirmación corta como ejemplo
+    assert "'sí'" in prompt or "'si'" in prompt or "'yes'" in prompt or "'sim'" in prompt
+    # Debe ordenar no repreguntar / no volver al menú
+    assert any(
+        term in prompt
+        for term in (
+            "no repreguntes",
+            "do not re-ask",
+            "não repergunte",
+            "no vuelvas al menú",
+            "do not return to the menu",
+            "não volte ao menu",
+        )
+    )
+
+
+def test_query_system_prompt_forbids_menu_mid_conversation():
+    """Regla NO MENÚ MID-CONVERSACIÓN: en medio de conversación, no responder
+    con el saludo genérico de menú inicial."""
+    prompt = _build_query_system_prompt("demo", is_first_turn=False).lower()
+    assert any(
+        term in prompt
+        for term in (
+            "no menú mid-conversación",
+            "no menu mid-conversation",
+            "sem menu no meio da conversa",
+        )
+    )
+    # Debe referirse a "más de 1 turno" como condición
+    assert any(
+        term in prompt
+        for term in ("más de 1 turno", "more than 1 turn", "mais de 1 turno")
+    )
+
+
+def test_query_system_prompt_handles_thread_loss():
+    """Regla 'hola?' en medio: si el usuario reinicia con '¿hola?' / '¿estás
+    ahí?', mirar el historial y ejecutar lo prometido, no repetir el menú."""
+    prompt = _build_query_system_prompt("demo", is_first_turn=False).lower()
+    # Debe mencionar la situación
+    assert any(
+        term in prompt
+        for term in ("¿hola?", "hello?", "are you there", "estás ahí", "está aí", "oi?")
+    )
+    # Debe instruir mirar el historial
+    assert any(
+        term in prompt
+        for term in ("mira el historial", "read the history", "leia o histórico")
+    )
+
+
+def test_query_system_prompt_critical_rules_appear_first():
+    """Las reglas críticas (anti-pregunta-redundante) deben aparecer ANTES
+    de las reglas generales. Los LLM dan más peso a las primeras instrucciones."""
+    prompt = _build_query_system_prompt("demo", is_first_turn=False)
+    lower = prompt.lower()
+
+    # Buscar marcador del bloque crítico
+    critical_markers = ["reglas críticas", "critical rules", "regras críticas"]
+    critical_idx = min(
+        (lower.find(m) for m in critical_markers if m in lower), default=-1
+    )
+    assert critical_idx > 0, "No se encontró el bloque de REGLAS CRÍTICAS"
+
+    # Buscar marcador del bloque general
+    general_markers = ["reglas generales", "general rules", "regras gerais"]
+    general_idx = min(
+        (lower.find(m) for m in general_markers if m in lower), default=-1
+    )
+    assert general_idx > 0, "No se encontró el bloque de REGLAS GENERALES"
+
+    # Las críticas deben aparecer antes
+    assert critical_idx < general_idx, (
+        "Las REGLAS CRÍTICAS deben ir ANTES de las REGLAS GENERALES "
+        "para que el LLM les dé más peso."
+    )
+
+
+def test_query_system_prompt_rules_present_for_both_turns():
+    """Las reglas críticas deben estar presentes en first_turn y mid-conversation.
+    El bug ocurre en ambos contextos."""
+    for is_first_turn in (True, False):
+        prompt = _build_query_system_prompt(
+            "demo", is_first_turn=is_first_turn
+        ).lower()
+        assert any(
+            term in prompt
+            for term in ("acción directa", "ação direta", "direct action")
+        ), f"Regla ACCIÓN DIRECTA falta en is_first_turn={is_first_turn}"
+        assert any(
+            term in prompt
+            for term in ("continuidad", "continuidade", "continuity")
+        ), f"Regla CONTINUIDAD falta en is_first_turn={is_first_turn}"
