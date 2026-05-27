@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Search, Users, Phone, Mail, MessageCircle } from 'lucide-react';
+import { Search, Users, Phone, Mail, MessageCircle, UserCheck } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Spinner } from '@/components/ui/spinner';
@@ -81,6 +81,7 @@ export default function ClientsPage() {
                 <th className="px-4 py-3">{t.clients.colName}</th>
                 <th className="px-4 py-3">{t.clients.colContact}</th>
                 <th className="px-4 py-3 text-center">{t.clients.colVisits}</th>
+                <th className="px-4 py-3">{t.clients.colLastProfessional}</th>
                 <th className="px-4 py-3 text-center">{t.clients.colWhatsApp}</th>
                 <th className="px-4 py-3">{t.clients.colRegistration}</th>
               </tr>
@@ -120,6 +121,23 @@ export default function ClientsPage() {
                     <Badge variant={c.total_visits > 0 ? 'primary' : 'default'}>
                       {c.total_visits}
                     </Badge>
+                  </td>
+                  <td className="px-4 py-3 text-neutral-600">
+                    {c.last_professional_name ? (
+                      <div className="flex flex-col gap-0.5">
+                        <span className="flex items-center gap-1.5">
+                          <UserCheck className="h-3 w-3 text-neutral-400" />
+                          {c.last_professional_name}
+                        </span>
+                        {c.last_attended_at && (
+                          <span className="pl-4 text-xs text-neutral-400">
+                            {format(new Date(c.last_attended_at), 'd MMM yyyy', { locale: dateLocale })}
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-neutral-300">—</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-center">
                     {c.wa_opt_in ? (

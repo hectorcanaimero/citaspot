@@ -122,6 +122,7 @@ func main() {
 	apptRepo     := repository.NewAppointmentRepository(pool)
 	convRepo      := repository.NewConversationRepository(pool)
 	notifRepo     := repository.NewNotificationRepository(pool)
+	userNotifRepo := repository.NewUserNotificationRepository(pool)
 	reminderRepo  := repository.NewReminderRepository(pool)
 	knowledgeRepo := repository.NewKnowledgeRepository(pool)
 	pipelineRepo  := repository.NewPipelineStageRepository(pool)
@@ -146,9 +147,24 @@ func main() {
 	apptSvc    := service.NewAppointmentSvc(apptRepo, serviceRepo, customerRepo, profRepo, authRepo, waClient, notifRepo, publisher, eventRepo, rdb)
 	publicSvc  := service.NewPublicSvc(authRepo, profRepo, serviceRepo, availSvc, apptSvc, customerRepo, treatmentRepo, tenantModuleRepo)
 
+	// Feed in-app del dashboard (CITAS-41). Publica al canal Redis
+	// `tenant:{id}:notifications` que el handler SSE multiplexa con appointments.
+	userNotifSvc := service.NewUserNotificationSvc(userNotifRepo, rdb)
+	// Inyectar via setter para no romper el constructor de appointmentSvc.
+	if setter, ok := apptSvc.(interface {
+		SetUserNotificationSvc(domain.UserNotificationSvc)
+	}); ok {
+		setter.SetUserNotificationSvc(userNotifSvc)
+	}
+
 	var waSvc domain.WhatsAppSvc
 	if publisher != nil {
 		waSvc = service.NewWhatsAppSvc(authRepo, convRepo, customerRepo, publisher, eventRepo)
+		if setter, ok := waSvc.(interface {
+			SetUserNotificationSvc(domain.UserNotificationSvc)
+		}); ok {
+			setter.SetUserNotificationSvc(userNotifSvc)
+		}
 	}
 
 	// publisher puede ser nil si RabbitMQ no está disponible (modo degradado)
@@ -230,6 +246,8 @@ func main() {
 	// Realtime (SSE) — Phase C: suscripción por conexión a Redis Pub/Sub.
 	// Si rdb es nil (Redis no disponible al startup), el handler responde 503.
 	realtimeHandler     := handler.NewRealtimeHandler(rdb)
+	// Notificaciones in-app del dashboard (CITAS-41)
+	userNotifHandler    := handler.NewUserNotificationHandler(userNotifSvc)
 
 	// ── Workers background ────────────────────────────────────────────────────
 	reminderWorker := worker.NewReminderWorker(reminderRepo, notifRepo, waClient, publisher)
@@ -414,6 +432,7 @@ func main() {
 		ChatbotHandler:          chatbotHandler,
 		WaitlistHandler:         waitlistHandler,
 		RealtimeHandler:         realtimeHandler,
+		UserNotifHandler:        userNotifHandler,
 	})
 
 	// ── Arrancar servidor ─────────────────────────────────────────────────────

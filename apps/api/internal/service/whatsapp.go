@@ -20,6 +20,9 @@ type whatsAppSvc struct {
 	customerRepo domain.CustomerRepository
 	publisher    domain.MessagePublisher
 	events       domain.EventRepository
+	// userNotifSvc opcional — alimenta el feed in-app del dashboard cuando
+	// llega un mensaje WhatsApp entrante. Se inyecta vía SetUserNotificationSvc.
+	userNotifSvc domain.UserNotificationSvc
 }
 
 // NewWhatsAppSvc crea el servicio de procesamiento de mensajes WA.
@@ -37,6 +40,12 @@ func NewWhatsAppSvc(
 		publisher:    publisher,
 		events:       events,
 	}
+}
+
+// SetUserNotificationSvc inyecta el feed in-app. Si no se llama, los mensajes
+// WhatsApp entrantes no aparecerán en el dashboard como notificación.
+func (s *whatsAppSvc) SetUserNotificationSvc(svc domain.UserNotificationSvc) {
+	s.userNotifSvc = svc
 }
 
 func (s *whatsAppSvc) persistEvent(ctx context.Context, event domain.Event) {
@@ -175,6 +184,11 @@ func (s *whatsAppSvc) ProcessInbound(ctx context.Context, instanceName string, p
 	}
 	_ = s.convRepo.UpdateConversationTimestamp(ctx, conv.ID)
 
+	// Feed in-app del dashboard (best-effort). Solo entrante de cliente —
+	// el handler arriba ya descartó `fromMe`, por lo que aquí estamos en una
+	// rama exclusivamente inbound.
+	s.pushUserNotification(ctx, tenant.ID, customer, conv.ID, waMessageID, content)
+
 	// Persist message.inbound analytics event
 	if customer != nil {
 		actorID := customer.ID
@@ -303,6 +317,57 @@ func sanitizeWAInput(content string) string {
 		}
 	}
 	return strings.TrimSpace(sb.String())
+}
+
+// pushUserNotification crea una entrada en el feed in-app del dashboard cuando
+// llega un mensaje entrante. Best-effort: nunca rompe el flujo principal.
+// No-op si userNotifSvc no fue inyectado.
+//
+// Title: "Mensaje WhatsApp: {customerName or phone}".
+// Body: primeros 80 caracteres del mensaje (truncado con "…" si excede).
+func (s *whatsAppSvc) pushUserNotification(
+	ctx context.Context,
+	tenantID uuid.UUID,
+	customer *domain.Customer,
+	conversationID uuid.UUID,
+	waMessageID, content string,
+) {
+	if s.userNotifSvc == nil {
+		return
+	}
+
+	// Resolver display name del remitente
+	var displayName, phone string
+	var customerID string
+	if customer != nil {
+		displayName = customer.Name
+		phone = customer.Phone
+		customerID = customer.ID.String()
+	}
+	if displayName == "" {
+		displayName = phone
+	}
+
+	// Truncar a 80 chars usando runes para no romper UTF-8
+	body := content
+	const maxBodyRunes = 80
+	if r := []rune(body); len(r) > maxBodyRunes {
+		body = string(r[:maxBodyRunes]) + "…"
+	}
+
+	title := fmt.Sprintf("Mensaje WhatsApp: %s", displayName)
+
+	metadata := map[string]any{
+		"customer_id":     customerID,
+		"customer_phone":  phone,
+		"customer_name":   displayName,
+		"conversation_id": conversationID.String(),
+		"message_id":      waMessageID,
+	}
+
+	if _, err := s.userNotifSvc.Create(ctx, tenantID, domain.UserNotificationWhatsAppInbound, title, body, metadata); err != nil {
+		slog.Warn("whatsAppSvc.pushUserNotification: create", "tenant_id", tenantID, "error", err)
+	}
 }
 
 // publishRuleEvent publica un evento de dominio en la cola rules.events.

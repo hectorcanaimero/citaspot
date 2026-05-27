@@ -404,6 +404,47 @@ export const professionals = {
   },
 };
 
+// ── Schedule Blocks (vacaciones, pausas, recurrentes) ─────────────────────────
+
+export interface ScheduleBlock {
+  id: string;
+  tenant_id: string;
+  professional_id: string | null;
+  starts_at: string;
+  ends_at: string;
+  reason: string;
+  is_recurring: boolean;
+  recurrence_days: number[] | null;
+  created_at: string;
+}
+
+export interface ScheduleBlockInput {
+  professional_id?: string | null;
+  starts_at?: string;
+  ends_at?: string;
+  reason?: string;
+  is_recurring: boolean;
+  recurrence_days?: number[];
+}
+
+export const scheduleBlocks = {
+  async list(professionalId?: string): Promise<{ data: ScheduleBlock[] }> {
+    const params = professionalId ? `?professional_id=${professionalId}` : '';
+    return request(`/api/v1/schedule-blocks${params}`);
+  },
+
+  async create(data: ScheduleBlockInput): Promise<ScheduleBlock> {
+    return request('/api/v1/schedule-blocks', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async delete(id: string): Promise<void> {
+    return request(`/api/v1/schedule-blocks/${id}`, { method: 'DELETE' });
+  },
+};
+
 // ── Services ───────────────────────────────────────────────────────────────────
 
 export const services = {
@@ -589,6 +630,9 @@ export interface Customer {
   lifetime_value?: number;
   acquisition_source?: string | null;
   created_at: string;
+  last_professional_id?: string | null;
+  last_professional_name?: string | null;
+  last_attended_at?: string | null;
 }
 
 export const customers = {
@@ -1370,6 +1414,71 @@ export const clinicalFiles = {
 
   async remove(fileId: string): Promise<void> {
     return request(`/api/v1/clinical-files/${fileId}`, { method: 'DELETE' });
+  },
+};
+
+// ── User Notifications (system notifications inbox) ──────────────────────────
+
+export type UserNotificationType =
+  | 'appointment.created'
+  | 'appointment.cancelled'
+  | 'appointment.rescheduled'
+  | 'whatsapp.inbound';
+
+export interface UserNotification {
+  id: string;
+  tenant_id: string;
+  type: UserNotificationType;
+  title: string;
+  body: string | null;
+  metadata: Record<string, unknown>;
+  read_at: string | null;
+  created_at: string;
+}
+
+export interface NotificationsPage {
+  items: UserNotification[];
+  nextCursor: string | null;
+}
+
+export const userNotificationsApi = {
+  /** Lista paginada por cursor (created_at del último item). */
+  async list(opts?: { limit?: number; cursor?: string | null }): Promise<NotificationsPage> {
+    const params = new URLSearchParams();
+    params.set('limit', String(opts?.limit ?? 20));
+    if (opts?.cursor) params.set('cursor', opts.cursor);
+    // El backend devuelve { items, nextCursor } o { items, next_cursor } — normalizamos.
+    const raw = await request<{
+      items?: UserNotification[];
+      nextCursor?: string | null;
+      next_cursor?: string | null;
+    }>(`/api/v1/notifications?${params.toString()}`);
+    return {
+      items: raw.items ?? [],
+      nextCursor: raw.nextCursor ?? raw.next_cursor ?? null,
+    };
+  },
+
+  /** Devuelve 0 si el usuario no tiene permiso (403) para no romper el shell. */
+  async unreadCount(): Promise<number> {
+    try {
+      const raw = await request<{ count: number }>('/api/v1/notifications/unread-count');
+      return raw.count ?? 0;
+    } catch (err) {
+      if (err instanceof APIError && err.status === 403) return 0;
+      throw err;
+    }
+  },
+
+  async markRead(id: string): Promise<void> {
+    return request<void>(`/api/v1/notifications/${id}/read`, { method: 'POST' });
+  },
+
+  async markAllRead(): Promise<number> {
+    const raw = await request<{ affected: number }>('/api/v1/notifications/read-all', {
+      method: 'POST',
+    });
+    return raw.affected ?? 0;
   },
 };
 

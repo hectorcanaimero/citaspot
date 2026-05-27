@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"sort"
 	"time"
 
 	"github.com/google/uuid"
@@ -225,19 +226,41 @@ func (s *professionalService) AutoAssignAllServicesToFirstProfessional(
 }
 
 // SetSchedule reemplaza los horarios semanales de un profesional.
+// Soporta múltiples bloques por día (ej: 08:00-12:00 + 14:00-18:00).
+// Valida que los bloques activos del mismo día no se solapen.
 func (s *professionalService) SetSchedule(ctx context.Context, tenantID, professionalID uuid.UUID, schedules []*domain.Schedule) ([]*domain.Schedule, error) {
 	// Validar que el profesional pertenece al tenant
 	if _, err := s.profRepo.GetByID(ctx, tenantID, professionalID); err != nil {
 		return nil, err
 	}
 
-	// Validar cada día
+	// Validación individual + agrupación por día
+	byDay := make(map[int][]*domain.Schedule, 7)
 	for _, sch := range schedules {
 		if sch.DayOfWeek < 0 || sch.DayOfWeek > 6 {
 			return nil, fmt.Errorf("%w: day_of_week debe estar entre 0 (Dom) y 6 (Sáb)", domain.ErrValidation)
 		}
 		if sch.StartTime >= sch.EndTime {
 			return nil, fmt.Errorf("%w: start_time debe ser anterior a end_time", domain.ErrValidation)
+		}
+		if sch.IsActive {
+			byDay[sch.DayOfWeek] = append(byDay[sch.DayOfWeek], sch)
+		}
+	}
+
+	// Validar solapamiento de bloques activos dentro del mismo día
+	for dow, blocks := range byDay {
+		sort.Slice(blocks, func(i, j int) bool {
+			return blocks[i].StartTime < blocks[j].StartTime
+		})
+		for i := 1; i < len(blocks); i++ {
+			if blocks[i].StartTime < blocks[i-1].EndTime {
+				return nil, fmt.Errorf("%w: los bloques del día %d se solapan (%s-%s y %s-%s)",
+					domain.ErrValidation, dow,
+					blocks[i-1].StartTime, blocks[i-1].EndTime,
+					blocks[i].StartTime, blocks[i].EndTime,
+				)
+			}
 		}
 	}
 

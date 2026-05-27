@@ -1,10 +1,11 @@
 'use client';
 
 import { Draggable } from '@hello-pangea/dnd';
-import { Phone, Mail } from 'lucide-react';
+import { format } from 'date-fns';
+import { Phone, Mail, UserCheck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Customer } from '@/lib/api';
-import { useTranslations } from '@/lib/i18n';
+import { useTranslations, useDateLocale } from '@/lib/i18n';
 
 interface KanbanCardProps {
   customer: Customer;
@@ -13,6 +14,7 @@ interface KanbanCardProps {
 
 export function KanbanCard({ customer, index }: KanbanCardProps) {
   const t = useTranslations();
+  const dateLocale = useDateLocale();
   const router = useRouter();
 
   return (
@@ -42,6 +44,17 @@ export function KanbanCard({ customer, index }: KanbanCardProps) {
               <div className="flex items-center gap-1.5 text-xs text-neutral-500">
                 <Mail className="h-3 w-3 flex-shrink-0" />
                 <span className="truncate">{customer.email}</span>
+              </div>
+            )}
+            {customer.last_professional_name && (
+              <div className="flex items-center gap-1.5 text-xs text-neutral-500">
+                <UserCheck className="h-3 w-3 flex-shrink-0" />
+                <span className="truncate">{customer.last_professional_name}</span>
+                {customer.last_attended_at && (
+                  <span className="text-neutral-400">
+                    · {format(new Date(customer.last_attended_at), 'd MMM', { locale: dateLocale })}
+                  </span>
+                )}
               </div>
             )}
           </div>

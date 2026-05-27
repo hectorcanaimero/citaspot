@@ -21,10 +21,12 @@ import {
 import { useTranslations, useDateLocale } from '@/lib/i18n';
 import { useTenantStore, useTenantTimezone } from '@/store/tenant';
 import { useNotifications } from '@/store/notifications';
+import { useNotifications as useNotificationFeed } from '@/hooks/useNotifications';
 import { useAppointmentEvents } from '@/hooks/useAppointmentEvents';
 import NewAppointmentModal from '@/components/dashboard/NewAppointmentModal';
 import UpcomingAppointmentsCard from '@/components/dashboard/UpcomingAppointmentsCard';
 import SoundToggle from '@/components/dashboard/SoundToggle';
+import NotificationBell from '@/components/notifications/NotificationBell';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -101,6 +103,10 @@ export default function DashboardPage() {
   const audioRef = useRef<HTMLAudioElement>(null);
   const soundEnabled = useNotifications((s) => s.soundEnabled);
 
+  // Feed de notificaciones del sistema (campana). Compartimos la misma instancia
+  // entre el bell y el SSE handler para que `prepend()` actualice la UI sin refetch.
+  const notificationFeed = useNotificationFeed();
+
   const dateStr = toDateStr(date);
   const isToday = dateStr === toDateStr(new Date());
 
@@ -136,28 +142,38 @@ export default function DashboardPage() {
     };
   }, []);
 
-  // Suscripción al stream SSE de eventos de citas.
-  useAppointmentEvents((envelope) => {
-    // Cualquier evento dispara refetch del widget de próximas citas.
-    setTick((n) => n + 1);
-
-    // Toast + sonido sólo para creaciones nuevas.
-    if (envelope.event === 'appointment.created') {
-      const clientName = envelope.data.customer_name ?? 'Cliente';
-      toast.success(
-        t.dashboard.newAppointmentToast.replace('{clientName}', clientName),
-        {
-          description: envelope.data.service_name ?? '',
-        },
-      );
-      if (soundEnabled && audioRef.current) {
-        audioRef.current.currentTime = 0;
-        audioRef.current.play().catch(() => {
-          // Autoplay puede bloquear antes del warm-up; fallar silenciosamente.
+  // Suscripción al stream SSE de eventos de citas + notificaciones del sistema.
+  // - `appointment.*` → setTick para refrescar el widget de próximas citas.
+  // - `notification.created` → prepend al feed de la campana, toast con título
+  //   localizado por el backend y reproducción del sonido (gated por soundEnabled).
+  //
+  // El toast del evento `appointment.created` fue removido en favor del toast de
+  // `notification.created`, que trae el título ya localizado por el backend.
+  // El audio se reproduce SOLO en `notification.created` para evitar doble-beep
+  // cuando ambos eventos llegan en la misma operación.
+  useAppointmentEvents(
+    (envelope) => {
+      // Cualquier evento de cita dispara refetch del widget de próximas citas.
+      setTick((n) => n + 1);
+      // Nota: NO disparamos toast aquí — lo hace el handler de notificaciones.
+      void envelope;
+    },
+    {
+      onNotification: (envelope) => {
+        const n = envelope.data;
+        notificationFeed.prepend(n);
+        toast(n.title, {
+          description: n.body ?? undefined,
         });
-      }
-    }
-  });
+        if (soundEnabled && audioRef.current) {
+          audioRef.current.currentTime = 0;
+          audioRef.current.play().catch(() => {
+            // Autoplay puede bloquear antes del warm-up; fallar silenciosamente.
+          });
+        }
+      },
+    },
+  );
 
   // Saludo según la hora del día
   useEffect(() => {
@@ -284,6 +300,7 @@ export default function DashboardPage() {
           </div>
 
           <div className="flex items-center gap-2">
+            <NotificationBell notifications={notificationFeed} />
             <SoundToggle />
             <Link
               href="/dashboard/whatsapp"

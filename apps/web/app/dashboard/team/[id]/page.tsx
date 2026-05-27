@@ -44,6 +44,7 @@ import {
   DayMap,
 } from '@/components/team/ScheduleEditor';
 import { ServicesEditor } from '@/components/team/ServicesEditor';
+import { BlocksEditor } from '@/components/team/BlocksEditor';
 
 const COLORS = ['#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#ef4444', '#14b8a6'];
 
@@ -407,7 +408,7 @@ function ScheduleTab({ profId }: { profId: string }) {
 
 // ── Página principal ──────────────────────────────────────────────────────────
 
-type TabKey = 'customers' | 'schedule' | 'services';
+type TabKey = 'customers' | 'schedule' | 'blocks' | 'services';
 
 export default function ProfessionalProfilePage() {
   const t = useTranslations();
@@ -497,6 +498,7 @@ export default function ProfessionalProfilePage() {
   const tabsConfig: { key: TabKey; label: string }[] = [
     { key: 'customers', label: t.team.tabCustomers },
     { key: 'schedule', label: t.team.tabSchedule },
+    { key: 'blocks', label: t.team.tabBlocks },
     { key: 'services', label: t.team.tabServices },
   ];
 
@@ -636,6 +638,7 @@ export default function ProfessionalProfilePage() {
           <div className="overflow-hidden rounded-b-xl border border-t-0 border-neutral-200 bg-white">
             {activeTab === 'customers' && <CustomersTab profId={prof.id} />}
             {activeTab === 'schedule' && <ScheduleTab profId={prof.id} />}
+            {activeTab === 'blocks' && <BlocksEditor profId={prof.id} />}
             {activeTab === 'services' && (
               <div className="p-5">
                 <ServicesEditor profId={prof.id} />

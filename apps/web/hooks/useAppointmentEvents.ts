@@ -15,7 +15,12 @@
 //   - Cleanup en unmount y en `pagehide` (BFCache safety).
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Appointment, getSupabaseAccessToken, realtimeAppointmentsUrl } from '@/lib/api';
+import {
+  Appointment,
+  UserNotification,
+  getSupabaseAccessToken,
+  realtimeAppointmentsUrl,
+} from '@/lib/api';
 import { createClient } from '@/lib/supabase/browser';
 
 export type AppointmentEventType =
@@ -30,6 +35,12 @@ export interface AppointmentEventEnvelope {
   ts: string;
 }
 
+export interface NotificationEventEnvelope {
+  event: 'notification.created';
+  data: UserNotification;
+  ts: string;
+}
+
 interface UseAppointmentEventsResult {
   connected: boolean;
 }
@@ -40,6 +51,14 @@ const EVENT_TYPES: AppointmentEventType[] = [
   'appointment.cancelled',
   'appointment.rescheduled',
 ];
+
+const NOTIFICATION_EVENT_TYPE = 'notification.created' as const;
+
+export interface UseAppointmentEventsOptions {
+  /** Callback opcional para eventos `notification.created` del mismo stream SSE.
+   *  Evita abrir un segundo EventSource — el backend multiplexa ambos tipos. */
+  onNotification?: (envelope: NotificationEventEnvelope) => void;
+}
 
 const BACKOFF_BASE_MS = 1_000;
 const BACKOFF_MAX_MS = 30_000;
@@ -58,6 +77,7 @@ function computeBackoff(attempt: number): number {
 
 export function useAppointmentEvents(
   onEvent: (envelope: AppointmentEventEnvelope) => void,
+  options?: UseAppointmentEventsOptions,
 ): UseAppointmentEventsResult {
   const [connected, setConnected] = useState(false);
 
@@ -67,6 +87,12 @@ export function useAppointmentEvents(
   useEffect(() => {
     onEventRef.current = onEvent;
   }, [onEvent]);
+
+  // Misma estrategia para el callback de notificaciones (opcional).
+  const onNotificationRef = useRef(options?.onNotification);
+  useEffect(() => {
+    onNotificationRef.current = options?.onNotification;
+  }, [options?.onNotification]);
 
   // Refs internas — sobreviven a re-renders sin disparar effects.
   const esRef = useRef<EventSource | null>(null);
@@ -130,6 +156,27 @@ export function useAppointmentEvents(
             console.error('[useAppointmentEvents] failed to parse event', type, err);
           }
         });
+      });
+
+      // Listener para notificaciones del sistema (mismo stream SSE).
+      es.addEventListener(NOTIFICATION_EVENT_TYPE, (raw: Event) => {
+        const cb = onNotificationRef.current;
+        if (!cb) return;
+        const ev = raw as MessageEvent;
+        try {
+          const parsed = JSON.parse(ev.data) as {
+            event?: 'notification.created';
+            data: UserNotification;
+            ts: string;
+          };
+          cb({
+            event: parsed.event ?? NOTIFICATION_EVENT_TYPE,
+            data: parsed.data,
+            ts: parsed.ts,
+          });
+        } catch (err) {
+          console.error('[useAppointmentEvents] failed to parse notification event', err);
+        }
       });
 
       es.onerror = async () => {

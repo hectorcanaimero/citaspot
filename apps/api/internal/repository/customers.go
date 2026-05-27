@@ -45,6 +45,30 @@ func scanCustomer(row interface{ Scan(dest ...any) error }, c *domain.Customer) 
 	return nil
 }
 
+// scanCustomerWithLast escanea un Customer junto con datos del último profesional que lo atendió.
+func scanCustomerWithLast(row interface{ Scan(dest ...any) error }, c *domain.Customer) error {
+	var email, notes, acquisitionSource *string
+	if err := row.Scan(
+		&c.ID, &c.TenantID, &c.Name, &c.Phone, &email,
+		&notes, &c.Tags, &c.WaOptIn, &c.TotalVisits,
+		&c.StageID, &c.LastVisitAt, &c.NextRecallAt, &c.LifetimeValue, &acquisitionSource,
+		&c.CreatedAt,
+		&c.LastProfessionalID, &c.LastProfessionalName, &c.LastAttendedAt,
+	); err != nil {
+		return err
+	}
+	if email != nil {
+		c.Email = *email
+	}
+	if notes != nil {
+		c.Notes = *notes
+	}
+	if acquisitionSource != nil {
+		c.AcquisitionSource = *acquisitionSource
+	}
+	return nil
+}
+
 // FindOrCreateByPhone busca un cliente por teléfono o lo crea si no existe.
 // Usado por el booking público y el asistente de WhatsApp.
 func (r *customerRepository) FindOrCreateByPhone(ctx context.Context, tenantID uuid.UUID, name, phone string) (*domain.Customer, error) {
@@ -119,12 +143,23 @@ func (r *customerRepository) GetByID(ctx context.Context, tenantID, id uuid.UUID
 	var c *domain.Customer
 	err := withTenant(ctx, r.db, tenantID, func(tx pgx.Tx) error {
 		c = &domain.Customer{}
-		err := scanCustomer(tx.QueryRow(ctx, `
-			SELECT id, tenant_id, name, phone, email, notes, tags, wa_opt_in, total_visits,
-				       stage_id, last_visit_at, next_recall_at, lifetime_value, acquisition_source,
-				       created_at
-			FROM customers
-			WHERE tenant_id = $1 AND id = $2
+		err := scanCustomerWithLast(tx.QueryRow(ctx, `
+			SELECT c.id, c.tenant_id, c.name, c.phone, c.email, c.notes, c.tags, c.wa_opt_in,
+			       c.total_visits, c.stage_id, c.last_visit_at, c.next_recall_at,
+			       c.lifetime_value, c.acquisition_source, c.created_at,
+			       lp.professional_id AS last_professional_id,
+			       lp.professional_name AS last_professional_name,
+			       lp.starts_at AS last_attended_at
+			FROM customers c
+			LEFT JOIN LATERAL (
+			  SELECT a.professional_id, p.name AS professional_name, a.starts_at
+			  FROM appointments a
+			  JOIN professionals p ON p.id = a.professional_id
+			  WHERE a.customer_id = c.id AND a.status = 'completed'
+			  ORDER BY a.starts_at DESC
+			  LIMIT 1
+			) lp ON TRUE
+			WHERE c.tenant_id = $1 AND c.id = $2
 		`, tenantID, id), c)
 		if err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
@@ -153,23 +188,45 @@ func (r *customerRepository) List(ctx context.Context, tenantID uuid.UUID, searc
 
 		if search != "" {
 			rows, err = tx.Query(ctx, `
-				SELECT id, tenant_id, name, phone, email, notes, tags, wa_opt_in, total_visits,
-				       stage_id, last_visit_at, next_recall_at, lifetime_value, acquisition_source,
-				       created_at
-				FROM customers
-				WHERE tenant_id = $1
-				  AND (name ILIKE $2 OR phone ILIKE $2)
-				ORDER BY name ASC
+				SELECT c.id, c.tenant_id, c.name, c.phone, c.email, c.notes, c.tags, c.wa_opt_in,
+				       c.total_visits, c.stage_id, c.last_visit_at, c.next_recall_at,
+				       c.lifetime_value, c.acquisition_source, c.created_at,
+				       lp.professional_id AS last_professional_id,
+				       lp.professional_name AS last_professional_name,
+				       lp.starts_at AS last_attended_at
+				FROM customers c
+				LEFT JOIN LATERAL (
+				  SELECT a.professional_id, p.name AS professional_name, a.starts_at
+				  FROM appointments a
+				  JOIN professionals p ON p.id = a.professional_id
+				  WHERE a.customer_id = c.id AND a.status = 'completed'
+				  ORDER BY a.starts_at DESC
+				  LIMIT 1
+				) lp ON TRUE
+				WHERE c.tenant_id = $1
+				  AND (c.name ILIKE $2 OR c.phone ILIKE $2)
+				ORDER BY c.name ASC
 				LIMIT $3 OFFSET $4
 			`, tenantID, "%"+search+"%", limit, offset)
 		} else {
 			rows, err = tx.Query(ctx, `
-				SELECT id, tenant_id, name, phone, email, notes, tags, wa_opt_in, total_visits,
-				       stage_id, last_visit_at, next_recall_at, lifetime_value, acquisition_source,
-				       created_at
-				FROM customers
-				WHERE tenant_id = $1
-				ORDER BY name ASC
+				SELECT c.id, c.tenant_id, c.name, c.phone, c.email, c.notes, c.tags, c.wa_opt_in,
+				       c.total_visits, c.stage_id, c.last_visit_at, c.next_recall_at,
+				       c.lifetime_value, c.acquisition_source, c.created_at,
+				       lp.professional_id AS last_professional_id,
+				       lp.professional_name AS last_professional_name,
+				       lp.starts_at AS last_attended_at
+				FROM customers c
+				LEFT JOIN LATERAL (
+				  SELECT a.professional_id, p.name AS professional_name, a.starts_at
+				  FROM appointments a
+				  JOIN professionals p ON p.id = a.professional_id
+				  WHERE a.customer_id = c.id AND a.status = 'completed'
+				  ORDER BY a.starts_at DESC
+				  LIMIT 1
+				) lp ON TRUE
+				WHERE c.tenant_id = $1
+				ORDER BY c.name ASC
 				LIMIT $2 OFFSET $3
 			`, tenantID, limit, offset)
 		}
@@ -180,7 +237,7 @@ func (r *customerRepository) List(ctx context.Context, tenantID uuid.UUID, searc
 
 		for rows.Next() {
 			c := &domain.Customer{}
-			if err := scanCustomer(rows, c); err != nil {
+			if err := scanCustomerWithLast(rows, c); err != nil {
 				return fmt.Errorf("customerRepository.List: scan: %w", err)
 			}
 			result = append(result, c)

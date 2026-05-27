@@ -30,7 +30,7 @@ func (r *scheduleRepository) GetSchedules(ctx context.Context, tenantID, profess
 			       to_char(start_time, 'HH24:MI'), to_char(end_time, 'HH24:MI'), is_active
 			FROM schedules
 			WHERE tenant_id = $1 AND professional_id = $2
-			ORDER BY day_of_week ASC
+			ORDER BY day_of_week ASC, start_time ASC
 		`, tenantID, professionalID)
 		if err != nil {
 			return fmt.Errorf("scheduleRepository.GetSchedules: query: %w", err)
@@ -53,21 +53,22 @@ func (r *scheduleRepository) GetSchedules(ctx context.Context, tenantID, profess
 }
 
 // UpsertSchedules reemplaza los horarios de un profesional con los nuevos.
-// Usa INSERT ... ON CONFLICT para actualizar si ya existe el día.
+// Borra todos los bloques previos del profesional e inserta el set entrante,
+// permitiendo múltiples bloques por día (ej: 08-12 y 14-18).
 func (r *scheduleRepository) UpsertSchedules(ctx context.Context, tenantID, professionalID uuid.UUID, schedules []*domain.Schedule) ([]*domain.Schedule, error) {
 	err := withTenant(ctx, r.db, tenantID, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `
+			DELETE FROM schedules
+			WHERE tenant_id = $1 AND professional_id = $2
+		`, tenantID, professionalID); err != nil {
+			return fmt.Errorf("scheduleRepository.UpsertSchedules: delete: %w", err)
+		}
 		for _, s := range schedules {
 			_, err := tx.Exec(ctx, `
 				INSERT INTO schedules
 					(id, tenant_id, professional_id, day_of_week, start_time, end_time, is_active)
 				VALUES
 					(uuid_generate_v4(), $1, $2, $3, $4::TIME, $5::TIME, $6)
-				ON CONFLICT (professional_id, day_of_week)
-				DO UPDATE SET
-					start_time = EXCLUDED.start_time,
-					end_time   = EXCLUDED.end_time,
-					is_active  = EXCLUDED.is_active,
-					tenant_id  = EXCLUDED.tenant_id
 			`, tenantID, professionalID, s.DayOfWeek, s.StartTime, s.EndTime, s.IsActive)
 			if err != nil {
 				return fmt.Errorf("scheduleRepository.UpsertSchedules day=%d: %w", s.DayOfWeek, err)
@@ -78,7 +79,6 @@ func (r *scheduleRepository) UpsertSchedules(ctx context.Context, tenantID, prof
 	if err != nil {
 		return nil, err
 	}
-	// Retornar los horarios actualizados
 	return r.GetSchedules(ctx, tenantID, professionalID)
 }
 
@@ -121,6 +121,10 @@ func (r *scheduleRepository) GetBlocks(ctx context.Context, tenantID, profession
 		); err != nil {
 			return nil, fmt.Errorf("scheduleRepository.GetBlocks: scan: %w", err)
 		}
+		// Ver nota en ListBlocks: forzar UTC para evitar drift por TZ del proceso Go.
+		b.StartsAt = b.StartsAt.UTC()
+		b.EndsAt = b.EndsAt.UTC()
+		b.CreatedAt = b.CreatedAt.UTC()
 		b.ProfessionalID = profID
 		blocks = append(blocks, b)
 	}
@@ -214,6 +218,11 @@ func (r *scheduleRepository) ListBlocks(ctx context.Context, tenantID uuid.UUID,
 		); err != nil {
 			return nil, fmt.Errorf("scheduleRepository.ListBlocks: scan: %w", err)
 		}
+		// Forzar UTC: pgx puede devolver TIMESTAMPTZ con la TZ del proceso Go,
+		// lo que corrompe la HH:MM de los bloqueos recurrentes al pasar por JSON.
+		b.StartsAt = b.StartsAt.UTC()
+		b.EndsAt = b.EndsAt.UTC()
+		b.CreatedAt = b.CreatedAt.UTC()
 		b.ProfessionalID = profID
 		blocks = append(blocks, b)
 	}

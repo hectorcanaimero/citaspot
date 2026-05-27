@@ -239,6 +239,9 @@ type Customer struct {
 	LifetimeValue     float64    `json:"lifetime_value"`
 	AcquisitionSource string     `json:"acquisition_source,omitempty"`
 	CreatedAt         time.Time  `json:"created_at"`
+	LastProfessionalID   *uuid.UUID `db:"last_professional_id" json:"last_professional_id,omitempty"`
+	LastProfessionalName *string    `db:"last_professional_name" json:"last_professional_name,omitempty"`
+	LastAttendedAt       *time.Time `db:"last_attended_at" json:"last_attended_at,omitempty"`
 }
 
 // ── Appointment ───────────────────────────────────────────────────────────────

@@ -60,6 +60,7 @@ type RouteDeps struct {
 	ChatbotHandler          *handler.ChatbotHandler
 	WaitlistHandler         *handler.WaitlistHandler
 	RealtimeHandler         *handler.RealtimeHandler
+	UserNotifHandler        *handler.UserNotificationHandler
 
 	// Override del stack de auth para tests.
 	// Si es nil, se construye la cadena real: JWT + Tenant + PlanCheck.
@@ -412,6 +413,16 @@ func SetupRoutes(app *fiber.App, deps *RouteDeps) {
 
 	// CRM Metrics
 	protected.Get("/crm/metrics", deps.CrmHandler.Metrics)
+
+	// Notificaciones in-app del dashboard (CITAS-41).
+	// Acceso restringido a owner/admin — el handler valida el rol.
+	if deps.UserNotifHandler != nil {
+		notifs := protected.Group("/notifications")
+		notifs.Get("/", deps.UserNotifHandler.List)
+		notifs.Get("/unread-count", deps.UserNotifHandler.UnreadCount)
+		notifs.Post("/read-all", deps.UserNotifHandler.MarkAllRead)
+		notifs.Post("/:id/read", deps.UserNotifHandler.MarkRead)
+	}
 
 	// Realtime (SSE) — Phase C: grupo dedicado con JWTMiddlewareWithQuery
 	// porque EventSource no permite setear cabeceras custom (Authorization),

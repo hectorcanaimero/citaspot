@@ -23,6 +23,9 @@ type appointmentSvc struct {
 	notifRepo    domain.NotificationRepository
 	publisher    domain.MessagePublisher
 	events       domain.EventRepository
+	// userNotifSvc es opcional — si es nil, no se generan notificaciones in-app.
+	// Permite construir el service sin acoplar el feed dashboard en tests.
+	userNotifSvc domain.UserNotificationSvc
 	// rdb es opcional — si es nil, publishRealtime es no-op. Permite degradar
 	// el realtime dashboard sin tirar el servicio cuando Redis no está disponible.
 	rdb *redis.Client
@@ -31,6 +34,10 @@ type appointmentSvc struct {
 // NewAppointmentSvc crea el servicio de citas.
 // El parametro rdb es opcional (puede ser nil) — habilita el publish de eventos
 // a Redis Pub/Sub para el dashboard SSE. Si es nil, publishRealtime es no-op.
+//
+// Para enganchar el feed in-app del dashboard, llamar a SetUserNotificationSvc
+// tras la construcción. Se mantiene fuera del constructor para no acoplar
+// llamadores existentes que aún no inyectan el feed.
 func NewAppointmentSvc(
 	apptRepo domain.AppointmentRepository,
 	serviceRepo domain.ServiceRepository,
@@ -55,6 +62,13 @@ func NewAppointmentSvc(
 		events:       events,
 		rdb:          rdb,
 	}
+}
+
+// SetUserNotificationSvc inyecta el servicio de notificaciones in-app.
+// Si no se llama, los métodos de mutación del service no generan
+// notificaciones — el resto del flujo sigue funcionando.
+func (s *appointmentSvc) SetUserNotificationSvc(svc domain.UserNotificationSvc) {
+	s.userNotifSvc = svc
 }
 
 // List retorna las citas de un día para el tenant.
@@ -164,6 +178,9 @@ func (s *appointmentSvc) Create(ctx context.Context, tenantID uuid.UUID, req *do
 	// Notificación realtime al dashboard vía Redis Pub/Sub (best-effort, post-commit).
 	s.publishRealtime(ctx, tenantID, appt.ID, "appointment.created")
 
+	// Feed in-app del dashboard (best-effort, post-commit).
+	s.pushUserNotification(ctx, tenantID, appt.ID, domain.UserNotificationAppointmentCreated)
+
 	return appt, nil
 }
 
@@ -230,6 +247,9 @@ func (s *appointmentSvc) Cancel(ctx context.Context, tenantID, id uuid.UUID, rea
 	// Notificación realtime al dashboard vía Redis Pub/Sub (best-effort, post-commit).
 	s.publishRealtime(ctx, tenantID, id, "appointment.cancelled")
 
+	// Feed in-app del dashboard (best-effort, post-commit).
+	s.pushUserNotification(ctx, tenantID, id, domain.UserNotificationAppointmentCancelled)
+
 	return nil
 }
 
@@ -273,7 +293,64 @@ func (s *appointmentSvc) Reschedule(ctx context.Context, tenantID, id uuid.UUID,
 	// Notificación realtime al dashboard vía Redis Pub/Sub (best-effort, post-commit).
 	s.publishRealtime(ctx, tenantID, id, "appointment.rescheduled")
 
+	// Feed in-app del dashboard (best-effort, post-commit).
+	s.pushUserNotification(ctx, tenantID, id, domain.UserNotificationAppointmentRescheduled)
+
 	return nil
+}
+
+// pushUserNotification crea una entrada en el feed in-app del dashboard.
+// Best-effort: si falla, loguea y sigue — nunca rompe la operación principal.
+// No-op si userNotifSvc no fue inyectado (tests, modo degradado).
+func (s *appointmentSvc) pushUserNotification(ctx context.Context, tenantID, apptID uuid.UUID, eventType string) {
+	if s.userNotifSvc == nil {
+		return
+	}
+	appt, err := s.apptRepo.GetByID(ctx, tenantID, apptID)
+	if err != nil {
+		slog.Warn("appointmentSvc.pushUserNotification: load appointment", "appt_id", apptID, "error", err)
+		return
+	}
+
+	// Formatear starts_at en timezone del tenant para el body
+	tenant, _ := s.authRepo.FindTenantByID(ctx, tenantID)
+	loc := time.UTC
+	if tenant != nil && tenant.Timezone != "" {
+		if l, err := time.LoadLocation(tenant.Timezone); err == nil {
+			loc = l
+		}
+	}
+	localTime := appt.StartsAt.In(loc).Format("02/01/2006 3:04 PM")
+
+	var title, body string
+	switch eventType {
+	case domain.UserNotificationAppointmentCreated:
+		title = fmt.Sprintf("Nueva cita: %s con %s", appt.CustomerName, appt.ProfessionalName)
+		body = fmt.Sprintf("%s — %s", appt.ServiceName, localTime)
+	case domain.UserNotificationAppointmentCancelled:
+		title = fmt.Sprintf("Cita cancelada: %s", appt.CustomerName)
+		body = fmt.Sprintf("%s — %s", appt.ServiceName, localTime)
+	case domain.UserNotificationAppointmentRescheduled:
+		title = fmt.Sprintf("Cita reagendada: %s", appt.CustomerName)
+		body = fmt.Sprintf("Nuevo horario: %s", localTime)
+	default:
+		return
+	}
+
+	metadata := map[string]any{
+		"appointment_id":     apptID.String(),
+		"customer_id":        appt.CustomerID.String(),
+		"customer_name":      appt.CustomerName,
+		"professional_id":    appt.ProfessionalID.String(),
+		"professional_name":  appt.ProfessionalName,
+		"service_id":         appt.ServiceID.String(),
+		"service_name":       appt.ServiceName,
+		"starts_at":          appt.StartsAt.UTC().Format(time.RFC3339),
+	}
+
+	if _, err := s.userNotifSvc.Create(ctx, tenantID, eventType, title, body, metadata); err != nil {
+		slog.Warn("appointmentSvc.pushUserNotification: create", "appt_id", apptID, "type", eventType, "error", err)
+	}
 }
 
 // publishRealtime publica un evento al canal Redis `tenant:{id}:appointments`

@@ -15,6 +15,7 @@ import {
   X,
   Check,
   Ban,
+  UserCheck,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import type { BadgeVariant } from '@/components/ui/badge';
@@ -740,6 +741,17 @@ export default function CustomerProfilePage() {
                   </span>
                 </div>
               )}
+              <div className="flex flex-1 flex-col items-center px-4 py-3">
+                <span className="text-xs text-neutral-500">{t.clients.lastProfessional}</span>
+                {customer.last_professional_name ? (
+                  <span className="mt-0.5 flex items-center gap-1 text-sm font-medium text-neutral-700">
+                    <UserCheck className="h-3.5 w-3.5 text-neutral-400" />
+                    {customer.last_professional_name}
+                  </span>
+                ) : (
+                  <span className="mt-0.5 text-sm text-neutral-300">—</span>
+                )}
+              </div>
               {customer.lifetime_value != null && customer.lifetime_value > 0 && (
                 <div className="flex flex-1 flex-col items-center px-4 py-3">
                   <span className="text-xs text-neutral-500">{t.clients.lifetimeValue}</span>
@@ -770,6 +782,26 @@ export default function CustomerProfilePage() {
                   </span>
                 </div>
               )}
+              <div className="flex items-center gap-3 px-4 py-3">
+                <UserCheck className="h-4 w-4 text-neutral-400 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <span className="text-xs text-neutral-500">{t.clients.lastProfessional}</span>
+                </div>
+                {customer.last_professional_name ? (
+                  <div className="flex flex-col items-end">
+                    <span className="text-sm font-medium text-neutral-700 truncate max-w-[180px]">
+                      {customer.last_professional_name}
+                    </span>
+                    {customer.last_attended_at && (
+                      <span className="text-xs text-neutral-400">
+                        {format(new Date(customer.last_attended_at), 'd MMM yyyy', { locale: dateLocale })}
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <span className="text-sm text-neutral-300">—</span>
+                )}
+              </div>
               {customer.lifetime_value != null && customer.lifetime_value > 0 && (
                 <div className="flex items-center gap-3 px-4 py-3">
                   <DollarSign className="h-4 w-4 text-neutral-400 flex-shrink-0" />

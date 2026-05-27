@@ -58,31 +58,31 @@ func (s *availabilityService) GetAvailableSlots(ctx context.Context, tenantID uu
 	// 0=Dom, 1=Lun … Go: time.Sunday=0, time.Monday=1 — match directo con el schema
 	dayOfWeek := int(day.Weekday())
 
-	// 3. Obtener horario del profesional para ese día
+	// 3. Obtener horario del profesional para ese día (puede haber múltiples bloques: ej 08-12 y 14-18)
 	schedules, err := s.scheduleRepo.GetSchedules(ctx, tenantID, query.ProfessionalID)
 	if err != nil {
 		return nil, fmt.Errorf("availabilityService: schedules: %w", err)
 	}
 
-	var workStart, workEnd time.Time
-	found := false
+	type workBlock struct {
+		start, end time.Time
+	}
+	var workBlocks []workBlock
 	for _, sch := range schedules {
 		if sch.DayOfWeek == dayOfWeek && sch.IsActive {
-			// Combinar la fecha del día con el horario HH:MM
-			workStart, err = parseTimeOnDay(day, sch.StartTime, loc)
+			bs, err := parseTimeOnDay(day, sch.StartTime, loc)
 			if err != nil {
 				return nil, err
 			}
-			workEnd, err = parseTimeOnDay(day, sch.EndTime, loc)
+			be, err := parseTimeOnDay(day, sch.EndTime, loc)
 			if err != nil {
 				return nil, err
 			}
-			found = true
-			break
+			workBlocks = append(workBlocks, workBlock{start: bs, end: be})
 		}
 	}
 
-	if !found {
+	if len(workBlocks) == 0 {
 		// El profesional no trabaja ese día → retornar lista vacía
 		return []*domain.TimeSlot{}, nil
 	}
@@ -105,35 +105,33 @@ func (s *availabilityService) GetAvailableSlots(ctx context.Context, tenantID uu
 		return nil, fmt.Errorf("availabilityService: blocks: %w", err)
 	}
 
-	// 5. Generar y filtrar slots
-	// now en la location del tenant para comparar contra slots construidos en loc.
+	// 5. Generar y filtrar slots por cada bloque de trabajo
 	now := time.Now().In(loc)
 	var slots []*domain.TimeSlot
 
-	slotStart := workStart
-	for {
-		slotEnd := slotStart.Add(totalDuration)
-		if slotEnd.After(workEnd) {
-			break
-		}
+	for _, wb := range workBlocks {
+		slotStart := wb.start
+		for {
+			slotEnd := slotStart.Add(totalDuration)
+			if slotEnd.After(wb.end) {
+				break
+			}
 
-		// No mostrar slots en el pasado
-		if slotStart.Before(now) {
+			// No mostrar slots en el pasado
+			if slotStart.Before(now) {
+				slotStart = slotStart.Add(totalDuration)
+				continue
+			}
+
+			if !overlapsAny(slotStart, slotEnd, existingAppts, blocks) {
+				slots = append(slots, &domain.TimeSlot{
+					StartsAt: slotStart,
+					EndsAt:   slotStart.Add(time.Duration(svc.DurationMin) * time.Minute),
+				})
+			}
+
 			slotStart = slotStart.Add(totalDuration)
-			continue
 		}
-
-		if !overlapsAny(slotStart, slotEnd, existingAppts, blocks) {
-			// Retornamos slotStart/slotEnd en la location del tenant.
-			// El JSON quedará como "2026-05-19T08:00:00-04:00" con offset explícito,
-			// no como "...Z" (que perdería el contexto local en el frontend).
-			slots = append(slots, &domain.TimeSlot{
-				StartsAt: slotStart,
-				EndsAt:   slotStart.Add(time.Duration(svc.DurationMin) * time.Minute),
-			})
-		}
-
-		slotStart = slotStart.Add(totalDuration)
 	}
 
 	if slots == nil {

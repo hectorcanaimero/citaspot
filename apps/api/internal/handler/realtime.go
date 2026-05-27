@@ -1,8 +1,11 @@
 // Package handler — HTTP handler para streams en tiempo real (SSE).
 //
 // Phase C: suscripción por conexión a Redis Pub/Sub. Cada cliente abre su
-// propia suscripción al canal `tenant:{tenantID}:appointments` — el tenant
-// se deriva SIEMPRE del contexto autenticado, NUNCA de la URL.
+// propia suscripción a los canales `tenant:{tenantID}:appointments` y
+// `tenant:{tenantID}:notifications` — el tenant se deriva SIEMPRE del
+// contexto autenticado, NUNCA de la URL. Los dos canales viajan por el mismo
+// stream SSE; el campo `event` del payload (appointment.* | notification.*)
+// le indica al cliente qué tipo de evento es.
 package handler
 
 import (
@@ -36,15 +39,22 @@ func NewRealtimeHandler(rdb *redis.Client) *RealtimeHandler {
 
 // Appointments GET /api/v1/realtime/appointments
 //
-// Stream SSE de eventos de citas para el tenant autenticado. Se suscribe al
-// canal Redis `tenant:{tenantID}:appointments` y reenvía cada mensaje
-// recibido como un evento SSE. La conexión se cierra limpiamente cuando el
-// cliente desconecta (UserContext().Done()).
+// Stream SSE multiplexado para el tenant autenticado. Se suscribe a DOS canales
+// Redis con la misma suscripción pub/sub:
 //
-// Formato del payload publicado por el service (ver service/appointments.go):
+//   - `tenant:{tenantID}:appointments` — eventos de citas (appointment.*)
+//   - `tenant:{tenantID}:notifications` — feed in-app (notification.created)
 //
-//	{"event":"appointment.created|updated|cancelled|rescheduled",
-//	 "data": <AppointmentWithDetails>, "ts":"<RFC3339>"}
+// Por compatibilidad histórica la URL sigue siendo `/realtime/appointments`:
+// el cliente diferencia eventos por el campo `event` del payload, no por la URL.
+//
+// La conexión se cierra limpiamente cuando el cliente desconecta
+// (UserContext().Done()).
+//
+// Formato del payload publicado por los services:
+//
+//	{"event":"appointment.created|updated|cancelled|rescheduled|notification.created",
+//	 "data": <...>, "ts":"<RFC3339>"}
 //
 // Salida SSE:
 //
@@ -69,7 +79,8 @@ func (h *RealtimeHandler) Appointments(c *fiber.Ctx) error {
 	c.Set("Connection", "keep-alive")
 	c.Set("X-Accel-Buffering", "no")
 
-	channel := fmt.Sprintf("tenant:%s:appointments", tenantID)
+	apptChannel := fmt.Sprintf("tenant:%s:appointments", tenantID)
+	notifChannel := fmt.Sprintf("tenant:%s:notifications", tenantID)
 	// Capturamos UserContext ANTES de SetBodyStreamWriter — fasthttp recicla
 	// c.Context() después de que el handler retorna, por lo que dentro del
 	// stream writer no podemos depender del request context original.
@@ -78,8 +89,9 @@ func (h *RealtimeHandler) Appointments(c *fiber.Ctx) error {
 
 	c.Context().SetBodyStreamWriter(fasthttp.StreamWriter(func(w *bufio.Writer) {
 		// Suscripción PER-CONEXIÓN — NUNCA compartir entre clientes.
-		// Cada tenant tiene su propia suscripción a su propio canal.
-		pubsub := rdb.Subscribe(ctx, channel)
+		// go-redis acepta múltiples canales en una sola Subscribe — los
+		// mensajes de ambos canales fluyen por el mismo Channel().
+		pubsub := rdb.Subscribe(ctx, apptChannel, notifChannel)
 		defer pubsub.Close()
 
 		// Mensaje inicial — confirma al cliente que la conexión está viva
@@ -124,12 +136,17 @@ func (h *RealtimeHandler) Appointments(c *fiber.Ctx) error {
 				}
 				if err := json.Unmarshal([]byte(m.Payload), &env); err != nil {
 					slog.Warn("realtime: payload sin event válido",
-						slog.String("channel", channel),
+						slog.String("channel", m.Channel),
 						slog.String("err", err.Error()),
 					)
 				}
 				if env.Event == "" {
-					env.Event = "appointment.event"
+					// Fallback por canal de origen si el publisher omitió `event`.
+					if m.Channel == notifChannel {
+						env.Event = "notification.event"
+					} else {
+						env.Event = "appointment.event"
+					}
 				}
 				if _, err := fmt.Fprintf(w, "event: %s\ndata: %s\n\n", env.Event, m.Payload); err != nil {
 					return
