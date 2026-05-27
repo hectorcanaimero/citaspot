@@ -22,6 +22,7 @@ dist/
 build/
 .next/
 out/
+*.tsbuildinfo
 
 # Go binaries
 apps/api/server
