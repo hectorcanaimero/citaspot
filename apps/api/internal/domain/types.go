@@ -27,6 +27,11 @@ type Tenant struct {
 	TrialEndsAt    *time.Time `json:"trial_ends_at,omitempty"`
 	WAStatus       string         `json:"wa_status,omitempty"`
 	Settings       TenantSettings `json:"settings"`
+	// Modo del asistente conversacional para tenants dentales (migración 044).
+	// Valores: 'in_chat' (default) | 'send_link' | 'hybrid'.
+	DentalAssistantMode string `json:"dental_assistant_mode,omitempty"`
+	UrgencyPhone        string `json:"urgency_phone,omitempty"`
+	UrgencyMessage      string `json:"urgency_message,omitempty"`
 	CreatedAt      time.Time  `json:"created_at"`
 	UpdatedAt      time.Time  `json:"updated_at"`
 }
@@ -307,6 +312,9 @@ type RescheduleRequest struct {
 	ProfessionalID *uuid.UUID `json:"professional_id"`
 	ServiceID      *uuid.UUID `json:"service_id"`
 	StartsAt       time.Time  `json:"starts_at" validate:"required"`
+	// EndsAt es opcional: si se provee, sobreescribe la duración por defecto del servicio.
+	// Útil para acortar/alargar una cita puntual sin alterar el catálogo de servicios.
+	EndsAt *time.Time `json:"ends_at,omitempty"`
 }
 
 // ── Availability ──────────────────────────────────────────────────────────────
@@ -380,6 +388,11 @@ type PublicProfile struct {
 	LogoURL            string `json:"logo_url,omitempty"`
 	CoverURL           string `json:"cover_url,omitempty"`
 	Description        string `json:"description,omitempty"`
+	// Solo populado cuando business_type='dental' — el AI Service lo consume
+	// para rutear el flujo (triaje + send-link mode).
+	DentalAssistantMode string `json:"dental_assistant_mode,omitempty"`
+	UrgencyPhone        string `json:"urgency_phone,omitempty"`
+	UrgencyMessage      string `json:"urgency_message,omitempty"`
 }
 
 // PublicAppointment vista simplificada de una cita para endpoints públicos.

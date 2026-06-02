@@ -636,6 +636,27 @@ GEMINI_TOOLS: list[dict[str, Any]] = [
     {"function_declarations": [spec.gemini_schema() for spec in TOOL_REGISTRY.values()]}
 ]
 
+# Tools que mutan o gestionan el booking in-chat. En modo dental 'send_link'
+# las desregistramos del LLM para que NUNCA intente agendar — el flujo dirige
+# al link de booking en vez de tomar el slot por chat.
+_BOOKING_MUTATION_TOOLS = {"check_availability", "book_appointment"}
+
+
+def openai_tools_for_mode(dental_mode: str | None) -> list[dict[str, Any]]:
+    """
+    Devuelve el subset de OPENAI_TOOLS apropiado según el modo del asistente.
+
+    - 'send_link': sin check_availability ni book_appointment (el bot no agenda).
+    - cualquier otro valor o None: todas las tools (comportamiento legacy).
+    """
+    if dental_mode == "send_link":
+        return [
+            spec.openai_schema()
+            for name, spec in TOOL_REGISTRY.items()
+            if name not in _BOOKING_MUTATION_TOOLS
+        ]
+    return OPENAI_TOOLS
+
 
 # ---------------------------------------------------------------------------
 # Executor

@@ -182,6 +182,35 @@ async def reschedule_appointment(slug: str, appointment_id: str, phone: str, sta
             return False
 
 
+async def notify_handoff(
+    slug: str,
+    conversation_id: str,
+    customer_phone: str,
+    reason: str,
+) -> bool:
+    """
+    Notifica al Core API que una conversación fue derivada a humano. El Core API
+    crea un user_notification y lo publica al canal SSE del tenant para que la
+    campana del dashboard lo muestre en tiempo real.
+
+    Best-effort: si el POST falla, el handoff de Redis ya sucedió y el cliente
+    igual ve "te conecto con el equipo". Solo perdemos la notificación interna.
+    """
+    body = {
+        "conversation_id": conversation_id,
+        "customer_phone": customer_phone,
+        "reason": reason,
+    }
+    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+        try:
+            r = await client.post(_core_url(f"/public/{slug}/handoff-notify"), json=body)
+            r.raise_for_status()
+            return True
+        except Exception as e:
+            log.error("actions.notify_handoff: %s", e)
+            return False
+
+
 async def rag_query(tenant_id: str, query: str, min_similarity: float | None = None) -> str:
     """
     Busca en la base de conocimiento del tenant y retorna texto de contexto

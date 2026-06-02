@@ -12,9 +12,11 @@
 // que comparten la misma instancia de estado.
 
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import {
   Bell,
+  BellOff,
   CalendarPlus,
   CalendarX,
   CalendarClock,
@@ -23,6 +25,7 @@ import {
 import { useTranslations } from '@/lib/i18n';
 import type { UserNotification, UserNotificationType } from '@/lib/api';
 import type { UseNotificationsResult } from '@/hooks/useNotifications';
+import { useNotifications as useNotificationStore } from '@/store/notifications';
 import { cn } from '@/lib/utils';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -91,8 +94,19 @@ export interface NotificationBellProps {
 export function NotificationBell({ notifications }: NotificationBellProps) {
   const t = useTranslations();
   const router = useRouter();
-  const containerRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
+  const [position, setPosition] = useState<{ top: number; right: number } | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  // El portal solo puede renderizar en cliente — evita mismatch en SSR.
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const soundEnabled = useNotificationStore((s) => s.soundEnabled);
+  const toggleSound = useNotificationStore((s) => s.toggleSound);
 
   const {
     notifications: items,
@@ -105,22 +119,43 @@ export function NotificationBell({ notifications }: NotificationBellProps) {
     markAllRead,
   } = notifications;
 
-  // Cerrar al clickear fuera o presionar Escape.
+  // Cerrar al clickear fuera o presionar Escape + recalcular posición del popover.
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setPosition(null);
+      return;
+    }
+
+    const updatePosition = () => {
+      const rect = buttonRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      setPosition({
+        top: rect.bottom + 8,
+        right: Math.max(8, window.innerWidth - rect.right),
+      });
+    };
+
+    updatePosition();
+
     const onClickOutside = (e: MouseEvent) => {
-      if (!containerRef.current?.contains(e.target as Node)) {
-        setOpen(false);
-      }
+      const target = e.target as Node;
+      if (buttonRef.current?.contains(target)) return;
+      if (popoverRef.current?.contains(target)) return;
+      setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setOpen(false);
     };
     document.addEventListener('mousedown', onClickOutside);
     document.addEventListener('keydown', onKey);
+    window.addEventListener('resize', updatePosition);
+    // capture=true para enterarse del scroll en cualquier ancestro.
+    window.addEventListener('scroll', updatePosition, true);
     return () => {
       document.removeEventListener('mousedown', onClickOutside);
       document.removeEventListener('keydown', onKey);
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
     };
   }, [open]);
 
@@ -148,9 +183,135 @@ export function NotificationBell({ notifications }: NotificationBellProps) {
 
   const badgeText = unreadCount > 9 ? '9+' : String(unreadCount);
 
+  const soundLabel = soundEnabled ? t.dashboard.soundOn : t.dashboard.soundOff;
+
+  const popover = open && position && (
+    <div
+      ref={popoverRef}
+      role="dialog"
+      aria-label={t.notifications.title}
+      style={{ position: 'fixed', top: position.top, right: position.right }}
+      className="animate-fade-in z-[100] w-[min(92vw,360px)] overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-lg"
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-neutral-200 px-4 py-3">
+        <h3 className="text-sm font-semibold text-neutral-900">
+          {t.notifications.title}
+        </h3>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={toggleSound}
+            aria-label={soundLabel}
+            aria-pressed={soundEnabled}
+            title={soundLabel}
+            className="flex h-7 w-7 items-center justify-center rounded-md text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-700"
+          >
+            {soundEnabled ? (
+              <Bell className="h-3.5 w-3.5" />
+            ) : (
+              <BellOff className="h-3.5 w-3.5" />
+            )}
+          </button>
+          {unreadCount > 0 && (
+            <button
+              type="button"
+              onClick={handleMarkAll}
+              className="text-xs font-medium text-primary-600 transition-colors hover:text-primary-700"
+            >
+              {t.notifications.markAllRead}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Body */}
+      <div className="max-h-[60vh] overflow-y-auto">
+        {loading && items.length === 0 ? (
+          <div className="space-y-2 p-3">
+            {[0, 1, 2].map((i) => (
+              <div
+                key={i}
+                className="h-14 animate-pulse rounded-lg bg-neutral-100"
+              />
+            ))}
+          </div>
+        ) : items.length === 0 ? (
+          <div className="px-4 py-8 text-center text-sm text-neutral-500">
+            {t.notifications.empty}
+          </div>
+        ) : (
+          <ul className="divide-y divide-neutral-100">
+            {items.map((n) => {
+              const isUnread = n.read_at === null;
+              return (
+                <li key={n.id}>
+                  <button
+                    type="button"
+                    onClick={() => handleRowClick(n)}
+                    className={cn(
+                      'flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-neutral-50',
+                      isUnread && 'bg-primary-50/40',
+                    )}
+                  >
+                    <span className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-neutral-100">
+                      <IconForType type={n.type} />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <p
+                          className={cn(
+                            'truncate text-sm leading-tight',
+                            isUnread
+                              ? 'font-semibold text-neutral-900'
+                              : 'font-medium text-neutral-700',
+                          )}
+                        >
+                          {n.title}
+                        </p>
+                        {isUnread && (
+                          <span
+                            aria-hidden
+                            className="mt-1 h-2 w-2 flex-shrink-0 rounded-full bg-primary-500"
+                          />
+                        )}
+                      </div>
+                      {n.body && (
+                        <p className="mt-0.5 line-clamp-2 text-xs text-neutral-500">
+                          {n.body}
+                        </p>
+                      )}
+                      <p className="mt-1 text-[11px] text-neutral-400">
+                        {formatRelative(n.created_at, t)}
+                      </p>
+                    </div>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+
+      {/* Footer */}
+      {hasMore && items.length > 0 && (
+        <div className="border-t border-neutral-200 px-4 py-2">
+          <button
+            type="button"
+            onClick={() => void loadMore()}
+            className="w-full rounded-lg py-2 text-center text-xs font-medium text-primary-600 transition-colors hover:bg-primary-50"
+          >
+            {t.notifications.loadMore}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
   return (
-    <div ref={containerRef} className="relative">
+    <>
       <button
+        ref={buttonRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-label={t.notifications.title}
@@ -168,112 +329,8 @@ export function NotificationBell({ notifications }: NotificationBellProps) {
           </span>
         )}
       </button>
-
-      {open && (
-        <div
-          role="dialog"
-          aria-label={t.notifications.title}
-          className="animate-fade-in absolute right-0 top-full z-50 mt-2 w-[min(92vw,360px)] overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-lg"
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between border-b border-neutral-200 px-4 py-3">
-            <h3 className="text-sm font-semibold text-neutral-900">
-              {t.notifications.title}
-            </h3>
-            {unreadCount > 0 && (
-              <button
-                type="button"
-                onClick={handleMarkAll}
-                className="text-xs font-medium text-primary-600 transition-colors hover:text-primary-700"
-              >
-                {t.notifications.markAllRead}
-              </button>
-            )}
-          </div>
-
-          {/* Body */}
-          <div className="max-h-[60vh] overflow-y-auto">
-            {loading && items.length === 0 ? (
-              <div className="space-y-2 p-3">
-                {[0, 1, 2].map((i) => (
-                  <div
-                    key={i}
-                    className="h-14 animate-pulse rounded-lg bg-neutral-100"
-                  />
-                ))}
-              </div>
-            ) : items.length === 0 ? (
-              <div className="px-4 py-8 text-center text-sm text-neutral-500">
-                {t.notifications.empty}
-              </div>
-            ) : (
-              <ul className="divide-y divide-neutral-100">
-                {items.map((n) => {
-                  const isUnread = n.read_at === null;
-                  return (
-                    <li key={n.id}>
-                      <button
-                        type="button"
-                        onClick={() => handleRowClick(n)}
-                        className={cn(
-                          'flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-neutral-50',
-                          isUnread && 'bg-primary-50/40',
-                        )}
-                      >
-                        <span className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-neutral-100">
-                          <IconForType type={n.type} />
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-start justify-between gap-2">
-                            <p
-                              className={cn(
-                                'truncate text-sm leading-tight',
-                                isUnread
-                                  ? 'font-semibold text-neutral-900'
-                                  : 'font-medium text-neutral-700',
-                              )}
-                            >
-                              {n.title}
-                            </p>
-                            {isUnread && (
-                              <span
-                                aria-hidden
-                                className="mt-1 h-2 w-2 flex-shrink-0 rounded-full bg-primary-500"
-                              />
-                            )}
-                          </div>
-                          {n.body && (
-                            <p className="mt-0.5 line-clamp-2 text-xs text-neutral-500">
-                              {n.body}
-                            </p>
-                          )}
-                          <p className="mt-1 text-[11px] text-neutral-400">
-                            {formatRelative(n.created_at, t)}
-                          </p>
-                        </div>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
-
-          {/* Footer */}
-          {hasMore && items.length > 0 && (
-            <div className="border-t border-neutral-200 px-4 py-2">
-              <button
-                type="button"
-                onClick={() => void loadMore()}
-                className="w-full rounded-lg py-2 text-center text-xs font-medium text-primary-600 transition-colors hover:bg-primary-50"
-              >
-                {t.notifications.loadMore}
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
+      {mounted && popover && createPortal(popover, document.body)}
+    </>
   );
 }
 

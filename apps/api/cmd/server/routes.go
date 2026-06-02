@@ -133,6 +133,7 @@ func SetupRoutes(app *fiber.App, deps *RouteDeps) {
 	pub.Get("/:slug/my-treatments", deps.PubHandler.ListMyTreatments)
 	pub.Post("/:slug/appointments/:id/cancel", deps.PubHandler.CancelAppointment)
 	pub.Post("/:slug/appointments/:id/reschedule", deps.PubHandler.RescheduleAppointment)
+	pub.Post("/:slug/handoff-notify", deps.PubHandler.NotifyHandoff)
 
 	// Lista de espera pre-launch (sin auth, sin tenant). Rate limit estricto
 	// por IP para prevenir abuse de bots que rellenen la tabla.

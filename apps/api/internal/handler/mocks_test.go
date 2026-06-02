@@ -581,6 +581,10 @@ func (m *mockPublicSvc) ListMyTreatments(ctx context.Context, slug, phone string
 	return []*domain.CustomerTreatmentSummary{}, nil
 }
 
+func (m *mockPublicSvc) NotifyHandoff(ctx context.Context, slug, conversationID, customerPhone, reason string) error {
+	return nil
+}
+
 // ── PipelineStageSvc ─────────────────────────────────────────────────────────
 
 type mockPipelineStageSvc struct {

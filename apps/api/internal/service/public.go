@@ -19,6 +19,14 @@ type publicSvc struct {
 	customerRepo   domain.CustomerRepository
 	treatmentRepo  domain.TreatmentRepository
 	moduleRepo     domain.TenantModuleRepository
+	// Inyectado vía setter después de construcción (evita ciclo con UserNotifSvc).
+	notifSvc       domain.UserNotificationSvc
+}
+
+// SetUserNotificationSvc inyecta el servicio de notificaciones in-app.
+// Se llama desde main.go tras instanciar ambos servicios.
+func (s *publicSvc) SetUserNotificationSvc(n domain.UserNotificationSvc) {
+	s.notifSvc = n
 }
 
 // NewPublicSvc crea el servicio de booking público (sin auth).
@@ -66,7 +74,7 @@ func (s *publicSvc) GetProfile(ctx context.Context, slug string) (*domain.Public
 		return nil, fmt.Errorf("publicSvc.GetProfile: service links: %w", err)
 	}
 
-	return &domain.PublicProfile{
+	profile := &domain.PublicProfile{
 		Slug:               tenant.Slug,
 		Name:               tenant.Name,
 		BusinessType:       tenant.BusinessType,
@@ -83,7 +91,17 @@ func (s *publicSvc) GetProfile(ctx context.Context, slug string) (*domain.Public
 		LogoURL:            tenant.Settings.LogoURL,
 		CoverURL:           tenant.Settings.CoverURL,
 		Description:        tenant.Settings.Description,
-	}, nil
+	}
+
+	// Campos dental-only para que el AI Service rutee el flujo.
+	// Solo se exponen cuando business_type='dental' (no contamina otros tenants).
+	if tenant.BusinessType == "dental" {
+		profile.DentalAssistantMode = tenant.DentalAssistantMode
+		profile.UrgencyPhone = tenant.UrgencyPhone
+		profile.UrgencyMessage = tenant.UrgencyMessage
+	}
+
+	return profile, nil
 }
 
 // GetAvailability retorna slots disponibles para booking público.
@@ -245,4 +263,32 @@ func (s *publicSvc) ListMyTreatments(ctx context.Context, slug, phone string) ([
 	}
 
 	return s.treatmentRepo.ListByCustomerPhonePublic(ctx, tenant.ID, phone)
+}
+
+// NotifyHandoff registra una notificación in-app indicando que el bot derivó
+// una conversación a humano (guard hit o intent HANDOFF). Es best-effort:
+// si el servicio de notificaciones no está cableado, no falla la respuesta.
+func (s *publicSvc) NotifyHandoff(
+	ctx context.Context, slug, conversationID, customerPhone, reason string,
+) error {
+	if s.notifSvc == nil {
+		// Tolerar dev environment sin notif cableado.
+		return nil
+	}
+
+	tenant, err := s.authRepo.FindTenantBySlug(ctx, slug)
+	if err != nil {
+		return err
+	}
+
+	title := "Conversación derivada a humano"
+	body := fmt.Sprintf("Motivo: %s. Cliente: %s", reason, customerPhone)
+	metadata := map[string]any{
+		"conversation_id": conversationID,
+		"customer_phone":  customerPhone,
+		"reason":          reason,
+	}
+
+	_, err = s.notifSvc.Create(ctx, tenant.ID, "conversation.handoff", title, body, metadata)
+	return err
 }

@@ -206,6 +206,10 @@ type PublicSvc interface {
 	// ListMyTreatments retorna treatments activos del cliente por teléfono (Plane #34).
 	// Solo accesible para tenants con módulo dental activo.
 	ListMyTreatments(ctx context.Context, slug, phone string) ([]*CustomerTreatmentSummary, error)
+	// NotifyHandoff registra un handoff del bot a humano. Es llamado por el
+	// AI Service cuando un guard dispara (injection, off-topic strikes, etc).
+	// Crea un user_notification y lo publica al canal SSE del tenant.
+	NotifyHandoff(ctx context.Context, slug, conversationID, customerPhone, reason string) error
 }
 
 // ── WhatsApp / Conversaciones ─────────────────────────────────────────────────

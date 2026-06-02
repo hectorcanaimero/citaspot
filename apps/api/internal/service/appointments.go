@@ -273,7 +273,18 @@ func (s *appointmentSvc) Reschedule(ctx context.Context, tenantID, id uuid.UUID,
 	if err != nil {
 		return fmt.Errorf("appointmentSvc.Reschedule: service: %w", err)
 	}
-	endsAt := req.StartsAt.Add(time.Duration(svc.DurationMin) * time.Minute)
+
+	// Si el cliente provee ends_at, usarlo como override de la duración del servicio.
+	// Caso contrario, calcular con la duración por defecto del servicio.
+	var endsAt time.Time
+	if req.EndsAt != nil {
+		endsAt = *req.EndsAt
+	} else {
+		endsAt = req.StartsAt.Add(time.Duration(svc.DurationMin) * time.Minute)
+	}
+	if !endsAt.After(req.StartsAt) {
+		return domain.ErrValidation
+	}
 
 	excludeID := id
 	conflict, err := s.apptRepo.CheckConflict(ctx, tenantID, profID, req.StartsAt, endsAt, &excludeID)

@@ -1,6 +1,22 @@
 import type { Metadata } from 'next';
+import { Cormorant_Garamond, Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
 import { LanguageProvider } from '@/lib/i18n';
+
+const serif = Cormorant_Garamond({
+  subsets: ['latin'],
+  weight: ['500', '600', '700'],
+  style: ['normal', 'italic'],
+  display: 'swap',
+  variable: '--font-serif',
+});
+
+const sans = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  display: 'swap',
+  variable: '--font-sans',
+});
 
 export const metadata: Metadata = {
   title: 'CitaSpot — Gestión de citas con IA',
@@ -12,11 +28,9 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // lang="es" es el default SSR; LanguageProvider lo actualiza en el cliente
-  // según localStorage o el idioma del navegador.
   return (
-    <html lang="es">
-      <body>
+    <html lang="es" className={`${serif.variable} ${sans.variable}`}>
+      <body className="font-sans antialiased">
         <LanguageProvider>{children}</LanguageProvider>
       </body>
     </html>

@@ -122,6 +122,9 @@ func (r *authRepository) FindTenantByID(ctx context.Context, id uuid.UUID) (*dom
 		SELECT id, slug, name, business_type, email,
 		       city, country, timezone, plan, plan_status, onboarding_done, trial_ends_at,
 		       wa_status, COALESCE(settings, '{}')::TEXT,
+		       COALESCE(dental_assistant_mode, 'in_chat'),
+		       COALESCE(urgency_phone, ''),
+		       COALESCE(urgency_message, ''),
 		       created_at, updated_at
 		FROM tenants WHERE id = $1
 	`
@@ -132,6 +135,7 @@ func (r *authRepository) FindTenantByID(ctx context.Context, id uuid.UUID) (*dom
 		&t.ID, &t.Slug, &t.Name, &t.BusinessType, &t.Email,
 		&t.City, &t.Country, &t.Timezone, &t.Plan, &t.PlanStatus, &t.OnboardingDone, &t.TrialEndsAt,
 		&waStatus, &settingsRaw,
+		&t.DentalAssistantMode, &t.UrgencyPhone, &t.UrgencyMessage,
 		&t.CreatedAt, &t.UpdatedAt,
 	)
 	if err != nil {
@@ -153,6 +157,9 @@ func (r *authRepository) FindTenantBySlug(ctx context.Context, slug string) (*do
 		SELECT id, slug, name, business_type, email,
 		       city, country, timezone, plan, plan_status, onboarding_done, trial_ends_at,
 		       wa_status, COALESCE(settings, '{}')::TEXT,
+		       COALESCE(dental_assistant_mode, 'in_chat'),
+		       COALESCE(urgency_phone, ''),
+		       COALESCE(urgency_message, ''),
 		       created_at, updated_at
 		FROM tenants WHERE slug = $1
 	`
@@ -163,6 +170,7 @@ func (r *authRepository) FindTenantBySlug(ctx context.Context, slug string) (*do
 		&t.ID, &t.Slug, &t.Name, &t.BusinessType, &t.Email,
 		&t.City, &t.Country, &t.Timezone, &t.Plan, &t.PlanStatus, &t.OnboardingDone, &t.TrialEndsAt,
 		&waStatus, &settingsRaw,
+		&t.DentalAssistantMode, &t.UrgencyPhone, &t.UrgencyMessage,
 		&t.CreatedAt, &t.UpdatedAt,
 	)
 	if err != nil {

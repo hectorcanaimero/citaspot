@@ -165,6 +165,36 @@ func (h *PublicHandler) CancelAppointment(c *fiber.Ctx) error {
 	return c.SendStatus(http.StatusNoContent)
 }
 
+// PublicHandoffNotifyRequest body del POST /public/:slug/handoff-notify.
+type publicHandoffNotifyRequest struct {
+	ConversationID string `json:"conversation_id"`
+	CustomerPhone  string `json:"customer_phone"`
+	Reason         string `json:"reason"`
+}
+
+// NotifyHandoff POST /public/:slug/handoff-notify
+// Llamado por el AI Service cuando un guard dispara o se detecta intent HANDOFF.
+// Crea una notificación in-app para el staff del tenant. Best-effort: 204 siempre.
+func (h *PublicHandler) NotifyHandoff(c *fiber.Ctx) error {
+	slug := c.Params("slug")
+	if slug == "" {
+		return c.Status(http.StatusBadRequest).JSON(errorResponse{Error: "Slug requerido"})
+	}
+
+	var req publicHandoffNotifyRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(http.StatusBadRequest).JSON(errorResponse{Error: "JSON inválido"})
+	}
+	if req.Reason == "" {
+		req.Reason = "unspecified"
+	}
+
+	if err := h.svc.NotifyHandoff(c.Context(), slug, req.ConversationID, req.CustomerPhone, req.Reason); err != nil {
+		return handleServiceError(c, err)
+	}
+	return c.SendStatus(http.StatusNoContent)
+}
+
 // RescheduleAppointment POST /public/:slug/appointments/:id/reschedule
 // Reagenda una cita verificando propiedad por teléfono.
 func (h *PublicHandler) RescheduleAppointment(c *fiber.Ctx) error {

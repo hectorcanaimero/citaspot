@@ -25,7 +25,6 @@ import { useNotifications as useNotificationFeed } from '@/hooks/useNotification
 import { useAppointmentEvents } from '@/hooks/useAppointmentEvents';
 import NewAppointmentModal from '@/components/dashboard/NewAppointmentModal';
 import UpcomingAppointmentsCard from '@/components/dashboard/UpcomingAppointmentsCard';
-import SoundToggle from '@/components/dashboard/SoundToggle';
 import NotificationBell from '@/components/notifications/NotificationBell';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -301,7 +300,6 @@ export default function DashboardPage() {
 
           <div className="flex items-center gap-2">
             <NotificationBell notifications={notificationFeed} />
-            <SoundToggle />
             <Link
               href="/dashboard/whatsapp"
               className="flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-2 text-xs font-semibold text-white backdrop-blur-sm transition-all hover:bg-white/20"

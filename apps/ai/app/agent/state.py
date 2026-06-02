@@ -26,6 +26,7 @@ class ConvState(str, Enum):
     AWAITING_RESCHEDULE_DATE = "AWAITING_RESCHEDULE_DATE"
     AWAITING_RESCHEDULE_SLOT = "AWAITING_RESCHEDULE_SLOT"
     AWAITING_RESCHEDULE_CONFIRM = "AWAITING_RESCHEDULE_CONFIRM"
+    AWAITING_URGENCY_TRIAGE = "AWAITING_URGENCY_TRIAGE"  # triaje dental: ¿es emergencia?
 
 
 def _key(tenant_id: str, conversation_id: str) -> str:
@@ -50,6 +51,8 @@ async def get_state(tenant_id: str, conversation_id: str) -> dict[str, Any]:
         "customer_name": None,
         "customer_phone": None,
         "booking_turns_without_service": 0,  # contador para oferta suave del link
+        "off_topic_strikes": 0,    # mensajes off-topic consecutivos (auto-handoff al 2do)
+        "last_guard_hit_at": None, # timestamp del último hit de guard (ISO)
     }
 
 
@@ -93,6 +96,8 @@ async def get_test_state(tenant_id: str) -> dict[str, Any]:
         "customer_name": None,
         "customer_phone": None,
         "booking_turns_without_service": 0,
+        "off_topic_strikes": 0,
+        "last_guard_hit_at": None,
     }
 
 

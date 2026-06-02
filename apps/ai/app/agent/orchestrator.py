@@ -16,14 +16,16 @@ from app.agent.actions import (
     get_availability,
     get_my_appointments,
     get_tenant_profile,
+    notify_handoff,
     reschedule_appointment,
 )
+from app.agent.guards import GuardKind, run_all_guards
 from app.agent.intent import Intent
 from app.agent.intent import detect as detect_intent
 from app.agent.messages import get_messages
 from app.agent.output import format_for_whatsapp
 from app.agent.state import ConvState, get_state, reset_state, save_state
-from app.agent.tools import OPENAI_TOOLS
+from app.agent.tools import OPENAI_TOOLS, openai_tools_for_mode
 from app.core.config import settings
 from app.core.rabbitmq import publish
 from app.llm.router import chat_with_tools
@@ -430,6 +432,162 @@ async def _send_slow_response(
     await _publish_reply(tenant_id, tenant_slug, conversation_id, wa_phone, _m("slow_response"))
 
 
+async def _handle_guard_hit(
+    tenant_id: str,
+    tenant_slug: str,
+    conversation_id: str,
+    wa_phone: str,
+    state: dict[str, Any],
+    hit,  # GuardHit
+) -> str | None:
+    """
+    Resuelve un mensaje que disparó un guard. Devuelve el texto de respuesta
+    (o None si el bot no debe responder, p.ej. tras prompt injection).
+
+    Reglas:
+    - PROMPT_INJECTION → HANDED_OFF inmediato + notify staff + bot mudo (None).
+    - OFFENSIVE        → HANDED_OFF + notify staff + mensaje de cierre.
+    - OFF_TOPIC        → strike counter. 1er strike → redirect breve.
+                         2do strike consecutivo → HANDED_OFF + notify + redirect handoff.
+    """
+    state["last_guard_hit_at"] = datetime.utcnow().isoformat()
+    profile = await get_tenant_profile(tenant_slug)
+    business_name = (profile or {}).get("name", "")
+
+    if hit.kind == GuardKind.PROMPT_INJECTION:
+        log.warning(
+            "orchestrator.guard: prompt injection detected",
+            tenant=tenant_id, conv=conversation_id, pattern=hit.pattern,
+        )
+        state["state"] = ConvState.HANDED_OFF
+        await save_state(tenant_id, conversation_id, state)
+        # Notificación al staff (best-effort, no await en caliente).
+        asyncio.create_task(notify_handoff(
+            tenant_slug, conversation_id, wa_phone,
+            f"prompt_injection:{hit.pattern}",
+        ))
+        return None  # Bot mudo, no revelar el bypass.
+
+    if hit.kind == GuardKind.OFFENSIVE:
+        log.warning(
+            "orchestrator.guard: offensive content",
+            tenant=tenant_id, conv=conversation_id, pattern=hit.pattern,
+        )
+        state["state"] = ConvState.HANDED_OFF
+        await save_state(tenant_id, conversation_id, state)
+        asyncio.create_task(notify_handoff(
+            tenant_slug, conversation_id, wa_phone,
+            f"offensive:{hit.pattern}",
+        ))
+        return _m("guard_offensive_close")
+
+    # OFF_TOPIC con strike counter.
+    strikes = int(state.get("off_topic_strikes", 0)) + 1
+    state["off_topic_strikes"] = strikes
+    log.info(
+        "orchestrator.guard: off_topic",
+        tenant=tenant_id, conv=conversation_id,
+        pattern=hit.pattern, strikes=strikes,
+    )
+
+    if strikes >= 2:
+        state["state"] = ConvState.HANDED_OFF
+        await save_state(tenant_id, conversation_id, state)
+        asyncio.create_task(notify_handoff(
+            tenant_slug, conversation_id, wa_phone,
+            f"off_topic_strikes:{hit.pattern}",
+        ))
+        return _m("guard_offtopic_handoff")
+
+    # 1er strike: redirect breve sin gastar LLM.
+    await save_state(tenant_id, conversation_id, state)
+    return _m("guard_offtopic_redirect", business_name=business_name)
+
+
+async def _maybe_dental_triage(
+    tenant_id: str,
+    tenant_slug: str,
+    conversation_id: str,
+    state: dict[str, Any],
+) -> str | None:
+    """
+    Si el tenant es dental (business_type='dental') y aún no entramos al flujo
+    de booking, transiciona a AWAITING_URGENCY_TRIAGE y devuelve la pregunta de
+    triaje. En tenants no-dental devuelve None (no afecta el flujo normal).
+
+    Migración 044 garantiza `dental_assistant_mode` con default 'in_chat', así
+    que aunque sea dental el triaje SIEMPRE corre primero — el modo solo afecta
+    qué se responde después del "no" en _handle_urgency_triage.
+    """
+    profile = await get_tenant_profile(tenant_slug)
+    if not profile:
+        return None
+    if profile.get("business_type") != "dental":
+        return None
+
+    state["state"] = ConvState.AWAITING_URGENCY_TRIAGE
+    await save_state(tenant_id, conversation_id, state)
+    return _m("urgency_triage_prompt")
+
+
+async def _handle_urgency_triage(
+    tenant_id: str,
+    tenant_slug: str,
+    conversation_id: str,
+    state: dict[str, Any],
+    wa_phone: str,
+    intent: Intent,
+) -> str | None:
+    """
+    Resuelve la respuesta del usuario al prompt de triaje dental.
+
+    - CONFIRM (sí, hay urgencia) → mostrar teléfono / mensaje de urgencia + IDLE.
+    - CANCEL (no, no es urgencia) → según `dental_assistant_mode`:
+        - send_link → mandar link de booking + IDLE.
+        - in_chat   → iniciar state machine normal de booking.
+        - hybrid    → ofrecer link Y opción de seguir.
+    - Cualquier otro intent → re-preguntar (mantener estado).
+    """
+    profile = await get_tenant_profile(tenant_slug) or {}
+    mode = profile.get("dental_assistant_mode") or "in_chat"
+    urgency_phone = profile.get("urgency_phone") or ""
+    urgency_msg = profile.get("urgency_message") or ""
+
+    # Sí → urgencia.
+    if intent == Intent.CONFIRM:
+        await reset_state(tenant_id, conversation_id)
+        if urgency_msg:
+            return urgency_msg
+        if urgency_phone:
+            return _m("urgency_response_yes_default", urgency_phone=urgency_phone)
+        # Sin teléfono configurado: derivar a humano.
+        state["state"] = ConvState.HANDED_OFF
+        await save_state(tenant_id, conversation_id, state)
+        asyncio.create_task(notify_handoff(
+            tenant_slug, conversation_id, wa_phone, "urgency_no_phone_configured",
+        ))
+        return _m("urgency_response_yes_no_phone")
+
+    # No → no es urgencia. Rutear según modo configurado.
+    if intent == Intent.CANCEL:
+        url = _booking_url(tenant_slug)
+        if mode == "send_link":
+            await reset_state(tenant_id, conversation_id)
+            return _m("urgency_response_no_send_link", url=url)
+        if mode == "hybrid":
+            await reset_state(tenant_id, conversation_id)
+            return _m("urgency_response_no_hybrid", url=url)
+        # in_chat: pasar al flujo determinista normal.
+        state["state"] = ConvState.IDLE
+        await save_state(tenant_id, conversation_id, state)
+        return await _start_booking_flow(
+            tenant_id, tenant_slug, conversation_id, state, wa_phone,
+        )
+
+    # Intent ambiguo — re-preguntar.
+    return _m("urgency_triage_prompt")
+
+
 async def _handle(
     tenant_id: str,
     tenant_slug: str,
@@ -445,6 +603,20 @@ async def _handle(
     # --- Estado HANDED_OFF: no responder automáticamente ---
     if current_state == ConvState.HANDED_OFF:
         return None
+
+    # --- Guardrails Layer 1: injection / offensive / off-topic ---
+    # Corren antes del intent classifier para no gastar tokens del LLM en
+    # mensajes que igualmente vamos a rechazar/derivar.
+    guard_hit = run_all_guards(message_text)
+    if guard_hit is not None:
+        return await _handle_guard_hit(
+            tenant_id, tenant_slug, conversation_id, wa_phone,
+            state, guard_hit,
+        )
+
+    # Mensaje on-topic — reset del contador de off-topic strikes.
+    if state.get("off_topic_strikes", 0) > 0:
+        state["off_topic_strikes"] = 0
 
     # --- Detectar intención (sesgado por el estado actual) ---
     pending_data = {
@@ -550,6 +722,12 @@ async def _handle(
             return _m("booking_cancelled")
         return _m("reschedule_confirm", service=state.get("pending_reschedule_service", ""), datetime=state.get("pending_reschedule_datetime", ""))
 
+    # === AWAITING_URGENCY_TRIAGE: triaje dental antes de iniciar booking ===
+    if current_state == ConvState.AWAITING_URGENCY_TRIAGE:
+        return await _handle_urgency_triage(
+            tenant_id, tenant_slug, conversation_id, state, wa_phone, intent,
+        )
+
     # === IDLE: flujos nuevos ===
 
     # Saludo determinista del primer turno (sin LLM) — predecible y barato.
@@ -573,6 +751,14 @@ async def _handle(
         return _m("booking_link_explicit", url=_booking_url(tenant_slug))
 
     if intent == Intent.BOOKING:
+        # Gate dental: si el tenant es dental, antes de iniciar el flujo
+        # de booking corremos un triaje breve de urgencia (¿dolor fuerte?).
+        # El profile lo cargamos lazy solo cuando hace falta.
+        triage = await _maybe_dental_triage(
+            tenant_id, tenant_slug, conversation_id, state,
+        )
+        if triage is not None:
+            return triage
         return await _start_booking_flow(
             tenant_id, tenant_slug, conversation_id, state, wa_phone
         )
@@ -1105,10 +1291,18 @@ async def _handle_query(
         messages.append({"role": h["role"], "content": h["content"]})
     messages.append({"role": "user", "content": message_text})
 
+    # En tenants dentales con modo 'send_link' desregistramos las tools que
+    # agendan in-chat (check_availability + book_appointment): el LLM solo
+    # informa y deriva al link de booking. Para no-dental o modos in_chat/hybrid
+    # se devuelve OPENAI_TOOLS completo.
+    profile_for_mode = await get_tenant_profile(tenant_slug) or {}
+    dental_mode = profile_for_mode.get("dental_assistant_mode")
+    tools_for_call = openai_tools_for_mode(dental_mode)
+
     try:
         result = await chat_with_tools(
             messages=messages,
-            tools=OPENAI_TOOLS,
+            tools=tools_for_call,
             # customer_phone se inyecta para que la tool book_appointment
             # pueda reservar sin que el LLM lo controle. Si llega vacío
             # (p.ej. tests), la tool fallará con "missing_customer_phone".

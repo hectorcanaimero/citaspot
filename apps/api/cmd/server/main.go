@@ -156,6 +156,12 @@ func main() {
 	}); ok {
 		setter.SetUserNotificationSvc(userNotifSvc)
 	}
+	// Mismo patrón para publicSvc — usa notifSvc en NotifyHandoff (guards).
+	if setter, ok := publicSvc.(interface {
+		SetUserNotificationSvc(domain.UserNotificationSvc)
+	}); ok {
+		setter.SetUserNotificationSvc(userNotifSvc)
+	}
 
 	var waSvc domain.WhatsAppSvc
 	if publisher != nil {

@@ -323,7 +323,9 @@ export const appointments = {
     });
   },
 
-  async reschedule(id: string, data: { starts_at: string; ends_at: string; professional_id?: string }): Promise<void> {
+  // ends_at es opcional en el contrato: si no se envía, el backend usa la duración del servicio.
+  // Para drag/resize SIEMPRE lo enviamos para preservar la duración exacta que se ve en el grid.
+  async reschedule(id: string, data: { starts_at: string; ends_at?: string; professional_id?: string }): Promise<void> {
     return request(`/api/v1/appointments/${id}/reschedule`, {
       method: 'PATCH',
       body: JSON.stringify(data),

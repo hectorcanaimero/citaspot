@@ -14,8 +14,9 @@ import {
   ChevronLeft, ChevronRight, Plus, AlignLeft, CalendarDays, LayoutGrid, List,
 } from 'lucide-react';
 import AppointmentsList from '@/components/dashboard/appointments-list';
+import { toast } from 'sonner';
 import {
-  appointments, Appointment,
+  appointments, Appointment, APIError,
   professionals, Professional,
   services, Service,
   TimeSlot,
@@ -24,6 +25,7 @@ import { useTenantTimezone } from '@/store/tenant';
 import {
   START_HOUR, END_HOUR, HOUR_PX, TOTAL_HOURS, GRID_PX,
   toDateStr, topPx, heightPx, assignColumns, nowPx,
+  gridYToIsoUTC, addMinutesIso, diffMinutesIso, snapMinutes,
 } from '@/lib/calendar-utils';
 import { useTranslations, useDateLocale } from '@/lib/i18n';
 import NewAppointmentModal from '@/components/dashboard/NewAppointmentModal';
@@ -56,20 +58,114 @@ const STATUS_CFG: Record<
   no_show:   { text: 'text-neutral-600', bg: 'bg-neutral-100', border: 'border-neutral-300' },
 };
 
+// ── MIME type del drag (HTML5) ────────────────────────────────────────────────
+
+// Usamos un tipo custom para distinguir nuestros drags de cualquier otro.
+const DRAG_MIME = 'application/x-citaspot-appt';
+
+interface DragPayload {
+  appointmentId:        string;
+  // Offset (en minutos) entre el punto donde el usuario "agarró" el bloque y el
+  // inicio real del bloque. Necesario para no "saltar" la cita al top del cursor.
+  grabOffsetMinutes:    number;
+  // Duración original — para preservarla al soltar.
+  durationMinutes:      number;
+  // Date string del día de origen (YYYY-MM-DD) — debug / drop entre días.
+  sourceDateStr:        string;
+}
+
 // ── Bloque de cita (en el grid de tiempo) ─────────────────────────────────────
 
-function ApptBlock({ appt, profColor, onClick, tz }: { appt: ApptWithCol; profColor?: string; onClick?: () => void; tz: string }) {
+function ApptBlock({
+  appt,
+  profColor,
+  onClick,
+  onResizeRequest,
+  interactive,
+  tz,
+}: {
+  appt: ApptWithCol;
+  profColor?: string;
+  onClick?: () => void;
+  // Solicitud de resize (cambio de ends_at). El parent decide qué hacer.
+  onResizeRequest?: (appt: Appointment, newEndIso: string) => void;
+  interactive: boolean;        // habilita drag & resize (solo en day/week)
+  tz: string;
+}) {
   const top    = topPx(appt.starts_at, tz);
   const height = heightPx(appt.service_duration_min);
   const pct    = 100 / appt.span;
   const color  = profColor ?? '#6b7280';
 
+  // Mientras se hace resize manual marcamos el bloque para feedback visual.
+  const [resizing,  setResizing]  = useState(false);
+  const [ghostEnds, setGhostEnds] = useState<string | null>(null);
+
+  // ── Drag & drop nativo HTML5 ────────────────────────────────────────────────
+  function handleDragStart(e: React.DragEvent<HTMLDivElement>) {
+    if (!interactive) return;
+    const rect       = e.currentTarget.getBoundingClientRect();
+    const grabY      = e.clientY - rect.top;                 // px desde top del block
+    const grabMins   = (grabY / HOUR_PX) * 60;
+    const durMins    = diffMinutesIso(appt.starts_at, appt.ends_at) || appt.service_duration_min;
+    const payload: DragPayload = {
+      appointmentId:     appt.id,
+      grabOffsetMinutes: grabMins,
+      durationMinutes:   durMins,
+      sourceDateStr:     toDateStr(new Date(appt.starts_at)),
+    };
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData(DRAG_MIME, JSON.stringify(payload));
+    // Fallback para navegadores que requieren un tipo "text/plain".
+    e.dataTransfer.setData('text/plain', appt.id);
+  }
+
+  // ── Resize handle (mousedown en el borde inferior, NO drag HTML5) ──────────
+  // Usamos mouse events crudos para evitar conflicto con el drag del bloque
+  // y para no disparar el click al soltar.
+  function handleResizeStart(e: React.MouseEvent<HTMLDivElement>) {
+    if (!interactive || !onResizeRequest) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const startY     = e.clientY;
+    const durStart   = diffMinutesIso(appt.starts_at, appt.ends_at) || appt.service_duration_min;
+    let   finalEnds  = appt.ends_at;
+    setResizing(true);
+
+    function onMove(ev: MouseEvent) {
+      const deltaY     = ev.clientY - startY;
+      const deltaMins  = (deltaY / HOUR_PX) * 60;
+      // Nueva duración con snap a 15min y clamp a >= 15.
+      let   newDur     = snapMinutes(durStart + deltaMins, 15);
+      if (newDur < 15) newDur = 15;
+      finalEnds = addMinutesIso(appt.starts_at, newDur);
+      setGhostEnds(finalEnds);
+    }
+    function onUp() {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup',   onUp);
+      setResizing(false);
+      setGhostEnds(null);
+      if (finalEnds !== appt.ends_at) {
+        onResizeRequest!(appt, finalEnds);
+      }
+    }
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup',   onUp);
+  }
+
+  // Altura "fantasma" mientras se hace resize, para feedback en vivo.
+  const liveHeight = ghostEnds
+    ? Math.max(diffMinutesIso(appt.starts_at, ghostEnds) * (HOUR_PX / 60), 22)
+    : height;
+
   return (
     <div
-      className="absolute z-10 overflow-hidden rounded border border-neutral-200 px-1.5 py-0.5 text-xs cursor-pointer transition-all hover:z-20 hover:shadow-md"
+      className={`absolute z-10 overflow-hidden rounded border border-neutral-200 px-1.5 py-0.5 text-xs transition-shadow hover:z-20 hover:shadow-md ${interactive ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'} ${resizing ? 'ring-2 ring-primary-300' : ''}`}
       style={{
         top,
-        height,
+        height:          liveHeight,
         width:           `calc(${pct}% - 4px)`,
         left:            `calc(${(appt.col / appt.span) * 100}% + ${appt.col > 0 ? 2 : 0}px)`,
         minWidth:        0,
@@ -78,18 +174,30 @@ function ApptBlock({ appt, profColor, onClick, tz }: { appt: ApptWithCol; profCo
         backgroundColor: `${color}14`,
       }}
       title={`${appt.customer_name} · ${appt.service_name} · ${appt.professional_name}`}
+      draggable={interactive}
+      onDragStart={handleDragStart}
       onClick={onClick}
     >
-      <p className="font-semibold leading-tight truncate text-neutral-800">
+      <p className="font-semibold leading-tight truncate text-neutral-800 pointer-events-none">
         {formatInTimeZone(appt.starts_at, tz, 'HH:mm')} {appt.customer_name}
       </p>
-      {height >= 38 && (
-        <p className="truncate leading-tight text-neutral-500">{appt.service_name}</p>
+      {liveHeight >= 38 && (
+        <p className="truncate leading-tight text-neutral-500 pointer-events-none">{appt.service_name}</p>
       )}
-      {height >= 54 && (
-        <p className="truncate leading-tight font-medium" style={{ color }}>
+      {liveHeight >= 54 && (
+        <p className="truncate leading-tight font-medium pointer-events-none" style={{ color }}>
           {appt.professional_name}
         </p>
+      )}
+
+      {/* Resize handle inferior — solo si es interactivo */}
+      {interactive && onResizeRequest && (
+        <div
+          onMouseDown={handleResizeStart}
+          onClick={e => e.stopPropagation()}
+          className="absolute inset-x-0 bottom-0 h-1.5 cursor-ns-resize bg-transparent hover:bg-neutral-400/50 transition-colors"
+          aria-label="Resize"
+        />
       )}
     </div>
   );
@@ -138,6 +246,9 @@ function DayColumn({
   isLoadingDay,
   profColorMap = {},
   onApptClick,
+  onDropAppt,
+  onResizeRequest,
+  interactive,
   tz,
 }: {
   date: Date;
@@ -146,16 +257,59 @@ function DayColumn({
   isLoadingDay: boolean;
   profColorMap?: Record<string, string>;
   onApptClick?: (appt: Appointment) => void;
+  // Solicitud de movimiento (drop): el parent recibe el id, el nuevo starts_at y la duración a preservar.
+  onDropAppt?: (appointmentId: string, newStartIso: string, durationMinutes: number) => void;
+  onResizeRequest?: (appt: Appointment, newEndIso: string) => void;
+  interactive: boolean;
   tz: string;
 }) {
   const positioned = assignColumns(appts);
   const today      = isTodayFn(date);
   const nowTop     = today ? nowPx(new Date(), tz) : -1;
+  const [dragOver, setDragOver] = useState(false);
+
+  // ── Drop handlers HTML5 ────────────────────────────────────────────────────
+  function handleDragOver(e: React.DragEvent<HTMLDivElement>) {
+    if (!interactive || !onDropAppt) return;
+    // preventDefault necesario para permitir el drop.
+    if (e.dataTransfer.types.includes(DRAG_MIME) || e.dataTransfer.types.includes('text/plain')) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      if (!dragOver) setDragOver(true);
+    }
+  }
+
+  function handleDragLeave() {
+    if (dragOver) setDragOver(false);
+  }
+
+  function handleDrop(e: React.DragEvent<HTMLDivElement>) {
+    if (!interactive || !onDropAppt) return;
+    e.preventDefault();
+    setDragOver(false);
+    const raw = e.dataTransfer.getData(DRAG_MIME);
+    if (!raw) return;
+    let payload: DragPayload;
+    try { payload = JSON.parse(raw); } catch { return; }
+
+    // Y dentro del column relativo al borde superior del grid.
+    const rect = e.currentTarget.getBoundingClientRect();
+    const y    = e.clientY - rect.top;
+    // Restamos el offset de agarre para que la cita quede donde el usuario "agarró".
+    const grabPx = (payload.grabOffsetMinutes / 60) * HOUR_PX;
+    const newY   = y - grabPx;
+
+    const newStartIso = gridYToIsoUTC(date, newY, tz, 15);
+    onDropAppt(payload.appointmentId, newStartIso, payload.durationMinutes);
+  }
 
   return (
     <div
-      className="relative flex-1 min-w-0 border-l border-neutral-100"
+      className={`relative flex-1 min-w-0 border-l border-neutral-100 ${dragOver ? 'bg-primary-50/40' : ''}`}
       style={{ height: GRID_PX }}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
     >
       {HOUR_LABELS.map(h => (
         <div
@@ -179,7 +333,17 @@ function DayColumn({
       )}
 
       {slots.map((slot, i) => <SlotBlock key={i} slot={slot} tz={tz} />)}
-      {positioned.map(appt => <ApptBlock key={appt.id} appt={appt} profColor={profColorMap[appt.professional_id]} onClick={onApptClick ? () => onApptClick(appt) : undefined} tz={tz} />)}
+      {positioned.map(appt => (
+        <ApptBlock
+          key={appt.id}
+          appt={appt}
+          profColor={profColorMap[appt.professional_id]}
+          onClick={onApptClick ? () => onApptClick(appt) : undefined}
+          onResizeRequest={onResizeRequest}
+          interactive={interactive}
+          tz={tz}
+        />
+      ))}
 
       {today && nowTop >= 0 && nowTop <= GRID_PX && (
         <div
@@ -202,6 +366,8 @@ function DayView({
   slots,
   profColorMap = {},
   onApptClick,
+  onDropAppt,
+  onResizeRequest,
   tz,
 }: {
   date: Date;
@@ -209,6 +375,8 @@ function DayView({
   slots: TimeSlot[];
   profColorMap?: Record<string, string>;
   onApptClick?: (appt: Appointment) => void;
+  onDropAppt?: (appointmentId: string, newStartIso: string, durationMinutes: number) => void;
+  onResizeRequest?: (appt: Appointment, newEndIso: string) => void;
   tz: string;
 }) {
   const str     = toDateStr(date);
@@ -219,7 +387,18 @@ function DayView({
   return (
     <div className="flex h-full overflow-y-auto">
       <TimeLabels />
-      <DayColumn date={date} appts={appts} slots={slots} isLoadingDay={loading} profColorMap={profColorMap} onApptClick={onApptClick} tz={tz} />
+      <DayColumn
+        date={date}
+        appts={appts}
+        slots={slots}
+        isLoadingDay={loading}
+        profColorMap={profColorMap}
+        onApptClick={onApptClick}
+        onDropAppt={onDropAppt}
+        onResizeRequest={onResizeRequest}
+        interactive
+        tz={tz}
+      />
     </div>
   );
 }
@@ -231,12 +410,16 @@ function WeekView({
   dayMap,
   profColorMap = {},
   onApptClick,
+  onDropAppt,
+  onResizeRequest,
   tz,
 }: {
   weekStart: Date;
   dayMap: Record<string, DayState>;
   profColorMap?: Record<string, string>;
   onApptClick?: (appt: Appointment) => void;
+  onDropAppt?: (appointmentId: string, newStartIso: string, durationMinutes: number) => void;
+  onResizeRequest?: (appt: Appointment, newEndIso: string) => void;
   tz: string;
 }) {
   const dateLocale = useDateLocale();
@@ -286,6 +469,9 @@ function WeekView({
               isLoadingDay={loading}
               profColorMap={profColorMap}
               onApptClick={onApptClick}
+              onDropAppt={onDropAppt}
+              onResizeRequest={onResizeRequest}
+              interactive
               tz={tz}
             />
           );
@@ -541,6 +727,111 @@ export default function AgendaPage() {
     dateStrs.forEach(str => ensureLoaded([new Date(str + 'T00:00:00')]));
   }, [ensureLoaded]);
 
+  // ── Reschedule con optimistic update + revert + toast ─────────────────────
+  // Aplica el cambio en memoria primero, llama al backend, y revierte si falla.
+  // Maneja conflicto (409 / código "slot_unavailable" / "conflict") con toast amable.
+  const applyReschedule = useCallback(async (
+    appointmentId: string,
+    newStartIso:   string,
+    newEndIso:     string,
+  ) => {
+    // Localizar la cita en dayMapRef (los días filtrados son derivados de dayMap)
+    let original: Appointment | null = null;
+    let oldDateStr = '';
+    for (const [str, val] of Object.entries(dayMapRef.current)) {
+      if (Array.isArray(val)) {
+        const found = val.find(a => a.id === appointmentId);
+        if (found) { original = found; oldDateStr = str; break; }
+      }
+    }
+    if (!original) return;
+
+    // No-op si no cambia nada
+    if (original.starts_at === newStartIso && original.ends_at === newEndIso) return;
+
+    const newDateStr = toDateStr(new Date(newStartIso));
+    const newDurMin  = diffMinutesIso(newStartIso, newEndIso);
+
+    const updated: Appointment = {
+      ...original,
+      starts_at:            newStartIso,
+      ends_at:              newEndIso,
+      service_duration_min: newDurMin > 0 ? newDurMin : original.service_duration_min,
+    };
+
+    // Snapshot para revertir
+    const snapshot: Record<string, DayState> = {};
+    const touchedDates = oldDateStr === newDateStr ? [oldDateStr] : [oldDateStr, newDateStr];
+    touchedDates.forEach(d => {
+      snapshot[d] = dayMapRef.current[d];
+    });
+
+    // Optimistic: quitar del día viejo, añadir al nuevo
+    setDayMap(prev => {
+      const next = { ...prev };
+      const oldList = Array.isArray(next[oldDateStr]) ? next[oldDateStr] as Appointment[] : [];
+      next[oldDateStr] = oldList.filter(a => a.id !== appointmentId);
+      if (oldDateStr === newDateStr) {
+        next[newDateStr] = [...(next[oldDateStr] as Appointment[]), updated];
+      } else {
+        const newList = Array.isArray(next[newDateStr]) ? next[newDateStr] as Appointment[] : [];
+        next[newDateStr] = [...newList, updated];
+      }
+      // Sincronizar el ref para que el próximo cálculo lo encuentre actualizado
+      Object.assign(dayMapRef.current, next);
+      return next;
+    });
+
+    try {
+      await appointments.reschedule(appointmentId, {
+        starts_at: newStartIso,
+        ends_at:   newEndIso,
+      });
+    } catch (err) {
+      // Revertir
+      setDayMap(prev => {
+        const next = { ...prev };
+        touchedDates.forEach(d => { next[d] = snapshot[d]; });
+        Object.assign(dayMapRef.current, next);
+        return next;
+      });
+      // Mostrar toast según código de error
+      const isConflict = err instanceof APIError && (
+        err.status === 409 ||
+        err.code   === 'slot_unavailable' ||
+        err.code   === 'conflict' ||
+        /unavailable|conflict/i.test(err.message)
+      );
+      if (isConflict) {
+        // Toast con acción para abrir el modal de detalle en modo reschedule.
+        // Si esto requiriera refactor grande del modal, dejamos solo el toast simple.
+        toast.error(t.agenda.rescheduleConflict, {
+          action: original ? {
+            label: t.agenda.viewAvailableSlots,
+            onClick: () => setDetailAppt(original!),
+          } : undefined,
+        });
+      } else {
+        toast.error(t.agenda.rescheduleError);
+      }
+    }
+  }, [t]);
+
+  // Handler para drop: preserva la duración del payload (que viene del bloque arrastrado).
+  const handleDropAppt = useCallback((
+    appointmentId:   string,
+    newStartIso:     string,
+    durationMinutes: number,
+  ) => {
+    const newEndIso = addMinutesIso(newStartIso, durationMinutes);
+    applyReschedule(appointmentId, newStartIso, newEndIso);
+  }, [applyReschedule]);
+
+  // Handler para resize: mantiene starts_at, cambia ends_at.
+  const handleResizeRequest = useCallback((appt: Appointment, newEndIso: string) => {
+    applyReschedule(appt.id, appt.starts_at, newEndIso);
+  }, [applyReschedule]);
+
   function navigate(dir: 1 | -1) {
     setCurrentDate(prev => {
       if (view === 'day')   return dir > 0 ? addDays(prev, 1)   : subDays(prev, 1);
@@ -735,6 +1026,8 @@ export default function AgendaPage() {
             slots={slots}
             profColorMap={profColorMap}
             onApptClick={setDetailAppt}
+            onDropAppt={handleDropAppt}
+            onResizeRequest={handleResizeRequest}
             tz={tenantTz}
           />
         )}
@@ -744,6 +1037,8 @@ export default function AgendaPage() {
             dayMap={filteredDayMap}
             profColorMap={profColorMap}
             onApptClick={setDetailAppt}
+            onDropAppt={handleDropAppt}
+            onResizeRequest={handleResizeRequest}
             tz={tenantTz}
           />
         )}

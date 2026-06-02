@@ -57,9 +57,21 @@ const config: Config = {
           active: '#2c2c2e',
           muted:  '#636366',
         },
+        // Landing — light surface
+        lp: {
+          bg:           '#FFFFFF',
+          'bg-subtle':  '#FAFAF9',
+          'bg-muted':   '#F5F4F1',
+          ink:          '#0C0A08',
+          'ink-soft':   '#3F3A35',
+          'ink-muted':  '#6B6058',
+          border:       '#E8E4DE',
+          'border-strong': '#D6D0C7',
+        },
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['var(--font-sans)', 'Inter', 'system-ui', 'sans-serif'],
+        serif: ['var(--font-serif)', 'Cormorant Garamond', 'Georgia', 'serif'],
         mono: ['JetBrains Mono', 'monospace'],
       },
       fontSize: {

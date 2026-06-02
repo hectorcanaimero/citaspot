@@ -106,6 +106,16 @@ MESSAGES: dict[str, dict[str, str]] = {
         "booking_link_soft": "Si te resulta más cómodo, también puedes agendar desde la web:\n{url}",
         # Respuesta a pedido explícito del link
         "booking_link_explicit": "¡Claro! Aquí tienes el link para reservar:\n{url}",
+        # Guardrails: respuestas a mensajes off-topic / ofensivos
+        "guard_offtopic_redirect": "Solo respondo dudas de *{business_name}*. ¿Te ayudo a agendar?",
+        "guard_offtopic_handoff": "Te derivo con nuestro equipo. Un momento.",
+        "guard_offensive_close": "Para mantener un ambiente de respeto, cerramos este chat. 🙏",
+        # Triaje de urgencia dental
+        "urgency_triage_prompt": "Antes de continuar: ¿presentas dolor fuerte o alguna emergencia ahora? Responde *Sí* o *No*.",
+        "urgency_response_yes_default": "Si es una emergencia, llámanos directamente al *{urgency_phone}* para atenderte de inmediato. 🚨",
+        "urgency_response_yes_no_phone": "Si es una emergencia, te conecto ahora con nuestro equipo para atenderte de inmediato.",
+        "urgency_response_no_send_link": "¡Perfecto! Elige el día y la hora que mejor te queden en este link:\n{url}",
+        "urgency_response_no_hybrid": "¡Perfecto! Puedes agendar desde la web ({url}) o sigo yo paso a paso. ¿Qué prefieres?",
     },
     "en": {
         "slow_response": "One moment, I'm looking that up... ⏳",
@@ -210,6 +220,16 @@ MESSAGES: dict[str, dict[str, str]] = {
         "booking_link_soft": "If it's easier for you, you can also book from the web:\n{url}",
         # Reply to explicit link request
         "booking_link_explicit": "Of course! Here's the link to book:\n{url}",
+        # Guardrails: responses for off-topic / offensive messages
+        "guard_offtopic_redirect": "I can only help with questions about *{business_name}*. Would you like to book?",
+        "guard_offtopic_handoff": "Transferring you to our team. One moment.",
+        "guard_offensive_close": "To keep this a respectful space, I'm closing this chat. 🙏",
+        # Dental urgency triage
+        "urgency_triage_prompt": "Before we continue: are you in severe pain or having an emergency right now? Reply *Yes* or *No*.",
+        "urgency_response_yes_default": "If it's an emergency, please call us directly at *{urgency_phone}* for immediate assistance. 🚨",
+        "urgency_response_yes_no_phone": "If it's an emergency, I'll connect you with our team right now for immediate assistance.",
+        "urgency_response_no_send_link": "Great! Pick the day and time that work best for you here:\n{url}",
+        "urgency_response_no_hybrid": "Great! You can book on the web ({url}) or I can guide you step by step. What do you prefer?",
     },
     "pt": {
         "slow_response": "Um momento, estou consultando isso... ⏳",
@@ -314,6 +334,16 @@ MESSAGES: dict[str, dict[str, str]] = {
         "booking_link_soft": "Se for mais cômodo, você também pode agendar pela web:\n{url}",
         # Resposta a pedido explícito do link
         "booking_link_explicit": "Claro! Aqui está o link para reservar:\n{url}",
+        # Guardrails: respostas a mensagens off-topic / ofensivas
+        "guard_offtopic_redirect": "Só respondo dúvidas de *{business_name}*. Quer agendar?",
+        "guard_offtopic_handoff": "Estou te transferindo para nossa equipe. Um momento.",
+        "guard_offensive_close": "Para manter um ambiente de respeito, encerramos este chat. 🙏",
+        # Triagem de urgência odontológica
+        "urgency_triage_prompt": "Antes de continuar: você está com dor forte ou alguma emergência agora? Responda *Sim* ou *Não*.",
+        "urgency_response_yes_default": "Se for uma emergência, ligue diretamente para *{urgency_phone}* para atendimento imediato. 🚨",
+        "urgency_response_yes_no_phone": "Se for uma emergência, estou te conectando com nossa equipe agora para atendimento imediato.",
+        "urgency_response_no_send_link": "Perfeito! Escolha o dia e horário que melhor funcionarem para você neste link:\n{url}",
+        "urgency_response_no_hybrid": "Perfeito! Você pode agendar pela web ({url}) ou eu te guio passo a passo. O que prefere?",
     },
 }
 
