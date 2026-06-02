@@ -6,6 +6,7 @@ const DESCRIPTION =
   'Automatiza citas, responde clientes 24/7 y reduce no-shows. El asistente IA para negocios de salud y belleza en LATAM.';
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://citaspot.com'),
   title: TITLE,
   description: DESCRIPTION,
   applicationName: 'CitaSpot',

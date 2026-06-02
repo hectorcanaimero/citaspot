@@ -8,22 +8,26 @@ export function Marquee() {
 
   return (
     <div className="overflow-hidden border-y border-lp-border bg-lp-bg-subtle py-4">
-      <div className="flex w-[200%] animate-[marquee_24s_linear_infinite]">
+      <div className="flex w-max animate-[marquee_28s_linear_infinite]">
         {[0, 1].map((n) => (
-          <div key={n} className="flex w-1/2 shrink-0 whitespace-nowrap">
+          <ul
+            key={n}
+            className="flex shrink-0 whitespace-nowrap"
+            aria-hidden={n === 1}
+          >
             {items.map((item, i) => (
-              <span
+              <li
                 key={`${n}-${i}`}
                 className={[
-                  'px-7 text-[13px] font-medium',
+                  'flex items-center gap-2 px-7 text-[13px] font-medium',
                   i % 3 === 1 ? 'text-primary-600' : 'text-lp-ink-muted',
                 ].join(' ')}
               >
-                <span className="mr-2 text-primary-400">✦</span>
+                <span className="text-primary-400">✦</span>
                 {item}
-              </span>
+              </li>
             ))}
-          </div>
+          </ul>
         ))}
       </div>
       <style jsx>{`

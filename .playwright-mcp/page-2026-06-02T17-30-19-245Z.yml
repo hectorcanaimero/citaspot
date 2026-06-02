@@ -1,0 +1,344 @@
+- generic [ref=e2]:
+  - navigation [ref=e3]:
+    - generic [ref=e4]:
+      - link "CitaSpot" [ref=e5] [cursor=pointer]:
+        - /url: /
+        - img "CitaSpot" [ref=e6]
+      - button "Abrir menú" [ref=e7] [cursor=pointer]:
+        - img [ref=e8]
+  - main [ref=e9]:
+    - generic [ref=e13]:
+      - generic [ref=e14]: Vía WhatsApp · Con IA
+      - heading "Tu agenda trabaja sola. Tú cobras." [level=1] [ref=e18]:
+        - text: Tu agenda
+        - text: trabaja sola.
+        - text: Tú cobras.
+      - paragraph [ref=e19]: CitaSpot responde a tus clientes por WhatsApp las 24 horas, agenda citas y envía recordatorios. Cero intervención humana.
+      - generic [ref=e20]:
+        - link "Sumarme a la lista" [ref=e21] [cursor=pointer]:
+          - /url: /waitlist
+          - text: Sumarme a la lista
+          - img [ref=e22]
+        - link "Ver cómo funciona" [ref=e24] [cursor=pointer]:
+          - /url: "#como-funciona"
+      - paragraph [ref=e25]: Acceso anticipado · Beta sin costo
+    - generic [ref=e27]:
+      - list [ref=e28]:
+        - listitem [ref=e29]:
+          - generic [ref=e30]: ✦
+          - text: WhatsApp Oficial
+        - listitem [ref=e31]:
+          - generic [ref=e32]: ✦
+          - text: Asistente IA 24/7
+        - listitem [ref=e33]:
+          - generic [ref=e34]: ✦
+          - text: Recordatorios automáticos
+        - listitem [ref=e35]:
+          - generic [ref=e36]: ✦
+          - text: Multi-profesional
+        - listitem [ref=e37]:
+          - generic [ref=e38]: ✦
+          - text: Sin código
+        - listitem [ref=e39]:
+          - generic [ref=e40]: ✦
+          - text: Soporte en español
+        - listitem [ref=e41]:
+          - generic [ref=e42]: ✦
+          - text: Detección de conflictos
+        - listitem [ref=e43]:
+          - generic [ref=e44]: ✦
+          - text: Link público de reservas
+      - list [ref=e45]:
+        - listitem [ref=e46]:
+          - generic [ref=e47]: ✦
+          - text: WhatsApp Oficial
+        - listitem [ref=e48]:
+          - generic [ref=e49]: ✦
+          - text: Asistente IA 24/7
+        - listitem [ref=e50]:
+          - generic [ref=e51]: ✦
+          - text: Recordatorios automáticos
+        - listitem [ref=e52]:
+          - generic [ref=e53]: ✦
+          - text: Multi-profesional
+        - listitem [ref=e54]:
+          - generic [ref=e55]: ✦
+          - text: Sin código
+        - listitem [ref=e56]:
+          - generic [ref=e57]: ✦
+          - text: Soporte en español
+        - listitem [ref=e58]:
+          - generic [ref=e59]: ✦
+          - text: Detección de conflictos
+        - listitem [ref=e60]:
+          - generic [ref=e61]: ✦
+          - text: Link público de reservas
+    - generic [ref=e63]:
+      - generic [ref=e64]:
+        - generic [ref=e65]:
+          - img [ref=e66]
+          - text: Para quién es
+        - heading "Hecho para negocios por cita" [level=2] [ref=e68]
+        - paragraph [ref=e69]: Si tus clientes piden hora antes de venir, CitaSpot es para ti.
+      - list [ref=e70]:
+        - listitem [ref=e71]:
+          - img [ref=e73]
+          - text: Peluquerías y barberías
+        - listitem [ref=e75]:
+          - img [ref=e77]
+          - text: Spas y centros de estética
+        - listitem [ref=e79]:
+          - img [ref=e81]
+          - text: Clínicas dentales
+        - listitem [ref=e83]:
+          - img [ref=e85]
+          - text: Fisioterapeutas
+        - listitem [ref=e87]:
+          - img [ref=e89]
+          - text: Psicólogos y terapeutas
+        - listitem [ref=e91]:
+          - img [ref=e93]
+          - text: Consultorios médicos
+        - listitem [ref=e95]:
+          - img [ref=e97]
+          - text: Nutricionistas
+        - listitem [ref=e99]:
+          - img [ref=e101]
+          - text: Estudios de masajes
+        - listitem [ref=e103]:
+          - img [ref=e105]
+          - text: Yoga y pilates
+        - listitem [ref=e107]:
+          - img [ref=e109]
+          - text: Veterinarias
+        - listitem [ref=e111]:
+          - img [ref=e113]
+          - text: Lash artists y maquilladores
+        - listitem [ref=e115]:
+          - img [ref=e117]
+          - text: Coaches y profesores
+    - generic [ref=e120]:
+      - generic [ref=e121]:
+        - generic [ref=e122]:
+          - img [ref=e123]
+          - text: Beneficios
+        - heading "Menos caos. Más control." [level=2] [ref=e125]
+      - generic [ref=e126]:
+        - generic [ref=e127]:
+          - generic [ref=e128]:
+            - text: "01"
+            - generic [ref=e129]: Mensajes por todos lados
+            - 'heading "Un asistente, un canal: WhatsApp" [level=3] [ref=e130]'
+            - paragraph [ref=e131]: Tus clientes ya escriben por WhatsApp. CitaSpot responde, agenda y confirma — con tu voz y sin que tengas que abrir el celular.
+          - generic [ref=e133]:
+            - generic [ref=e134]:
+              - generic [ref=e136]: IG
+              - generic [ref=e139]: FB
+              - generic [ref=e142]: Web
+              - generic [ref=e145]: "?"
+              - img [ref=e149]
+            - generic [ref=e151]: Todo en un canal
+        - generic [ref=e152]:
+          - generic [ref=e153]:
+            - text: "02"
+            - generic [ref=e154]: Pierdes citas por responder tarde
+            - heading "Respuesta 24/7, incluso a las 2 AM" [level=3] [ref=e155]
+            - paragraph [ref=e156]: "Mientras duermes, la IA atiende. Cada mensaje tiene respuesta en segundos: precios, horarios, ubicación, lo que sea."
+          - generic [ref=e159]:
+            - generic [ref=e160]:
+              - generic [ref=e162]: 02:14
+              - generic [ref=e163]: "3"
+            - generic [ref=e164]:
+              - generic [ref=e165]: ¿Tienen turno para mañana?
+              - generic [ref=e166]: Sí, ¿qué hora prefieres? 🌙
+        - generic [ref=e167]:
+          - generic [ref=e168]:
+            - text: "03"
+            - generic [ref=e169]: Dobles bookings y conflictos
+            - heading "La agenda nunca se contradice" [level=3] [ref=e170]
+            - paragraph [ref=e171]: CitaSpot conoce tu calendario, tus profesionales y tus horarios. Solo ofrece slots disponibles. Adiós a los conflictos.
+          - generic [ref=e174]:
+            - generic [ref=e175]:
+              - generic [ref=e176]: Mar 12 mar
+              - generic [ref=e177]: 5 slots libres
+            - generic [ref=e178]:
+              - generic [ref=e179]: 09:00
+              - generic [ref=e180]: 10:00
+              - generic [ref=e181]: 11:00
+              - generic [ref=e182]: 12:00
+              - generic [ref=e183]: 14:00
+              - generic [ref=e184]: 15:00
+              - generic [ref=e185]: 16:00
+              - generic [ref=e186]: 17:00
+        - generic [ref=e187]:
+          - generic [ref=e188]:
+            - text: "04"
+            - generic [ref=e189]: No-shows que cuestan dinero
+            - heading "Recordatorios automáticos que confirman" [level=3] [ref=e190]
+            - paragraph [ref=e191]: Recordatorio 24 h antes con un toque para confirmar. Si no responde, la IA hace seguimiento. Menos ausencias.
+          - generic [ref=e194]:
+            - generic [ref=e195]: Hola María 👋 Te recordamos tu cita mañana 10:00 AM - Limpieza facial. ¿Confirmas?
+            - generic [ref=e196]:
+              - button "Reagendar" [ref=e197] [cursor=pointer]
+              - button "✓ Confirmar" [ref=e198] [cursor=pointer]
+            - generic [ref=e199]: ✓ Confirmado, gracias!
+    - generic [ref=e201]:
+      - generic [ref=e202]:
+        - generic [ref=e203]: Cómo funciona
+        - heading "En marcha en menos de 15 minutos" [level=2] [ref=e205]
+        - paragraph [ref=e206]: Sin código y sin técnicos. Tú y tu celular bastan.
+      - list [ref=e207]:
+        - listitem [ref=e208]:
+          - generic [ref=e209]: "1"
+          - generic [ref=e210]:
+            - img [ref=e212]
+            - heading "Conecta tu WhatsApp" [level=3] [ref=e214]
+            - paragraph [ref=e215]: Escaneas un QR y tu número queda vinculado. En menos de 2 minutos.
+        - listitem [ref=e216]:
+          - generic [ref=e217]: "2"
+          - generic [ref=e218]:
+            - img [ref=e220]
+            - heading "Carga tus servicios y horarios" [level=3] [ref=e222]
+            - paragraph [ref=e223]: Subes el catálogo, los profesionales y los horarios. La IA aprende de tu negocio.
+        - listitem [ref=e224]:
+          - generic [ref=e225]: "3"
+          - generic [ref=e226]:
+            - img [ref=e228]
+            - heading "Comparte tu link" [level=3] [ref=e234]
+            - paragraph [ref=e235]: Lo pones en Instagram, WhatsApp o Google. Las citas empiezan a entrar solas.
+    - generic [ref=e237]:
+      - generic [ref=e238]:
+        - generic [ref=e239]: Tu panel de control
+        - heading "Tu día, en una pantalla" [level=2] [ref=e241]
+        - paragraph [ref=e242]: Agenda, WhatsApp y métricas en un solo lugar. Desde el celular o la computadora.
+      - generic [ref=e250]:
+        - complementary [ref=e251]:
+          - navigation [ref=e252]:
+            - img [ref=e254]
+            - img [ref=e257]
+            - img [ref=e260]
+            - img [ref=e263]
+            - img [ref=e269]
+        - main [ref=e272]:
+          - generic [ref=e273]:
+            - generic [ref=e274]:
+              - generic [ref=e275]: Hoy
+              - generic [ref=e276]: Martes, 12 de marzo
+            - button [ref=e278] [cursor=pointer]:
+              - img [ref=e279]
+          - generic [ref=e284]:
+            - generic [ref=e285]:
+              - generic [ref=e286]: Citas
+              - generic [ref=e287]: "12"
+              - generic [ref=e288]: "+3"
+            - generic [ref=e289]:
+              - generic [ref=e290]: Ocupación
+              - generic [ref=e291]: 86%
+              - generic [ref=e292]: +8%
+            - generic [ref=e293]:
+              - generic [ref=e294]: Confirmada
+              - generic [ref=e295]: 10/12
+          - generic [ref=e297]:
+            - generic [ref=e298]: Próximas citas
+            - list [ref=e299]:
+              - listitem [ref=e300]:
+                - generic [ref=e301]: 09:00
+                - generic [ref=e302]:
+                  - generic [ref=e303]: Carla Méndez
+                  - generic [ref=e304]: Limpieza facial
+                - generic [ref=e305]: Confirmada
+              - listitem [ref=e306]:
+                - generic [ref=e307]: 10:30
+                - generic [ref=e308]:
+                  - generic [ref=e309]: Andrés Pérez
+                  - generic [ref=e310]: Corte + barba
+                - generic [ref=e311]: Confirmada
+              - listitem [ref=e312]:
+                - generic [ref=e313]: 12:00
+                - generic [ref=e314]:
+                  - generic [ref=e315]: Lucía Vega
+                  - generic [ref=e316]: Manicure
+                - generic [ref=e317]: Pendiente
+              - listitem [ref=e318]:
+                - generic [ref=e319]: 14:00
+                - generic [ref=e320]:
+                  - generic [ref=e321]: Pedro Torres
+                  - generic [ref=e322]: Masaje 60min
+                - generic [ref=e323]: Confirmada
+              - listitem [ref=e324]:
+                - generic [ref=e325]: 16:00
+                - generic [ref=e326]:
+                  - generic [ref=e327]: María Soto
+                  - generic [ref=e328]: Tinte + corte
+                - generic [ref=e329]: Confirmada
+    - generic [ref=e331]:
+      - generic [ref=e332]:
+        - generic [ref=e333]: Acceso anticipado
+        - heading "Súmate a la lista de espera" [level=2] [ref=e335]
+        - paragraph [ref=e336]: Estamos abriendo cupos por país. Los primeros entran a beta sin costo y ayudan a definir el producto.
+      - generic [ref=e337]:
+        - generic [ref=e338]:
+          - img [ref=e340]
+          - heading "Acceso anticipado" [level=3] [ref=e345]
+          - paragraph [ref=e346]: Pruebas CitaSpot antes que nadie en cuanto abramos cupos en tu país.
+        - generic [ref=e347]:
+          - img [ref=e349]
+          - heading "Beta sin costo" [level=3] [ref=e351]
+          - paragraph [ref=e352]: Los primeros negocios usan CitaSpot gratis mientras dura la beta.
+        - generic [ref=e353]:
+          - img [ref=e355]
+          - heading "Voz en el producto" [level=3] [ref=e359]
+          - paragraph [ref=e360]: Tu feedback define qué construimos. Te escuchamos directamente.
+    - generic [ref=e362]:
+      - generic [ref=e363]: Sin costo durante beta
+      - heading "Empieza hoy. Antes que tu competencia." [level=2] [ref=e365]:
+        - text: Empieza hoy.
+        - text: Antes que tu competencia.
+      - paragraph [ref=e366]: Deja tu correo y te avisamos en cuanto abramos cupos en tu país.
+      - generic [ref=e367]:
+        - textbox "tu@correo.com" [ref=e368]
+        - button "Sumarme a la lista" [ref=e369] [cursor=pointer]:
+          - text: Sumarme a la lista
+          - img [ref=e370]
+      - list [ref=e372]:
+        - listitem [ref=e373]:
+          - img [ref=e374]
+          - text: Sin tarjeta de crédito
+        - listitem [ref=e376]:
+          - img [ref=e377]
+          - text: Cupo por orden de inscripción
+        - listitem [ref=e379]:
+          - img [ref=e380]
+          - text: Cancelas cuando quieras
+      - link "Ya tengo cuenta" [ref=e383] [cursor=pointer]:
+        - /url: /login
+  - contentinfo [ref=e384]:
+    - generic [ref=e385]:
+      - generic [ref=e386]:
+        - generic [ref=e387]:
+          - img "CitaSpot" [ref=e388]
+          - paragraph [ref=e389]: Agenda · Conversa · Confirma
+        - navigation [ref=e390]:
+          - link "Para quién" [ref=e391] [cursor=pointer]:
+            - /url: "#para-quien"
+          - link "Beneficios" [ref=e392] [cursor=pointer]:
+            - /url: "#beneficios"
+          - link "Cómo funciona" [ref=e393] [cursor=pointer]:
+            - /url: "#como-funciona"
+          - link "Iniciar sesión" [ref=e394] [cursor=pointer]:
+            - /url: /login
+          - link "Sumarme a la lista" [ref=e395] [cursor=pointer]:
+            - /url: /waitlist
+      - generic [ref=e396]:
+        - generic [ref=e397]:
+          - link "Privacidad" [ref=e398] [cursor=pointer]:
+            - /url: /privacy
+          - link "Términos" [ref=e399] [cursor=pointer]:
+            - /url: /terms
+          - link "hola@citaspot.com" [ref=e400] [cursor=pointer]:
+            - /url: mailto:hola@citaspot.com
+        - generic [ref=e401]: © 2026 CitaSpot
+  - link "Sumarme a la lista" [ref=e403] [cursor=pointer]:
+    - /url: /waitlist
+    - text: Sumarme a la lista
+    - img [ref=e404]
